@@ -57,11 +57,12 @@
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const rawUnit = urlParams.get('unit');
+    const unitId = urlParams.get('id');
     const unitName = (rawUnit && rawUnit !== '{Name}') ? decodeURIComponent(rawUnit) : null;
 
     document.getElementById('unit-title').innerText = unitName || 'No Unit Selected';
 
-    // Public Feature Layer REST Service for location query
+    // Public Feature Layer REST Endpoint
     const FEATURE_SERVICE_URL = "https://services0.arcgis.com/OG2L6B599T6L9R01/arcgis/rest/services/Fuel_Treatments_Units/FeatureServer/0/query";
 
     function getValueForTime(valuesArray, targetTime) {
@@ -82,30 +83,39 @@
       return null;
     }
 
-    async function getUnitCoordinates(name) {
-      // Query layer REST API by unit name to get polygon centroid
-      const queryUrl = `${FEATURE_SERVICE_URL}?where=Name='${encodeURIComponent(name)}'&outFields=Name&returnGeometry=true&f=geojson`;
+    async function getUnitCoordinatesById(id) {
+      const queryUrl = `${FEATURE_SERVICE_URL}?where=OBJECTID=${id}&returnGeometry=true&outSR=4326&f=json`;
+
       const res = await fetch(queryUrl);
-      if (!res.ok) throw new Error("Could not locate unit boundaries on feature service.");
+      if (!res.ok) throw new Error(`ArcGIS Feature query error (${res.status})`);
       const data = await res.json();
-      
-      if (!data.features || data.features.length === 0) {
-        throw new Error(`Unit "${name}" not found in feature dataset.`);
+
+      if (!data.features || data.features.length === 0) throw new Error(`Unit ID ${id} not found in dataset.`);
+
+      const geom = data.features[0].geometry;
+      let points = [];
+      if (geom.rings) {
+        geom.rings.forEach(ring => ring.forEach(pt => points.push(pt)));
+      } else if (geom.x && geom.y) {
+        return { lat: geom.y, lon: geom.x };
       }
 
-      // Calculate centroid coordinates
-      const geom = data.features[0].geometry;
-      let coords = [];
-      if (geom.type === "Polygon") coords = geom.coordinates[0];
-      else if (geom.type === "MultiPolygon") coords = geom.coordinates[0][0];
+      if (points.length === 0) throw new Error(`Could not extract spatial coordinates.`);
 
       let sumLon = 0, sumLat = 0;
-      coords.forEach(c => { sumLon += c[0]; sumLat += c[1]; });
-      return { lat: sumLat / coords.length, lon: sumLon / coords.length };
+      points.forEach(pt => {
+        sumLon += pt[0];
+        sumLat += pt[1];
+      });
+
+      return {
+        lat: sumLat / points.length,
+        lon: sumLon / points.length
+      };
     }
 
     async function runEvaluation() {
-      if (!unitName) {
+      if (!unitId || unitId === '{OBJECTID}') {
         document.getElementById('status').innerText = "Select a burn unit polygon on the map or use the top search bar to view its live 72-hour NWS weather compared to your prescriptions.";
         return;
       }
@@ -123,28 +133,22 @@
         return;
       }
 
-      document.getElementById('status').innerText = `Locating unit "${unitName}"...`;
+      document.getElementById('status').innerText = `Locating unit...`;
 
       try {
-        // 1. Get Coordinates from Unit Name
-        let coords;
-        try {
-          coords = await getUnitCoordinates(unitName);
-        } catch (e) {
-          // Fallback to Gunnison CO center if query fails
-          coords = { lat: 38.54, lon: -106.93 };
-        }
+        // 1. Get Coordinates by OBJECTID
+        const coords = await getUnitCoordinatesById(unitId);
 
-        document.getElementById('status').innerText = "Fetching live NWS forecast & grid data...";
+        document.getElementById('status').innerText = `Querying NWS forecast office...`;
 
-        // 2. Query NWS Grid Point
+        // 2. Query NWS API Point
         const pointRes = await fetch(`https://api.weather.gov/points/${coords.lat.toFixed(4)},${coords.lon.toFixed(4)}`, {
           headers: { 'User-Agent': 'PrescribedBurnApp/1.0' }
         });
         if (!pointRes.ok) throw new Error("NWS grid point response error (" + pointRes.status + ")");
         const pointData = await pointRes.json();
         
-        // 3. Fetch Hourly & Grid Forecast Data
+        // 3. Fetch Hourly & Grid Forecast Data (Parallel)
         const hourlyUrl = pointData.properties.forecastHourly;
         const gridUrl   = pointData.properties.forecastGridData;
 
@@ -156,13 +160,15 @@
         const forecastData = await forecastRes.json();
         const gridData     = await gridRes.json();
 
-        const periods = forecastData.properties.periods.slice(0, 36);
+        const periods = forecastData.properties.periods.slice(0, 72);
         const mixingHeightVals = gridData.properties?.mixingHeight?.values || [];
         const transportWindVals = gridData.properties?.transportWindSpeed?.values || [];
 
         const tbody = document.getElementById('matrix-body');
         tbody.innerHTML = '';
-        document.getElementById('status').innerText = `Forecast Zone: ${pointData.properties.relativeLocation.properties.city}, ${pointData.properties.relativeLocation.properties.state}`;
+        
+        const loc = pointData.properties.relativeLocation.properties;
+        document.getElementById('status').innerText = `Forecast Zone: ${loc.city}, ${loc.state} (${coords.lat.toFixed(2)}, ${coords.lon.toFixed(2)})`;
         document.getElementById('matrix').style.display = 'table';
 
         periods.forEach(p => {
@@ -171,6 +177,7 @@
           const wind = parseInt(p.windSpeed);
           const rh = p.relativeHumidity ? p.relativeHumidity.value : null;
 
+          // Compute Vent Rate (kt-ft)
           let ventRate = null;
           const mHeightMeters = getValueForTime(mixingHeightVals, pTime);
           const tWindKmh      = getValueForTime(transportWindVals, pTime);
@@ -181,6 +188,7 @@
             ventRate = Math.round((mHeightFt * tWindKt) / 1000);
           }
 
+          // Evaluate Prescription Limits
           const tempOk = (temp >= minTemp && temp <= maxTemp);
           const windOk = (wind <= maxWind);
           const rhOk   = (rh !== null) ? (rh >= minRH && rh <= maxRH) : true;
@@ -188,15 +196,15 @@
 
           const isGo = tempOk && windOk && rhOk && ventOk;
 
-          const row = document.createElement('tr');
-          row.className = isGo ? 'go' : 'nogo';
-
+          const tr = document.createElement('tr');
+          tr.className = isGo ? 'go' : 'nogo';
+          
           const weekday = pTime.toLocaleDateString([], { weekday: 'short' });
           const month   = String(pTime.getMonth() + 1).padStart(2, '0');
           const day     = String(pTime.getDate()).padStart(2, '0');
           const time    = pTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-          row.innerHTML = `
+          tr.innerHTML = `
             <td>${weekday} ${month}/${day}, ${time}</td>
             <td>${temp}°F</td>
             <td>${p.windSpeed}</td>
@@ -204,10 +212,10 @@
             <td>${ventRate !== null ? ventRate + ' kt-ft' : 'N/A'}</td>
             <td>${isGo ? 'IN-RX' : 'OUT-OF-RX'}</td>
           `;
-          tbody.appendChild(row);
+          tbody.appendChild(tr);
         });
       } catch (err) {
-        document.getElementById('status').innerText = 'Error loading NWS forecast: ' + err.message;
+        document.getElementById('status').innerText = 'Error: ' + err.message;
       }
     }
 
