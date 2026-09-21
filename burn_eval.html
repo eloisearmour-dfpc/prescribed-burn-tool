@@ -7,7 +7,7 @@
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 12px; background: #f8f9fa; color: #333; margin: 0; }
     .card { background: white; padding: 14px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 12px; }
     .input-header { font-size: 12px; font-weight: bold; color: #0078d4; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-    .rx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+    .rx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
     .rx-field { display: flex; flex-direction: column; font-size: 11px; font-weight: bold; color: #444; }
     .rx-field input { padding: 6px; font-size: 13px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 3px; background: #fff; }
     button { background: #0078d4; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; margin-top: 12px; width: 100%; }
@@ -23,17 +23,16 @@
 
   <div class="card">
     <h3 id="unit-title" style="margin:0 0 4px 0; font-size:16px;">Prescription Evaluator</h3>
-    <div id="status" style="font-size: 11px; color: #666; margin-bottom: 10px;">Select a unit on the map to begin...</div>
+    <div id="status" style="font-size: 11px; color: #666; margin-bottom: 10px;">Select a unit on the map to evaluate weather...</div>
 
     <div class="input-header">Element 7B Prescription Limits</div>
 
-    <!-- Manual Threshold Inputs -->
     <div class="rx-grid">
-      <div class="rx-field">Min Temp (°F)<input type="number" id="minTemp" value="40" placeholder="e.g. 40"></div>
-      <div class="rx-field">Max Temp (°F)<input type="number" id="maxTemp" value="75" placeholder="e.g. 75"></div>
-      <div class="rx-field">Max Wind (mph)<input type="number" id="maxWind" value="12" placeholder="e.g. 12"></div>
-      <div class="rx-field">Min RH (%)<input type="number" id="minRH" value="20" placeholder="e.g. 20"></div>
-      <div class="rx-field">Max RH (%)<input type="number" id="maxRH" value="50" placeholder="e.g. 50"></div>
+      <div class="rx-field">Min Temp (°F)<input type="number" id="minTemp" value="40"></div>
+      <div class="rx-field">Max Temp (°F)<input type="number" id="maxTemp" value="75"></div>
+      <div class="rx-field">Max Wind (mph)<input type="number" id="maxWind" value="12"></div>
+      <div class="rx-field">Min RH (%)<input type="number" id="minRH" value="20"></div>
+      <div class="rx-field">Max RH (%)<input type="number" id="maxRH" value="50"></div>
     </div>
     
     <button onclick="runEvaluation()">Evaluate 72-Hour Burn Window</button>
@@ -54,13 +53,14 @@
 
   <script>
     const urlParams = new URLSearchParams(window.location.search);
-    const unitName = urlParams.get('unit') || 'Selected Unit';
+    const rawUnit = urlParams.get('unit') || 'Demo Unit';
+    const unitName = decodeURIComponent(rawUnit);
 
     document.getElementById('unit-title').innerText = unitName;
 
-    // Default Fallback Coordinates (Montrose / Ouray CO area)
-    let currentLat = parseFloat(urlParams.get('lat')) || 38.07;
-    let currentLon = parseFloat(urlParams.get('lon')) || -107.33;
+    // Center coordinates (Default fallback: Gunnison / Montrose area)
+    let currentLat = parseFloat(urlParams.get('lat')) || 38.54;
+    let currentLon = parseFloat(urlParams.get('lon')) || -106.93;
 
     async function runEvaluation() {
       const minTemp = parseFloat(document.getElementById('minTemp').value);
@@ -70,20 +70,20 @@
       const maxRH   = parseFloat(document.getElementById('maxRH').value);
 
       if (isNaN(minTemp) || isNaN(maxTemp) || isNaN(maxWind) || isNaN(minRH) || isNaN(maxRH)) {
-        alert("Please enter valid numbers for all prescription threshold fields.");
+        alert("Please enter valid numbers for all prescription fields.");
         return;
       }
 
       document.getElementById('status').innerText = "Fetching live NWS forecast grid...";
 
       try {
-        // 1. Fetch NWS Grid point metadata
-        const pointRes = await fetch(`https://api.weather.gov/points/${currentLat},${currentLon}`, {
+        const pointRes = await fetch(`https://api.weather.gov/points/${currentLat.toFixed(4)},${currentLon.toFixed(4)}`, {
           headers: { 'User-Agent': 'PrescribedBurnApp/1.0' }
         });
+        
+        if (!pointRes.ok) throw new Error("NWS grid point response error (" + pointRes.status + ")");
         const pointData = await pointRes.json();
         
-        // 2. Fetch hourly forecast grid
         const hourlyUrl = pointData.properties.forecastHourly;
         const forecastRes = await fetch(hourlyUrl, {
           headers: { 'User-Agent': 'PrescribedBurnApp/1.0' }
@@ -91,10 +91,9 @@
         const forecastData = await forecastRes.json();
         const periods = forecastData.properties.periods.slice(0, 36);
 
-        // 3. Render Table
         const tbody = document.getElementById('matrix-body');
         tbody.innerHTML = '';
-        document.getElementById('status').innerText = `Location: ${pointData.properties.relativeLocation.properties.city}, ${pointData.properties.relativeLocation.properties.state}`;
+        document.getElementById('status').innerText = `Forecast Zone: ${pointData.properties.relativeLocation.properties.city}, ${pointData.properties.relativeLocation.properties.state}`;
         document.getElementById('matrix').style.display = 'table';
 
         periods.forEach(p => {
@@ -105,8 +104,7 @@
           const tempOk = (temp >= minTemp && temp <= maxTemp);
           const windOk = (wind <= maxWind);
           const rhOk   = (rh !== null) ? (rh >= minRH && rh <= maxRH) : true;
-          
-          const isGo = tempOk && windOk && rhOk;
+          const isGo   = tempOk && windOk && rhOk;
           
           const row = document.createElement('tr');
           row.className = isGo ? 'go' : 'nogo';
@@ -131,7 +129,6 @@
       }
     }
 
-    // Auto-run evaluation with default values on load
     runEvaluation();
   </script>
 </body>
