@@ -65,7 +65,7 @@
 
     document.getElementById('unit-title').innerText = unitName || 'No Unit Selected';
 
-    const FEATURE_SERVICE_URL = "https://services0.arcgis.com/OG2L6B599T6L9R01/arcgis/rest/services/Fuel_Treatments_Units/FeatureServer/0/query";
+    const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
 
     // JSONP request handler to bypass browser CORS restrictions inside embedded iframes
     function queryArcGISJsonp(id) {
