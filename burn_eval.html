@@ -7,9 +7,9 @@
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 12px; background: #f8f9fa; color: #333; margin: 0; }
     .card { background: white; padding: 14px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 12px; }
     .input-header { font-size: 12px; font-weight: bold; color: #0078d4; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-    .rx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
+    .rx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 6px; }
     .rx-field { display: flex; flex-direction: column; font-size: 11px; font-weight: bold; color: #444; }
-    .rx-field input { padding: 6px; font-size: 13px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 3px; background: #fff; }
+    .rx-field input { padding: 6px; font-size: 12px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 3px; background: #fff; }
     button { background: #0078d4; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; margin-top: 12px; width: 100%; }
     button:hover { background: #005a9e; }
     .go { background-color: #d4edda; color: #155724; font-weight: bold; }
@@ -33,6 +33,8 @@
       <div class="rx-field">Max Wind (mph)<input type="number" id="maxWind" value="12"></div>
       <div class="rx-field">Min RH (%)<input type="number" id="minRH" value="20"></div>
       <div class="rx-field">Max RH (%)<input type="number" id="maxRH" value="50"></div>
+      <div class="rx-field">Min Vent (kt-ft)<input type="number" id="minVent" value="10"></div>
+      <div class="rx-field">Max Vent (kt-ft)<input type="number" id="maxVent" value="150"></div>
     </div>
     
     <button onclick="runEvaluation()">Evaluate 72-Hour Burn Window</button>
@@ -45,6 +47,7 @@
         <th>Temp</th>
         <th>Wind</th>
         <th>RH</th>
+        <th>Vent Rate</th>
         <th>Status</th>
       </tr>
     </thead>
@@ -58,9 +61,29 @@
 
     document.getElementById('unit-title').innerText = unitName;
 
-    // Center coordinates (Default fallback: Gunnison / Montrose area)
+    // Default Fallback Coordinates (Gunnison / Montrose CO Area)
     let currentLat = parseFloat(urlParams.get('lat')) || 38.54;
     let currentLon = parseFloat(urlParams.get('lon')) || -106.93;
+
+    // Helper: Find value from NWS ISO8601 time-series array
+    function getValueForTime(valuesArray, targetTime) {
+      if (!valuesArray || !valuesArray.length) return null;
+      const targetMs = targetTime.getTime();
+      for (const item of valuesArray) {
+        const [timeStr, durationStr] = item.validTime.split('/');
+        const startMs = new Date(timeStr).getTime();
+        // Default duration 1 hr if unspecified
+        let durationMs = 3600000; 
+        if (durationStr && durationStr.startsWith('PT')) {
+          const hours = parseInt(durationStr.replace('PT', '').replace('H', '')) || 1;
+          durationMs = hours * 3600000;
+        }
+        if (targetMs >= startMs && targetMs < (startMs + durationMs)) {
+          return item.value;
+        }
+      }
+      return null;
+    }
 
     async function runEvaluation() {
       const minTemp = parseFloat(document.getElementById('minTemp').value);
@@ -68,28 +91,39 @@
       const maxWind = parseFloat(document.getElementById('maxWind').value);
       const minRH   = parseFloat(document.getElementById('minRH').value);
       const maxRH   = parseFloat(document.getElementById('maxRH').value);
+      const minVent = parseFloat(document.getElementById('minVent').value);
+      const maxVent = parseFloat(document.getElementById('maxVent').value);
 
-      if (isNaN(minTemp) || isNaN(maxTemp) || isNaN(maxWind) || isNaN(minRH) || isNaN(maxRH)) {
+      if ([minTemp, maxTemp, maxWind, minRH, maxRH, minVent, maxVent].some(isNaN)) {
         alert("Please enter valid numbers for all prescription fields.");
         return;
       }
 
-      document.getElementById('status').innerText = "Fetching live NWS forecast grid...";
+      document.getElementById('status').innerText = "Fetching live NWS forecast & grid data...";
 
       try {
+        // 1. Fetch Point Metadata
         const pointRes = await fetch(`https://api.weather.gov/points/${currentLat.toFixed(4)},${currentLon.toFixed(4)}`, {
           headers: { 'User-Agent': 'PrescribedBurnApp/1.0' }
         });
-        
         if (!pointRes.ok) throw new Error("NWS grid point response error (" + pointRes.status + ")");
         const pointData = await pointRes.json();
         
+        // 2. Parallel Fetch: Hourly Forecast + Raw Grid Data (for Mixing Height / Transport Wind)
         const hourlyUrl = pointData.properties.forecastHourly;
-        const forecastRes = await fetch(hourlyUrl, {
-          headers: { 'User-Agent': 'PrescribedBurnApp/1.0' }
-        });
+        const gridUrl   = pointData.properties.forecastGridData;
+
+        const [forecastRes, gridRes] = await Promise.all([
+          fetch(hourlyUrl, { headers: { 'User-Agent': 'PrescribedBurnApp/1.0' } }),
+          fetch(gridUrl,   { headers: { 'User-Agent': 'PrescribedBurnApp/1.0' } })
+        ]);
+
         const forecastData = await forecastRes.json();
+        const gridData     = await gridRes.json();
+
         const periods = forecastData.properties.periods.slice(0, 36);
+        const mixingHeightVals = gridData.properties?.mixingHeight?.values || [];
+        const transportWindVals = gridData.properties?.transportWindSpeed?.values || [];
 
         const tbody = document.getElementById('matrix-body');
         tbody.innerHTML = '';
@@ -97,29 +131,44 @@
         document.getElementById('matrix').style.display = 'table';
 
         periods.forEach(p => {
+          const pTime = new Date(p.startTime);
           const temp = p.temperature;
           const wind = parseInt(p.windSpeed);
           const rh = p.relativeHumidity ? p.relativeHumidity.value : null;
-          
+
+          // Calculate Ventilation Rate (Transport Wind (kt) * Mixing Height (ft) / 1000)
+          let ventRate = null;
+          const mHeightMeters = getValueForTime(mixingHeightVals, pTime); // NWS returns meters
+          const tWindKmh      = getValueForTime(transportWindVals, pTime); // NWS returns km/h
+
+          if (mHeightMeters !== null && tWindKmh !== null) {
+            const mHeightFt = mHeightMeters * 3.28084;
+            const tWindKt   = tWindKmh * 0.539957;
+            ventRate = Math.round((mHeightFt * tWindKt) / 1000); // Unit: kt-ft
+          }
+
+          // Prescription Checks
           const tempOk = (temp >= minTemp && temp <= maxTemp);
           const windOk = (wind <= maxWind);
           const rhOk   = (rh !== null) ? (rh >= minRH && rh <= maxRH) : true;
-          const isGo   = tempOk && windOk && rhOk;
-          
+          const ventOk = (ventRate !== null) ? (ventRate >= minVent && ventRate <= maxVent) : true;
+
+          const isGo = tempOk && windOk && rhOk && ventOk;
+
           const row = document.createElement('tr');
           row.className = isGo ? 'go' : 'nogo';
-          
-          const d = new Date(p.startTime);
-          const weekday = d.toLocaleDateString([], { weekday: 'short' });
-          const month = String(d.getMonth() + 1).padStart(2, '0');
-          const day = String(d.getDate()).padStart(2, '0');
-          const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+          const weekday = pTime.toLocaleDateString([], { weekday: 'short' });
+          const month   = String(pTime.getMonth() + 1).padStart(2, '0');
+          const day     = String(pTime.getDate()).padStart(2, '0');
+          const time    = pTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
           row.innerHTML = `
             <td>${weekday} ${month}/${day}, ${time}</td>
             <td>${temp}°F</td>
             <td>${p.windSpeed}</td>
             <td>${rh !== null ? rh + '%' : 'N/A'}</td>
+            <td>${ventRate !== null ? ventRate + ' kt-ft' : 'N/A'}</td>
             <td>${isGo ? 'IN-RX' : 'OUT-OF-RX'}</td>
           `;
           tbody.appendChild(row);
