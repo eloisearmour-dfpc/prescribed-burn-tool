@@ -57,12 +57,42 @@
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const rawUnit = urlParams.get('unit');
-    const unitName = (rawUnit && rawUnit !== '{Name}') ? decodeURIComponent(rawUnit) : null;
+    const rawId = urlParams.get('id') || '';
     
-    const latParam = parseFloat(urlParams.get('lat'));
-    const lonParam = parseFloat(urlParams.get('lon'));
+    // Sanitize ID: strip commas/formatting (e.g., "1,228,464" -> "1228464")
+    const cleanUnitId = rawId.replace(/[^0-9]/g, '');
+    const unitName = (rawUnit && rawUnit !== '{Name}') ? decodeURIComponent(rawUnit) : null;
 
     document.getElementById('unit-title').innerText = unitName || 'No Unit Selected';
+
+    const FEATURE_SERVICE_URL = "https://services0.arcgis.com/OG2L6B599T6L9R01/arcgis/rest/services/Fuel_Treatments_Units/FeatureServer/0/query";
+
+    // JSONP request handler to bypass browser CORS restrictions inside embedded iframes
+    function queryArcGISJsonp(id) {
+      return new Promise((resolve, reject) => {
+        const cbName = 'arcgis_cb_' + Math.floor(Math.random() * 10000000);
+        const queryUrl = `${FEATURE_SERVICE_URL}?where=OBJECTID%3D${id}&returnGeometry=true&outSR=4326&f=json&callback=${cbName}`;
+
+        window[cbName] = function(data) {
+          delete window[cbName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+          if (data.error) {
+            reject(new Error(`ArcGIS error: ${data.error.message || 'Query failed'}`));
+          } else {
+            resolve(data);
+          }
+        };
+
+        const script = document.createElement('script');
+        script.src = queryUrl;
+        script.onerror = function() {
+          delete window[cbName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+          reject(new Error("Network request to ArcGIS service failed."));
+        };
+        document.head.appendChild(script);
+      });
+    }
 
     function getValueForTime(valuesArray, targetTime) {
       if (!valuesArray || !valuesArray.length) return null;
@@ -82,8 +112,37 @@
       return null;
     }
 
+    async function getUnitCoordinatesById(id) {
+      if (!id) throw new Error("No valid numeric Unit ID received.");
+
+      const data = await queryArcGISJsonp(id);
+
+      if (!data.features || data.features.length === 0) throw new Error(`Unit ID ${id} not found in feature dataset.`);
+
+      const geom = data.features[0].geometry;
+      let points = [];
+      if (geom.rings) {
+        geom.rings.forEach(ring => ring.forEach(pt => points.push(pt)));
+      } else if (geom.x && geom.y) {
+        return { lat: geom.y, lon: geom.x };
+      }
+
+      if (points.length === 0) throw new Error("Could not extract polygon coordinates.");
+
+      let sumLon = 0, sumLat = 0;
+      points.forEach(pt => {
+        sumLon += pt[0];
+        sumLat += pt[1];
+      });
+
+      return {
+        lat: sumLat / points.length,
+        lon: sumLon / points.length
+      };
+    }
+
     async function runEvaluation() {
-      if (isNaN(latParam) || isNaN(lonParam)) {
+      if (!cleanUnitId) {
         document.getElementById('status').innerText = "Select a burn unit polygon on the map to evaluate weather.";
         return;
       }
@@ -101,15 +160,20 @@
         return;
       }
 
-      document.getElementById('status').innerText = `Connecting to NWS Grid (${latParam.toFixed(2)}, ${lonParam.toFixed(2)})...`;
+      document.getElementById('status').innerText = "Locating unit boundary...";
 
       try {
-        // 1. Fetch NWS Grid Point Metadata
-        const pointRes = await fetch(`https://api.weather.gov/points/${latParam.toFixed(4)},${lonParam.toFixed(4)}`);
+        // 1. Fetch Coordinates from ArcGIS via JSONP (CORS-proof)
+        const coords = await getUnitCoordinatesById(cleanUnitId);
+
+        document.getElementById('status').innerText = `Connecting to NWS Grid (${coords.lat.toFixed(2)}, ${coords.lon.toFixed(2)})...`;
+
+        // 2. Query NWS Point Metadata
+        const pointRes = await fetch(`https://api.weather.gov/points/${coords.lat.toFixed(4)},${coords.lon.toFixed(4)}`);
         if (!pointRes.ok) throw new Error("NWS grid point response error (" + pointRes.status + ")");
         const pointData = await pointRes.json();
         
-        // 2. Fetch Hourly & Grid Forecast Streams
+        // 3. Parallel Fetch: Hourly Weather + Raw Grid Data
         const hourlyUrl = pointData.properties.forecastHourly;
         const gridUrl   = pointData.properties.forecastGridData;
 
@@ -129,7 +193,7 @@
         tbody.innerHTML = '';
         
         const loc = pointData.properties.relativeLocation.properties;
-        document.getElementById('status').innerText = `Forecast Zone: ${loc.city}, ${loc.state} (${latParam.toFixed(2)}, ${lonParam.toFixed(2)})`;
+        document.getElementById('status').innerText = `Forecast Zone: ${loc.city}, ${loc.state} (${coords.lat.toFixed(2)}, ${coords.lon.toFixed(2)})`;
         document.getElementById('matrix').style.display = 'table';
 
         periods.forEach(p => {
@@ -178,8 +242,8 @@
       }
     }
 
-    // Auto-evaluate when coordinates are present
-    if (!isNaN(latParam) && !isNaN(lonParam)) {
+    // Auto-run if valid ID is present
+    if (cleanUnitId) {
       runEvaluation();
     }
   </script>
