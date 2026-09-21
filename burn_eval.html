@@ -37,7 +37,7 @@
       <div class="rx-field">Max Vent (kt-ft)<input type="number" id="maxVent" value="150"></div>
     </div>
     
-    <button onclick="runEvaluation()">Evaluate 72-Hour Burn Window</button>
+    <button id="evalBtn" onclick="runEvaluation()">Evaluate 72-Hour Burn Window</button>
   </div>
   
   <table id="matrix" style="display:none;">
@@ -62,7 +62,6 @@
 
     document.getElementById('unit-title').innerText = unitName || 'No Unit Selected';
 
-    // Public Feature Layer REST Endpoint
     const FEATURE_SERVICE_URL = "https://services0.arcgis.com/OG2L6B599T6L9R01/arcgis/rest/services/Fuel_Treatments_Units/FeatureServer/0/query";
 
     function getValueForTime(valuesArray, targetTime) {
@@ -84,13 +83,16 @@
     }
 
     async function getUnitCoordinatesById(id) {
-      const queryUrl = `${FEATURE_SERVICE_URL}?where=OBJECTID=${id}&returnGeometry=true&outSR=4326&f=json`;
+      // Robust query checking standard primary key variations
+      const whereClause = encodeURIComponent(`OBJECTID=${id} OR objectid=${id} OR FID=${id}`);
+      const queryUrl = `${FEATURE_SERVICE_URL}?where=${whereClause}&returnGeometry=true&outSR=4326&f=json`;
 
       const res = await fetch(queryUrl);
       if (!res.ok) throw new Error(`ArcGIS Feature query error (${res.status})`);
       const data = await res.json();
 
-      if (!data.features || data.features.length === 0) throw new Error(`Unit ID ${id} not found in dataset.`);
+      if (data.error) throw new Error(`ArcGIS query error: ${data.error.message || 'Check feature service'}`);
+      if (!data.features || data.features.length === 0) throw new Error(`Unit ID ${id} not found in feature dataset.`);
 
       const geom = data.features[0].geometry;
       let points = [];
@@ -100,7 +102,7 @@
         return { lat: geom.y, lon: geom.x };
       }
 
-      if (points.length === 0) throw new Error(`Could not extract spatial coordinates.`);
+      if (points.length === 0) throw new Error("Could not extract polygon coordinates.");
 
       let sumLon = 0, sumLat = 0;
       points.forEach(pt => {
@@ -115,8 +117,9 @@
     }
 
     async function runEvaluation() {
-      if (!unitId || unitId === '{OBJECTID}') {
-        document.getElementById('status').innerText = "Select a burn unit polygon on the map or use the top search bar to view its live 72-hour NWS weather compared to your prescriptions.";
+      // Verify valid ID input
+      if (!unitId || unitId === '{OBJECTID}' || unitId.trim() === '') {
+        document.getElementById('status').innerText = "Please select a burn unit polygon on the map first.";
         return;
       }
 
@@ -133,22 +136,22 @@
         return;
       }
 
-      document.getElementById('status').innerText = `Locating unit...`;
+      document.getElementById('status').innerText = "Locating unit boundary...";
 
       try {
-        // 1. Get Coordinates by OBJECTID
+        // 1. Fetch Coordinates from ArcGIS REST API
         const coords = await getUnitCoordinatesById(unitId);
 
-        document.getElementById('status').innerText = `Querying NWS forecast office...`;
+        document.getElementById('status').innerText = `Connecting to NWS Grid (${coords.lat.toFixed(2)}, ${coords.lon.toFixed(2)})...`;
 
-        // 2. Query NWS API Point
+        // 2. Fetch Point Metadata from NWS
         const pointRes = await fetch(`https://api.weather.gov/points/${coords.lat.toFixed(4)},${coords.lon.toFixed(4)}`, {
           headers: { 'User-Agent': 'PrescribedBurnApp/1.0' }
         });
         if (!pointRes.ok) throw new Error("NWS grid point response error (" + pointRes.status + ")");
         const pointData = await pointRes.json();
         
-        // 3. Fetch Hourly & Grid Forecast Data (Parallel)
+        // 3. Parallel Fetch: Hourly Weather + Raw Grid Data
         const hourlyUrl = pointData.properties.forecastHourly;
         const gridUrl   = pointData.properties.forecastGridData;
 
@@ -177,7 +180,6 @@
           const wind = parseInt(p.windSpeed);
           const rh = p.relativeHumidity ? p.relativeHumidity.value : null;
 
-          // Compute Vent Rate (kt-ft)
           let ventRate = null;
           const mHeightMeters = getValueForTime(mixingHeightVals, pTime);
           const tWindKmh      = getValueForTime(transportWindVals, pTime);
@@ -188,7 +190,6 @@
             ventRate = Math.round((mHeightFt * tWindKt) / 1000);
           }
 
-          // Evaluate Prescription Limits
           const tempOk = (temp >= minTemp && temp <= maxTemp);
           const windOk = (wind <= maxWind);
           const rhOk   = (rh !== null) ? (rh >= minRH && rh <= maxRH) : true;
@@ -198,7 +199,7 @@
 
           const tr = document.createElement('tr');
           tr.className = isGo ? 'go' : 'nogo';
-          
+
           const weekday = pTime.toLocaleDateString([], { weekday: 'short' });
           const month   = String(pTime.getMonth() + 1).padStart(2, '0');
           const day     = String(pTime.getDate()).padStart(2, '0');
@@ -219,7 +220,10 @@
       }
     }
 
-    runEvaluation();
+    // Auto-run if valid ID is passed on initial load
+    if (unitId && unitId !== '{OBJECTID}') {
+      runEvaluation();
+    }
   </script>
 </body>
 </html>
