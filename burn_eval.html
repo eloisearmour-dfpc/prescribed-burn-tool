@@ -59,7 +59,7 @@
     const rawUnit = urlParams.get('unit');
     const rawId = urlParams.get('id') || '';
     
-    // Sanitize ID: strip all non-numeric characters (e.g. "1,042" -> "1042")
+    // Sanitize ID: strip commas or non-numeric characters (e.g. "1,228,464" -> "1228464")
     const cleanUnitId = rawId.replace(/[^0-9]/g, '');
     const unitName = (rawUnit && rawUnit !== '{Name}') ? decodeURIComponent(rawUnit) : null;
 
@@ -90,8 +90,9 @@
 
       const queryUrl = `${FEATURE_SERVICE_URL}?where=OBJECTID%3D${id}&returnGeometry=true&outSR=4326&f=json`;
 
+      // Clean fetch without custom headers
       const res = await fetch(queryUrl);
-      if (!res.ok) throw new Error(`ArcGIS Feature query network error (${res.status})`);
+      if (!res.ok) throw new Error(`ArcGIS query network error (${res.status})`);
       const data = await res.json();
 
       if (data.error) throw new Error(`ArcGIS query error: ${data.error.message || 'Check feature service'}`);
@@ -141,25 +142,23 @@
       document.getElementById('status').innerText = "Locating unit boundary...";
 
       try {
-        // 1. Fetch Coordinates from ArcGIS REST API using sanitized ID
+        // 1. Fetch Coordinates from ArcGIS REST API
         const coords = await getUnitCoordinatesById(cleanUnitId);
 
         document.getElementById('status').innerText = `Connecting to NWS Grid (${coords.lat.toFixed(2)}, ${coords.lon.toFixed(2)})...`;
 
-        // 2. Query NWS Point Metadata
-        const pointRes = await fetch(`https://api.weather.gov/points/${coords.lat.toFixed(4)},${coords.lon.toFixed(4)}`, {
-          headers: { 'User-Agent': 'PrescribedBurnApp/1.0' }
-        });
+        // 2. Query NWS Point Metadata (No custom headers)
+        const pointRes = await fetch(`https://api.weather.gov/points/${coords.lat.toFixed(4)},${coords.lon.toFixed(4)}`);
         if (!pointRes.ok) throw new Error("NWS grid point response error (" + pointRes.status + ")");
         const pointData = await pointRes.json();
         
-        // 3. Parallel Fetch: Hourly Weather + Raw Grid Data
+        // 3. Parallel Fetch: Hourly Weather + Raw Grid Data (No custom headers)
         const hourlyUrl = pointData.properties.forecastHourly;
         const gridUrl   = pointData.properties.forecastGridData;
 
         const [forecastRes, gridRes] = await Promise.all([
-          fetch(hourlyUrl, { headers: { 'User-Agent': 'PrescribedBurnApp/1.0' } }),
-          fetch(gridUrl,   { headers: { 'User-Agent': 'PrescribedBurnApp/1.0' } })
+          fetch(hourlyUrl),
+          fetch(gridUrl)
         ]);
 
         const forecastData = await forecastRes.json();
