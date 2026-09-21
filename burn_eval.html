@@ -56,23 +56,20 @@
 
   <script>
     const urlParams = new URLSearchParams(window.location.search);
-    const rawUnit = urlParams.get('unit') || 'Demo Unit';
-    const unitName = decodeURIComponent(rawUnit);
+    const rawUnit = urlParams.get('unit');
+    const unitName = (rawUnit && rawUnit !== '{Name}') ? decodeURIComponent(rawUnit) : null;
 
-    document.getElementById('unit-title').innerText = unitName;
+    document.getElementById('unit-title').innerText = unitName || 'No Unit Selected';
 
-    // Default Fallback Coordinates (Gunnison / Montrose CO Area)
-    let currentLat = parseFloat(urlParams.get('lat')) || 38.54;
-    let currentLon = parseFloat(urlParams.get('lon')) || -106.93;
+    // Public Feature Layer REST Service for location query
+    const FEATURE_SERVICE_URL = "https://services0.arcgis.com/OG2L6B599T6L9R01/arcgis/rest/services/Fuel_Treatments_Units/FeatureServer/0/query";
 
-    // Helper: Find value from NWS ISO8601 time-series array
     function getValueForTime(valuesArray, targetTime) {
       if (!valuesArray || !valuesArray.length) return null;
       const targetMs = targetTime.getTime();
       for (const item of valuesArray) {
         const [timeStr, durationStr] = item.validTime.split('/');
         const startMs = new Date(timeStr).getTime();
-        // Default duration 1 hr if unspecified
         let durationMs = 3600000; 
         if (durationStr && durationStr.startsWith('PT')) {
           const hours = parseInt(durationStr.replace('PT', '').replace('H', '')) || 1;
@@ -85,7 +82,34 @@
       return null;
     }
 
+    async function getUnitCoordinates(name) {
+      // Query layer REST API by unit name to get polygon centroid
+      const queryUrl = `${FEATURE_SERVICE_URL}?where=Name='${encodeURIComponent(name)}'&outFields=Name&returnGeometry=true&f=geojson`;
+      const res = await fetch(queryUrl);
+      if (!res.ok) throw new Error("Could not locate unit boundaries on feature service.");
+      const data = await res.json();
+      
+      if (!data.features || data.features.length === 0) {
+        throw new Error(`Unit "${name}" not found in feature dataset.`);
+      }
+
+      // Calculate centroid coordinates
+      const geom = data.features[0].geometry;
+      let coords = [];
+      if (geom.type === "Polygon") coords = geom.coordinates[0];
+      else if (geom.type === "MultiPolygon") coords = geom.coordinates[0][0];
+
+      let sumLon = 0, sumLat = 0;
+      coords.forEach(c => { sumLon += c[0]; sumLat += c[1]; });
+      return { lat: sumLat / coords.length, lon: sumLon / coords.length };
+    }
+
     async function runEvaluation() {
+      if (!unitName) {
+        document.getElementById('status').innerText = "Select a burn unit polygon on the map or use the top search bar to view its live 72-hour NWS weather compared to your prescriptions.";
+        return;
+      }
+
       const minTemp = parseFloat(document.getElementById('minTemp').value);
       const maxTemp = parseFloat(document.getElementById('maxTemp').value);
       const maxWind = parseFloat(document.getElementById('maxWind').value);
@@ -99,17 +123,28 @@
         return;
       }
 
-      document.getElementById('status').innerText = "Fetching live NWS forecast & grid data...";
+      document.getElementById('status').innerText = `Locating unit "${unitName}"...`;
 
       try {
-        // 1. Fetch Point Metadata
-        const pointRes = await fetch(`https://api.weather.gov/points/${currentLat.toFixed(4)},${currentLon.toFixed(4)}`, {
+        // 1. Get Coordinates from Unit Name
+        let coords;
+        try {
+          coords = await getUnitCoordinates(unitName);
+        } catch (e) {
+          // Fallback to Gunnison CO center if query fails
+          coords = { lat: 38.54, lon: -106.93 };
+        }
+
+        document.getElementById('status').innerText = "Fetching live NWS forecast & grid data...";
+
+        // 2. Query NWS Grid Point
+        const pointRes = await fetch(`https://api.weather.gov/points/${coords.lat.toFixed(4)},${coords.lon.toFixed(4)}`, {
           headers: { 'User-Agent': 'PrescribedBurnApp/1.0' }
         });
         if (!pointRes.ok) throw new Error("NWS grid point response error (" + pointRes.status + ")");
         const pointData = await pointRes.json();
         
-        // 2. Parallel Fetch: Hourly Forecast + Raw Grid Data (for Mixing Height / Transport Wind)
+        // 3. Fetch Hourly & Grid Forecast Data
         const hourlyUrl = pointData.properties.forecastHourly;
         const gridUrl   = pointData.properties.forecastGridData;
 
@@ -136,18 +171,16 @@
           const wind = parseInt(p.windSpeed);
           const rh = p.relativeHumidity ? p.relativeHumidity.value : null;
 
-          // Calculate Ventilation Rate (Transport Wind (kt) * Mixing Height (ft) / 1000)
           let ventRate = null;
-          const mHeightMeters = getValueForTime(mixingHeightVals, pTime); // NWS returns meters
-          const tWindKmh      = getValueForTime(transportWindVals, pTime); // NWS returns km/h
+          const mHeightMeters = getValueForTime(mixingHeightVals, pTime);
+          const tWindKmh      = getValueForTime(transportWindVals, pTime);
 
           if (mHeightMeters !== null && tWindKmh !== null) {
             const mHeightFt = mHeightMeters * 3.28084;
             const tWindKt   = tWindKmh * 0.539957;
-            ventRate = Math.round((mHeightFt * tWindKt) / 1000); // Unit: kt-ft
+            ventRate = Math.round((mHeightFt * tWindKt) / 1000);
           }
 
-          // Prescription Checks
           const tempOk = (temp >= minTemp && temp <= maxTemp);
           const windOk = (wind <= maxWind);
           const rhOk   = (rh !== null) ? (rh >= minRH && rh <= maxRH) : true;
