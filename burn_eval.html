@@ -10,7 +10,8 @@
     .rx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 6px; }
     .rx-field { display: flex; flex-direction: column; font-size: 11px; font-weight: bold; color: #444; }
     .rx-field input { padding: 6px; font-size: 12px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 3px; background: #fff; }
-    .coord-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #f0f4f8; padding: 8px; border-radius: 6px; margin-bottom: 10px; }
+    .coord-box { background: #f0f4f8; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
+    .coord-box input { width: 100%; padding: 8px; font-size: 12px; border: 1px solid #0078d4; border-radius: 4px; box-sizing: border-box; margin-top: 4px; }
     button { background: #0078d4; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; margin-top: 10px; width: 100%; }
     button:hover { background: #005a9e; }
     .go { background-color: #d4edda; color: #155724; font-weight: bold; }
@@ -24,12 +25,14 @@
 
   <div class="card">
     <h3 id="unit-title" style="margin:0 0 4px 0; font-size:16px;">Prescription Evaluator</h3>
-    <div id="status" style="font-size: 11px; color: #666; margin-bottom: 8px;">Select a unit on the map or enter coordinates below...</div>
+    <div id="status" style="font-size: 11px; color: #666; margin-bottom: 8px;">Select a unit on the map or paste coordinates below...</div>
 
-    <!-- Location Inputs (Auto-filled by TWIG map clicks, or manually typed for custom locations) -->
-    <div class="coord-grid">
-      <div class="rx-field">Latitude (°N)<input type="number" step="any" id="latInput" placeholder="e.g. 39.4215"></div>
-      <div class="rx-field">Longitude (°W)<input type="number" step="any" id="lonInput" placeholder="e.g. -105.1023"></div>
+    <!-- Smart Single Input Box for Custom Coordinates -->
+    <div class="coord-box">
+      <div class="rx-field">
+        Paste Custom Location Coordinates
+        <input type="text" id="coordInput" placeholder="Paste e.g. 106.455 40.782 or 40.782, -106.455">
+      </div>
     </div>
 
     <div class="input-header">Element 7B Prescription Limits</div>
@@ -72,6 +75,39 @@
     document.getElementById('unit-title').innerText = unitName || 'Custom Location / Unit';
 
     const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
+
+    // Smart coordinate parser to handle raw text from Esri widgets or Google Maps
+    function parseSmartCoordinates(rawText) {
+      if (!rawText) return null;
+      const nums = rawText.match(/[-+]?\d*\.?\d+/g);
+      if (!nums || nums.length < 2) return null;
+
+      let n1 = parseFloat(nums[0]);
+      let n2 = parseFloat(nums[1]);
+
+      let lat, lon;
+
+      // Smart check for North America: Lon is ~50 to 180, Lat is ~15 to 70
+      if (Math.abs(n1) > 50 && Math.abs(n2) <= 50) {
+        lon = n1;
+        lat = n2;
+      } else if (Math.abs(n2) > 50 && Math.abs(n1) <= 50) {
+        lat = n1;
+        lon = n2;
+      } else {
+        lat = n1;
+        lon = n2;
+      }
+
+      // Automatically add negative sign for Western Hemisphere longitude if missing
+      if (lon > 50 && lon < 180) {
+        lon = -lon;
+      }
+
+      if (isNaN(lat) || isNaN(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+
+      return { lat, lon };
+    }
 
     function queryArcGISJsonp(id) {
       return new Promise((resolve, reject) => {
@@ -147,30 +183,29 @@
     }
 
     async function runEvaluation() {
-      let lat = parseFloat(document.getElementById('latInput').value);
-      let lon = parseFloat(document.getElementById('lonInput').value);
+      let coords = parseSmartCoordinates(document.getElementById('coordInput').value);
 
-      // Step 1: If Lat/Lon inputs are empty but cleanUnitId is passed in URL, query ArcGIS centroid
-      if ((isNaN(lat) || isNaN(lon)) && cleanUnitId) {
+      // Step 1: If input box is empty but cleanUnitId exists, query TWIG centroid
+      if (!coords && cleanUnitId) {
         document.getElementById('status').innerText = "Locating TWIG unit boundary...";
         try {
-          const coords = await getUnitCoordinatesById(cleanUnitId);
-          lat = coords.lat;
-          lon = coords.lon;
-          // Fill in input fields for transparency
-          document.getElementById('latInput').value = lat.toFixed(4);
-          document.getElementById('lonInput').value = lon.toFixed(4);
+          const fetchedCoords = await getUnitCoordinatesById(cleanUnitId);
+          coords = fetchedCoords;
+          // Display parsed format in input box for user confirmation
+          document.getElementById('coordInput').value = `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`;
         } catch (err) {
-          document.getElementById('status').innerText = "TWIG Lookup Error: " + err.message + ". Enter Lat/Lon manually above.";
+          document.getElementById('status').innerText = "TWIG Lookup Error: " + err.message + ". Paste coordinates manually above.";
           return;
         }
       }
 
-      // Step 2: Ensure valid coordinates exist before calling NWS
-      if (isNaN(lat) || isNaN(lon)) {
-        document.getElementById('status').innerText = "Select a unit on the map or enter Latitude and Longitude above.";
+      // Step 2: Ensure valid coordinates exist before proceeding
+      if (!coords) {
+        document.getElementById('status').innerText = "Select a unit on the map or paste coordinates above.";
         return;
       }
+
+      const { lat, lon } = coords;
 
       const minTemp = parseFloat(document.getElementById('minTemp').value);
       const maxTemp = parseFloat(document.getElementById('maxTemp').value);
