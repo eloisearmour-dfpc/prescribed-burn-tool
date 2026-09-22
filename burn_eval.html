@@ -72,7 +72,7 @@
     const cleanUnitId = rawId.replace(/[^0-9]/g, '');
     const unitName = (rawUnit && rawUnit !== '{Name}') ? decodeURIComponent(rawUnit) : null;
 
-    document.getElementById('unit-title').innerText = unitName || 'Custom Location / Unit';
+    document.getElementById('unit-title').innerText = unitName || 'Unit / Location';
 
     const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
 
