@@ -6,11 +6,12 @@
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 12px; background: #f8f9fa; color: #333; margin: 0; }
     .card { background: white; padding: 14px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 12px; }
-    .input-header { font-size: 12px; font-weight: bold; color: #0078d4; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .input-header { font-size: 11px; font-weight: bold; color: #0078d4; text-transform: uppercase; letter-spacing: 0.5px; margin: 10px 0 6px 0; }
     .rx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 6px; }
     .rx-field { display: flex; flex-direction: column; font-size: 11px; font-weight: bold; color: #444; }
     .rx-field input { padding: 6px; font-size: 12px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 3px; background: #fff; }
-    button { background: #0078d4; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; margin-top: 12px; width: 100%; }
+    .coord-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #f0f4f8; padding: 8px; border-radius: 6px; margin-bottom: 10px; }
+    button { background: #0078d4; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; margin-top: 10px; width: 100%; }
     button:hover { background: #005a9e; }
     .go { background-color: #d4edda; color: #155724; font-weight: bold; }
     .nogo { background-color: #f8d7da; color: #721c24; font-weight: bold; }
@@ -23,7 +24,13 @@
 
   <div class="card">
     <h3 id="unit-title" style="margin:0 0 4px 0; font-size:16px;">Prescription Evaluator</h3>
-    <div id="status" style="font-size: 11px; color: #666; margin-bottom: 10px;">Select a unit on the map to evaluate weather...</div>
+    <div id="status" style="font-size: 11px; color: #666; margin-bottom: 8px;">Select a unit on the map or enter coordinates below...</div>
+
+    <!-- Location Inputs (Auto-filled by TWIG map clicks, or manually typed for custom locations) -->
+    <div class="coord-grid">
+      <div class="rx-field">Latitude (°N)<input type="number" step="any" id="latInput" placeholder="e.g. 39.4215"></div>
+      <div class="rx-field">Longitude (°W)<input type="number" step="any" id="lonInput" placeholder="e.g. -105.1023"></div>
+    </div>
 
     <div class="input-header">Element 7B Prescription Limits</div>
 
@@ -59,15 +66,13 @@
     const rawUnit = urlParams.get('unit');
     const rawId = urlParams.get('id') || '';
     
-    // Sanitize ID: strip commas/formatting (e.g., "1,228,464" -> "1228464")
     const cleanUnitId = rawId.replace(/[^0-9]/g, '');
     const unitName = (rawUnit && rawUnit !== '{Name}') ? decodeURIComponent(rawUnit) : null;
 
-    document.getElementById('unit-title').innerText = unitName || 'No Unit Selected';
+    document.getElementById('unit-title').innerText = unitName || 'Custom Location / Unit';
 
     const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
 
-    // JSONP request handler to bypass browser CORS restrictions inside embedded iframes
     function queryArcGISJsonp(id) {
       return new Promise((resolve, reject) => {
         const cbName = 'arcgis_cb_' + Math.floor(Math.random() * 10000000);
@@ -142,8 +147,28 @@
     }
 
     async function runEvaluation() {
-      if (!cleanUnitId) {
-        document.getElementById('status').innerText = "Select a burn unit polygon on the map to evaluate weather.";
+      let lat = parseFloat(document.getElementById('latInput').value);
+      let lon = parseFloat(document.getElementById('lonInput').value);
+
+      // Step 1: If Lat/Lon inputs are empty but cleanUnitId is passed in URL, query ArcGIS centroid
+      if ((isNaN(lat) || isNaN(lon)) && cleanUnitId) {
+        document.getElementById('status').innerText = "Locating TWIG unit boundary...";
+        try {
+          const coords = await getUnitCoordinatesById(cleanUnitId);
+          lat = coords.lat;
+          lon = coords.lon;
+          // Fill in input fields for transparency
+          document.getElementById('latInput').value = lat.toFixed(4);
+          document.getElementById('lonInput').value = lon.toFixed(4);
+        } catch (err) {
+          document.getElementById('status').innerText = "TWIG Lookup Error: " + err.message + ". Enter Lat/Lon manually above.";
+          return;
+        }
+      }
+
+      // Step 2: Ensure valid coordinates exist before calling NWS
+      if (isNaN(lat) || isNaN(lon)) {
+        document.getElementById('status').innerText = "Select a unit on the map or enter Latitude and Longitude above.";
         return;
       }
 
@@ -160,20 +185,13 @@
         return;
       }
 
-      document.getElementById('status').innerText = "Locating unit boundary...";
+      document.getElementById('status').innerText = `Connecting to NWS Grid (${lat.toFixed(2)}, ${lon.toFixed(2)})...`;
 
       try {
-        // 1. Fetch Coordinates from ArcGIS via JSONP (CORS-proof)
-        const coords = await getUnitCoordinatesById(cleanUnitId);
-
-        document.getElementById('status').innerText = `Connecting to NWS Grid (${coords.lat.toFixed(2)}, ${coords.lon.toFixed(2)})...`;
-
-        // 2. Query NWS Point Metadata
-        const pointRes = await fetch(`https://api.weather.gov/points/${coords.lat.toFixed(4)},${coords.lon.toFixed(4)}`);
+        const pointRes = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`);
         if (!pointRes.ok) throw new Error("NWS grid point response error (" + pointRes.status + ")");
         const pointData = await pointRes.json();
         
-        // 3. Parallel Fetch: Hourly Weather + Raw Grid Data
         const hourlyUrl = pointData.properties.forecastHourly;
         const gridUrl   = pointData.properties.forecastGridData;
 
@@ -193,7 +211,7 @@
         tbody.innerHTML = '';
         
         const loc = pointData.properties.relativeLocation.properties;
-        document.getElementById('status').innerText = `Forecast Zone: ${loc.city}, ${loc.state} (${coords.lat.toFixed(2)}, ${coords.lon.toFixed(2)})`;
+        document.getElementById('status').innerText = `Forecast Zone: ${loc.city}, ${loc.state} (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
         document.getElementById('matrix').style.display = 'table';
 
         periods.forEach(p => {
@@ -242,7 +260,6 @@
       }
     }
 
-    // Auto-run if valid ID is present
     if (cleanUnitId) {
       runEvaluation();
     }
