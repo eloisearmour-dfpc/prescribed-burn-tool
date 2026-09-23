@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>NWS Live Prescription Evaluator</title>
+  <title>NWS Live Prescription & Fuel Evaluator</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 12px; background: #f8f9fa; color: #333; margin: 0; }
     .card { background: white; padding: 14px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 12px; }
@@ -12,29 +12,61 @@
     .rx-field input { padding: 6px; font-size: 12px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 3px; background: #fff; }
     .coord-box { background: #f0f4f8; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
     .coord-box input { width: 100%; padding: 8px; font-size: 12px; border: 1px solid #0078d4; border-radius: 4px; box-sizing: border-box; margin-top: 4px; }
+    
+    .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 12px; }
+    .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 6px; }
+    .data-item { background: white; padding: 6px 8px; border-radius: 4px; border: 1px solid #d0e1f9; }
+    .data-item .label { font-size: 10px; color: #555; text-transform: uppercase; font-weight: bold; }
+    .data-item .val { font-size: 14px; font-weight: bold; color: #0078d4; margin-top: 2px; }
+
     button { background: #0078d4; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; margin-top: 10px; width: 100%; }
     button:hover { background: #005a9e; }
+    button.export-btn { background: #28a745; margin-top: 12px; }
+    button.export-btn:hover { background: #218838; }
+
     .go { background-color: #d4edda; color: #155724; font-weight: bold; }
     .nogo { background-color: #f8d7da; color: #721c24; font-weight: bold; }
     table { width: 100%; border-collapse: collapse; background: white; margin-top: 10px; font-size: 12px; }
     th, td { border: 1px solid #dee2e6; padding: 6px; text-align: center; }
     th { background: #e9ecef; }
+
+    /* Modal Styling for Export Builder */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+    .modal { background: white; padding: 20px; border-radius: 8px; max-width: 380px; width: 90%; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    .modal h4 { margin: 0 0 10px 0; font-size: 16px; color: #0078d4; }
+    .modal-option { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 13px; font-weight: 500; }
+
+    .map-preview { text-align: center; margin: 12px 0; display: none; }
+    .map-preview img { max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; }
+
+    /* Print Stylesheet for Clean PDF Export */
+    @media print {
+      body { background: white; padding: 0; margin: 0; color: #000; }
+      .no-print, button, .coord-box, .modal-overlay, .rx-grid { display: none !important; }
+      .card { box-shadow: none; border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; page-break-inside: avoid; }
+      .map-preview { display: block !important; }
+      table { font-size: 10px; page-break-inside: auto; }
+      tr { page-break-inside: avoid; page-break-after: auto; }
+      .data-box { border-left: 3px solid #333; background: #f9f9f9; }
+      .data-item { border: 1px solid #ccc; }
+      .data-item .val { color: #000; }
+    }
   </style>
 </head>
 <body>
 
-<div class="card">
+  <div class="card">
     <h3 id="unit-title" style="margin:0 0 4px 0; font-size:16px;">Prescription Evaluator</h3>
     <div id="status" style="font-size: 11px; color: #666; margin-bottom: 8px;">Select a unit on the map or type in coordinates below...</div>
 
-    <!-- Smart Coordinate Input Box (Label Removed) -->
+    <!-- Smart Coordinate Input Box -->
     <div class="coord-box">
       <input type="text" id="coordInput" placeholder="Coordinates (e.g., 40.782, -106.455 or 106.455 40.782)">
     </div>
 
-    <div class="input-header">Element 7B Prescription Limits</div>
+    <div class="input-header no-print">Element 7B Prescription Limits</div>
 
-    <div class="rx-grid">
+    <div class="rx-grid no-print">
       <div class="rx-field">Min Temp (°F)<input type="number" id="minTemp" value="40"></div>
       <div class="rx-field">Max Temp (°F)<input type="number" id="maxTemp" value="75"></div>
       <div class="rx-field">Max Wind (mph)<input type="number" id="maxWind" value="12"></div>
@@ -44,9 +76,42 @@
       <div class="rx-field">Max Vent (kt-ft)<input type="number" id="maxVent" value="150"></div>
     </div>
     
-    <button id="evalBtn" onclick="runEvaluation()">Evaluate 72-Hour Burn Window</button>
+    <button id="evalBtn" class="no-print" onclick="runEvaluation()">Evaluate 72-Hour Burn Window</button>
   </div>
-  
+
+  <!-- RAWS Station & Live Fuel Moisture Box -->
+  <div id="raws-box" class="data-box" style="display:none;">
+    <div style="font-weight:bold; color:#0078d4; margin-bottom:4px;" id="raws-header">Nearest RAWS Observation & Fuel Moisture</div>
+    <div class="data-grid">
+      <div class="data-item"><div class="label">Observed Temp</div><div class="val" id="raws-temp">--</div></div>
+      <div class="data-item"><div class="label">Observed RH</div><div class="val" id="raws-rh">--</div></div>
+      <div class="data-item"><div class="label">Observed Wind</div><div class="val" id="raws-wind">--</div></div>
+      <div class="data-item"><div class="label">10-Hr Fuel Moisture</div><div class="val" id="raws-fm10">--</div></div>
+      <div class="data-item"><div class="label">1-Hr Fuel Moisture</div><div class="val" id="raws-fm1">--</div></div>
+    </div>
+  </div>
+
+  <!-- Smoke Dispersion & Transport Winds Summary Box -->
+  <div id="dispersion-box" class="data-box" style="display:none; background:#f4f9f5; border-left-color:#28a745;">
+    <div style="font-weight:bold; color:#28a745; margin-bottom:4px;">Smoke Dispersion & Transport Winds (In-Rx Hours)</div>
+    <div class="data-grid">
+      <div class="data-item"><div class="label">Avg Transport Wind</div><div class="val" id="disp-wind">--</div></div>
+      <div class="data-item"><div class="label">Mixing Height Range</div><div class="val" id="disp-mix">--</div></div>
+      <div class="data-item"><div class="label">Vent Rate Range</div><div class="val" id="disp-vent">--</div></div>
+      <div class="data-item"><div class="label">In-Rx Burn Hours</div><div class="val" id="disp-hours">--</div></div>
+    </div>
+  </div>
+
+  <!-- Static Satellite Map Preview for PDF Export -->
+  <div id="map-preview" class="map-preview">
+    <div style="font-size:11px; font-weight:bold; margin-bottom:4px; text-transform:uppercase;">Unit Location Satellite Preview</div>
+    <img id="map-img" src="" alt="Unit Location Satellite Image">
+  </div>
+
+  <!-- Export Report Modal Trigger Button -->
+  <button id="exportMenuBtn" class="export-btn no-print" style="display:none;" onclick="openExportModal()">Export Data Summary / PDF</button>
+
+  <!-- Forecast Table -->
   <table id="matrix" style="display:none;">
     <thead>
       <tr>
@@ -61,6 +126,22 @@
     <tbody id="matrix-body"></tbody>
   </table>
 
+  <!-- Export Menu Modal -->
+  <div id="exportModal" class="modal-overlay">
+    <div class="modal">
+      <h4>Export Report Options</h4>
+      <p style="font-size:12px; color:#666; margin-bottom:12px;">Select data sections to include in your printed PDF report:</p>
+      
+      <label class="modal-option"><input type="checkbox" id="chkMatrix" checked> 72-Hour Forecast Matrix</label>
+      <label class="modal-option"><input type="checkbox" id="chkDispersion" checked> Transport Winds & Dispersion Summary</label>
+      <label class="modal-option"><input type="checkbox" id="chkRaws" checked> Live RAWS Station & Fuel Moisture</label>
+      <label class="modal-option"><input type="checkbox" id="chkMap" checked> Unit Satellite Map Preview</label>
+
+      <button onclick="generatePDF()">Print / Save as PDF</button>
+      <button onclick="closeExportModal()" style="background:#6c757d; margin-top:6px;">Cancel</button>
+    </div>
+  </div>
+
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const rawUnit = urlParams.get('unit');
@@ -69,11 +150,10 @@
     const cleanUnitId = rawId.replace(/[^0-9]/g, '');
     const unitName = (rawUnit && rawUnit !== '{Name}') ? decodeURIComponent(rawUnit) : null;
 
-    document.getElementById('unit-title').innerText = unitName || 'Unit / Location';
+    document.getElementById('unit-title').innerText = unitName || 'Custom Location / Unit';
 
     const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
 
-    // Smart coordinate parser to handle raw text from Esri widgets or Google Maps
     function parseSmartCoordinates(rawText) {
       if (!rawText) return null;
       const nums = rawText.match(/[-+]?\d*\.?\d+/g);
@@ -84,26 +164,74 @@
 
       let lat, lon;
 
-      // Smart check for North America: Lon is ~50 to 180, Lat is ~15 to 70
       if (Math.abs(n1) > 50 && Math.abs(n2) <= 50) {
-        lon = n1;
-        lat = n2;
+        lon = n1; lat = n2;
       } else if (Math.abs(n2) > 50 && Math.abs(n1) <= 50) {
-        lat = n1;
-        lon = n2;
+        lat = n1; lon = n2;
       } else {
-        lat = n1;
-        lon = n2;
+        lat = n1; lon = n2;
       }
 
-      // Automatically add negative sign for Western Hemisphere longitude if missing
-      if (lon > 50 && lon < 180) {
-        lon = -lon;
-      }
+      if (lon > 50 && lon < 180) lon = -lon;
 
       if (isNaN(lat) || isNaN(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
 
       return { lat, lon };
+    }
+
+    // NFDRS Equilibrium Moisture Content (EMC) & Dead Fuel Moisture calculation
+    function calculateFuelMoisture(tempF, rh) {
+      if (isNaN(tempF) || isNaN(rh)) return { fm10: 'N/A', fm1: 'N/A' };
+      let emc = 0;
+      if (rh < 10) {
+        emc = 0.03229 + (0.281073 * rh) - (0.000578 * rh * tempF);
+      } else if (rh <= 50) {
+        emc = 2.22749 + (0.160107 * rh) - (0.01478 * tempF);
+      } else {
+        emc = 21.0606 + (0.005565 * Math.pow(tempF, 2)) - (0.00035 * tempF * rh) - (0.483199 * rh);
+      }
+      emc = Math.max(1, Math.min(emc, 35));
+      const fm1 = emc.toFixed(1) + '%';
+      const fm10 = (emc * 1.28).toFixed(1) + '%';
+      return { fm10, fm1 };
+    }
+
+    async function fetchRawsData(lat, lon) {
+      try {
+        const stationsRes = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}/stations`);
+        if (!stationsRes.ok) return;
+        const stationsData = await stationsRes.json();
+        const station = stationsData.features?.[0]?.properties;
+        if (!station) return;
+
+        const obsRes = await fetch(`https://api.weather.gov/stations/${station.stationIdentifier}/observations/latest`);
+        if (!obsRes.ok) return;
+        const obsData = await obsRes.json();
+        const props = obsData.properties || {};
+
+        const tempC = props.temperature?.value;
+        const rhVal = props.relativeHumidity?.value;
+        const windKmh = props.windSpeed?.value;
+
+        const tempF = (tempC !== null && tempC !== undefined) ? Math.round((tempC * 9/5) + 32) : null;
+        const rh = (rhVal !== null && rhVal !== undefined) ? Math.round(rhVal) : null;
+        const windMph = (windKmh !== null && windKmh !== undefined) ? Math.round(windKmh * 0.621371) : null;
+
+        document.getElementById('raws-header').innerText = `Nearest RAWS Station: ${station.name} (${station.stationIdentifier})`;
+        document.getElementById('raws-temp').innerText = tempF !== null ? `${tempF}°F` : 'N/A';
+        document.getElementById('raws-rh').innerText = rh !== null ? `${rh}%` : 'N/A';
+        document.getElementById('raws-wind').innerText = windMph !== null ? `${windMph} mph` : 'N/A';
+
+        if (tempF !== null && rh !== null) {
+          const fm = calculateFuelMoisture(tempF, rh);
+          document.getElementById('raws-fm10').innerText = fm.fm10;
+          document.getElementById('raws-fm1').innerText = fm.fm1;
+        }
+
+        document.getElementById('raws-box').style.display = 'block';
+      } catch (e) {
+        console.warn("Could not load RAWS station observation:", e);
+      }
     }
 
     function queryArcGISJsonp(id) {
@@ -114,11 +242,8 @@
         window[cbName] = function(data) {
           delete window[cbName];
           if (script.parentNode) script.parentNode.removeChild(script);
-          if (data.error) {
-            reject(new Error(`ArcGIS error: ${data.error.message || 'Query failed'}`));
-          } else {
-            resolve(data);
-          }
+          if (data.error) reject(new Error(`ArcGIS error: ${data.error.message}`));
+          else resolve(data);
         };
 
         const script = document.createElement('script');
@@ -152,43 +277,30 @@
 
     async function getUnitCoordinatesById(id) {
       if (!id) throw new Error("No valid numeric Unit ID received.");
-
       const data = await queryArcGISJsonp(id);
-
-      if (!data.features || data.features.length === 0) throw new Error(`Unit ID ${id} not found in feature dataset.`);
+      if (!data.features || data.features.length === 0) throw new Error(`Unit ID ${id} not found.`);
 
       const geom = data.features[0].geometry;
       let points = [];
-      if (geom.rings) {
-        geom.rings.forEach(ring => ring.forEach(pt => points.push(pt)));
-      } else if (geom.x && geom.y) {
-        return { lat: geom.y, lon: geom.x };
-      }
+      if (geom.rings) geom.rings.forEach(ring => ring.forEach(pt => points.push(pt)));
+      else if (geom.x && geom.y) return { lat: geom.y, lon: geom.x };
 
       if (points.length === 0) throw new Error("Could not extract polygon coordinates.");
 
       let sumLon = 0, sumLat = 0;
-      points.forEach(pt => {
-        sumLon += pt[0];
-        sumLat += pt[1];
-      });
+      points.forEach(pt => { sumLon += pt[0]; sumLat += pt[1]; });
 
-      return {
-        lat: sumLat / points.length,
-        lon: sumLon / points.length
-      };
+      return { lat: sumLat / points.length, lon: sumLon / points.length };
     }
 
     async function runEvaluation() {
       let coords = parseSmartCoordinates(document.getElementById('coordInput').value);
 
-      // Step 1: If input box is empty but cleanUnitId exists, query TWIG centroid
       if (!coords && cleanUnitId) {
         document.getElementById('status').innerText = "Locating TWIG unit boundary...";
         try {
           const fetchedCoords = await getUnitCoordinatesById(cleanUnitId);
           coords = fetchedCoords;
-          // Display parsed format in input box for user confirmation
           document.getElementById('coordInput').value = `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`;
         } catch (err) {
           document.getElementById('status').innerText = "TWIG Lookup Error: " + err.message + ". Paste coordinates manually above.";
@@ -196,13 +308,19 @@
         }
       }
 
-      // Step 2: Ensure valid coordinates exist before proceeding
       if (!coords) {
         document.getElementById('status').innerText = "Select a unit on the map or paste coordinates above.";
         return;
       }
 
       const { lat, lon } = coords;
+
+      // Update Esri World Imagery static map preview URL
+      const bbox = `${lon - 0.025},${lat - 0.025},${lon + 0.025},${lat + 0.025}`;
+      document.getElementById('map-img').src = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
+
+      // Fetch RAWS station data concurrently
+      fetchRawsData(lat, lon);
 
       const minTemp = parseFloat(document.getElementById('minTemp').value);
       const maxTemp = parseFloat(document.getElementById('maxTemp').value);
@@ -227,10 +345,7 @@
         const hourlyUrl = pointData.properties.forecastHourly;
         const gridUrl   = pointData.properties.forecastGridData;
 
-        const [forecastRes, gridRes] = await Promise.all([
-          fetch(hourlyUrl),
-          fetch(gridUrl)
-        ]);
+        const [forecastRes, gridRes] = await Promise.all([fetch(hourlyUrl), fetch(gridUrl)]);
 
         const forecastData = await forecastRes.json();
         const gridData     = await gridRes.json();
@@ -245,6 +360,12 @@
         const loc = pointData.properties.relativeLocation.properties;
         document.getElementById('status').innerText = `Forecast Zone: ${loc.city}, ${loc.state} (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
         document.getElementById('matrix').style.display = 'table';
+        document.getElementById('exportMenuBtn').style.display = 'block';
+
+        let inRxCount = 0;
+        let tWindSum = 0;
+        let mixMin = 99999, mixMax = 0;
+        let ventMin = 99999, ventMax = 0;
 
         periods.forEach(p => {
           const pTime = new Date(p.startTime);
@@ -260,6 +381,15 @@
             const mHeightFt = mHeightMeters * 3.28084;
             const tWindKt   = tWindKmh * 0.539957;
             ventRate = Math.round((mHeightFt * tWindKt) / 1000);
+
+            if (temp >= minTemp && temp <= maxTemp && wind <= maxWind && (rh >= minRH && rh <= maxRH) && (ventRate >= minVent && ventRate <= maxVent)) {
+              inRxCount++;
+              tWindSum += (tWindKmh * 0.621371);
+              if (mHeightFt < mixMin) mixMin = mHeightFt;
+              if (mHeightFt > mixMax) mixMax = mHeightFt;
+              if (ventRate < ventMin) ventMin = ventRate;
+              if (ventRate > ventMax) ventMax = ventRate;
+            }
           }
 
           const tempOk = (temp >= minTemp && temp <= maxTemp);
@@ -287,9 +417,36 @@
           `;
           tbody.appendChild(tr);
         });
+
+        // Populate Transport Winds & Dispersion Summary
+        if (inRxCount > 0) {
+          document.getElementById('disp-hours').innerText = `${inRxCount} Hours`;
+          document.getElementById('disp-wind').innerText = `${Math.round(tWindSum / inRxCount)} mph`;
+          document.getElementById('disp-mix').innerText = `${Math.round(mixMin)} - ${Math.round(mixMax)} ft`;
+          document.getElementById('disp-vent').innerText = `${ventMin} - ${ventMax} kt-ft`;
+          document.getElementById('dispersion-box').style.display = 'block';
+        } else {
+          document.getElementById('dispersion-box').style.display = 'none';
+        }
+
       } catch (err) {
         document.getElementById('status').innerText = 'Error: ' + err.message;
       }
+    }
+
+    // Modal Control Functions
+    function openExportModal() { document.getElementById('exportModal').style.display = 'flex'; }
+    function closeExportModal() { document.getElementById('exportModal').style.display = 'none'; }
+
+    function generatePDF() {
+      // Toggle DOM element display based on user checkbox choices
+      document.getElementById('matrix').style.display = document.getElementById('chkMatrix').checked ? 'table' : 'none';
+      document.getElementById('dispersion-box').style.display = document.getElementById('chkDispersion').checked ? 'block' : 'none';
+      document.getElementById('raws-box').style.display = document.getElementById('chkRaws').checked ? 'block' : 'none';
+      document.getElementById('map-preview').style.display = document.getElementById('chkMap').checked ? 'block' : 'none';
+
+      closeExportModal();
+      setTimeout(() => { window.print(); }, 200);
     }
 
     if (cleanUnitId) {
