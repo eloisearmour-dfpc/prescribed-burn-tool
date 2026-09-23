@@ -30,34 +30,23 @@
     th, td { border: 1px solid #dee2e6; padding: 6px; text-align: center; }
     th { background: #e9ecef; }
 
+    /* Map Preview with SVG Vector Perimeter Overlay */
+    .map-container { position: relative; width: 100%; max-width: 600px; margin: 12px auto; display: none; text-align: center; }
+    .map-container img { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; display: block; }
+    .map-container svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+
     /* Modal Styling for Export Builder */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
     .modal { background: white; padding: 20px; border-radius: 8px; max-width: 380px; width: 90%; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
     .modal h4 { margin: 0 0 10px 0; font-size: 16px; color: #0078d4; }
     .modal-option { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 13px; font-weight: 500; }
-
-    .map-preview { text-align: center; margin: 12px 0; display: none; }
-    .map-preview img { max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; }
-
-    /* Print Stylesheet for Clean PDF Export */
-    @media print {
-      body { background: white; padding: 0; margin: 0; color: #000; }
-      .no-print, button, .coord-box, .modal-overlay, .rx-grid { display: none !important; }
-      .card { box-shadow: none; border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; page-break-inside: avoid; }
-      .map-preview { display: block !important; }
-      table { font-size: 10px; page-break-inside: auto; }
-      tr { page-break-inside: avoid; page-break-after: auto; }
-      .data-box { border-left: 3px solid #333; background: #f9f9f9; }
-      .data-item { border: 1px solid #ccc; }
-      .data-item .val { color: #000; }
-    }
   </style>
 </head>
 <body>
 
   <div class="card">
     <h3 id="unit-title" style="margin:0 0 2px 0; font-size:16px;">Unit Weather Forecast</h3>
-    <div style="font-size: 11px; color: #555; margin-bottom: 6px;">Select a unit on the map or enter your own coordinates below:</div>
+    <div style="font-size: 11px; color: #555; margin-bottom: 6px;">Select a unit on the map or enter custom coordinates below:</div>
     <div id="status" style="font-size: 11px; color: #0078d4; font-weight: 500; margin-bottom: 8px;">Ready to evaluate forecast...</div>
 
     <!-- Smart Coordinate Input Box -->
@@ -65,9 +54,9 @@
       <input type="text" id="coordInput" placeholder="Coordinates (e.g., 40.782, -106.455 or 106.455 40.782)">
     </div>
 
-    <div class="input-header no-print">Element 7B Prescription Limits</div>
+    <div class="input-header">Element 7B Prescription Limits</div>
 
-    <div class="rx-grid no-print">
+    <div class="rx-grid">
       <div class="rx-field">Min Temp (°F)<input type="number" id="minTemp" value="40"></div>
       <div class="rx-field">Max Temp (°F)<input type="number" id="maxTemp" value="75"></div>
       <div class="rx-field">Max Wind (mph)<input type="number" id="maxWind" value="12"></div>
@@ -77,7 +66,7 @@
       <div class="rx-field">Max Vent (kt-ft)<input type="number" id="maxVent" value="150"></div>
     </div>
     
-    <button id="evalBtn" class="no-print" onclick="runEvaluation(true)">Evaluate 72-Hour Burn Window</button>
+    <button id="evalBtn" onclick="runEvaluation(true)">Evaluate 72-Hour Burn Window</button>
   </div>
 
   <!-- 1. 72-Hour Forecast Matrix Table -->
@@ -107,14 +96,20 @@
     </div>
   </div>
 
-  <!-- 3. Static Satellite Map Preview for PDF Export -->
-  <div id="map-preview" class="map-preview">
+  <!-- 3. Satellite Map Preview Container with Vector Perimeter Overlay -->
+  <div id="map-preview" class="map-container">
     <div style="font-size:11px; font-weight:bold; margin-bottom:4px; text-transform:uppercase;">Unit Location Satellite Preview</div>
-    <img id="map-img" src="" alt="Unit Location Satellite Image">
+    <div style="position:relative; display:inline-block; width:100%;">
+      <img id="map-img" src="" alt="Unit Location Satellite Image">
+      <svg id="map-svg" viewBox="0 0 600 350" preserveAspectRatio="none">
+        <path id="svg-polygon" d="" fill="rgba(0, 255, 255, 0.25)" stroke="#00ffff" stroke-width="3" />
+        <circle id="svg-pin" cx="-50" cy="-50" r="8" fill="#ff0000" stroke="#ffffff" stroke-width="2" />
+      </svg>
+    </div>
   </div>
 
   <!-- 4. Export Report Button (At Bottom) -->
-  <button id="exportMenuBtn" class="export-btn no-print" style="display:none;" onclick="openExportModal()">📄 Export Data Summary / PDF</button>
+  <button id="exportMenuBtn" class="export-btn" style="display:none;" onclick="openExportModal()">📄 Export Data Summary / PDF</button>
 
   <!-- Export Options Modal -->
   <div id="exportModal" class="modal-overlay">
@@ -144,6 +139,7 @@
     }
 
     const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
+    let currentRings = null;
 
     function parseSmartCoordinates(rawText) {
       if (!rawText) return null;
@@ -272,6 +268,12 @@
       if (!data.features || data.features.length === 0) throw new Error(`Unit ID ${id} not found.`);
 
       const geom = data.features[0].geometry;
+      if (geom.rings) {
+        currentRings = geom.rings;
+      } else {
+        currentRings = null;
+      }
+
       let points = [];
       if (geom.rings) geom.rings.forEach(ring => ring.forEach(pt => points.push(pt)));
       else if (geom.x && geom.y) return { lat: geom.y, lon: geom.x };
@@ -284,6 +286,55 @@
       return { lat: sumLat / points.length, lon: sumLon / points.length };
     }
 
+    function updateSatelliteMapPreview(lat, lon) {
+      let minLon, maxLon, minLat, maxLat;
+
+      if (currentRings && currentRings.length > 0) {
+        let allLons = [], allLats = [];
+        currentRings.forEach(ring => ring.forEach(pt => {
+          allLons.push(pt[0]);
+          allLats.push(pt[1]);
+        }));
+
+        minLon = Math.min(...allLons);
+        maxLon = Math.max(...allLons);
+        minLat = Math.min(...allLats);
+        maxLat = Math.max(...allLats);
+
+        const lonPadding = ((maxLon - minLon) || 0.01) * 0.25;
+        const latPadding = ((maxLat - minLat) || 0.01) * 0.25;
+
+        minLon -= lonPadding; maxLon += lonPadding;
+        minLat -= latPadding; maxLat += latPadding;
+
+        // Construct SVG vector perimeter path
+        let svgPath = '';
+        currentRings.forEach(ring => {
+          ring.forEach((pt, idx) => {
+            const x = (((pt[0] - minLon) / (maxLon - minLon)) * 600).toFixed(1);
+            const y = ((1 - (pt[1] - minLat) / (maxLat - minLat)) * 350).toFixed(1);
+            svgPath += (idx === 0 ? `M ${x} ${y} ` : `L ${x} ${y} `);
+          });
+          svgPath += 'Z ';
+        });
+
+        document.getElementById('svg-polygon').setAttribute('d', svgPath);
+        document.getElementById('svg-pin').setAttribute('cx', '-50');
+      } else {
+        // Custom location pin
+        minLon = lon - 0.015; maxLon = lon + 0.015;
+        minLat = lat - 0.015; maxLat = lat + 0.015;
+
+        document.getElementById('svg-polygon').setAttribute('d', '');
+        document.getElementById('svg-pin').setAttribute('cx', '300');
+        document.getElementById('svg-pin').setAttribute('cy', '175');
+      }
+
+      const bbox = `${minLon.toFixed(5)},${minLat.toFixed(5)},${maxLon.toFixed(5)},${maxLat.toFixed(5)}`;
+      document.getElementById('map-img').src = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
+      document.getElementById('map-preview').style.display = 'block';
+    }
+
     async function runEvaluation(isManual = false) {
       let coords = null;
 
@@ -294,6 +345,7 @@
           document.getElementById('coordInput').value = `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`;
         } catch (err) {
           console.warn("TWIG lookup fallback to manual input:", err);
+          currentRings = null;
           coords = parseSmartCoordinates(document.getElementById('coordInput').value);
           if (!coords) {
             document.getElementById('status').innerText = "TWIG Lookup Error: " + err.message + ". Enter coordinates manually below.";
@@ -301,6 +353,7 @@
           }
         }
       } else {
+        currentRings = null;
         coords = parseSmartCoordinates(document.getElementById('coordInput').value);
       }
 
@@ -311,9 +364,10 @@
 
       const { lat, lon } = coords;
 
-      const bbox = `${lon - 0.025},${lat - 0.025},${lon + 0.025},${lat + 0.025}`;
-      document.getElementById('map-img').src = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
+      // Render satellite map preview with perimeter overlay
+      updateSatelliteMapPreview(lat, lon);
 
+      // Fetch RAWS station observations concurrently
       fetchRawsData(lat, lon);
 
       const minTemp = parseFloat(document.getElementById('minTemp').value);
@@ -406,18 +460,90 @@
     function openExportModal() { document.getElementById('exportModal').style.display = 'flex'; }
     function closeExportModal() { document.getElementById('exportModal').style.display = 'none'; }
 
+    // Option A: Pop-Out Printable Tab
     function generatePDF() {
-      // 1. Show/hide selected sections based on modal checkboxes
-      document.getElementById('matrix').style.display = document.getElementById('chkMatrix').checked ? 'table' : 'none';
-      document.getElementById('raws-box').style.display = document.getElementById('chkRaws').checked ? 'block' : 'none';
-      document.getElementById('map-preview').style.display = document.getElementById('chkMap').checked ? 'block' : 'none';
+      const showMatrix = document.getElementById('chkMatrix').checked;
+      const showRaws   = document.getElementById('chkRaws').checked;
+      const showMap    = document.getElementById('chkMap').checked;
 
-      // 2. Hide the option modal overlay
       closeExportModal();
 
-      // 3. Synchronously focus and print immediately (preserves user activation gesture)
-      window.focus();
-      window.print();
+      const printWin = window.open('', '_blank');
+      if (!printWin) {
+        alert("Pop-up blocked! Please allow pop-ups for this site to open the printable report tab.");
+        return;
+      }
+
+      const currentTitle = document.getElementById('unit-title').innerText;
+      const currentStatus = document.getElementById('status').innerText;
+
+      let reportHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Prescription Weather Evaluation - ${currentTitle}</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color: #333; max-width: 800px; margin: 0 auto; }
+            h2 { margin: 0 0 4px 0; color: #0078d4; font-size: 20px; }
+            .meta { font-size: 12px; color: #555; margin-bottom: 16px; border-bottom: 2px solid #0078d4; padding-bottom: 8px; }
+            .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 10px; border-radius: 4px; margin-bottom: 16px; }
+            .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-top: 6px; }
+            .data-item { background: white; padding: 6px 8px; border-radius: 4px; border: 1px solid #d0e1f9; }
+            .data-item .label { font-size: 9px; color: #555; text-transform: uppercase; font-weight: bold; }
+            .data-item .val { font-size: 13px; font-weight: bold; color: #0078d4; margin-top: 2px; }
+            table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 16px; }
+            th, td { border: 1px solid #dee2e6; padding: 5px; text-align: center; }
+            th { background: #e9ecef; }
+            .go { background-color: #d4edda; color: #155724; font-weight: bold; }
+            .nogo { background-color: #f8d7da; color: #721c24; font-weight: bold; }
+            .map-container { position: relative; width: 100%; max-width: 600px; margin: 12px auto; text-align: center; }
+            .map-container img { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; display: block; }
+            .map-container svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+            @media print {
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <h2>${currentTitle}</h2>
+          <div class="meta">
+            <strong>Forecast Zone / Coords:</strong> ${currentStatus} &nbsp;|&nbsp; 
+            <strong>Report Generated:</strong> ${new Date().toLocaleString()}
+          </div>
+      `;
+
+      if (showRaws && document.getElementById('raws-box').style.display !== 'none') {
+        reportHtml += document.getElementById('raws-box').outerHTML;
+      }
+
+      if (showMatrix) {
+        reportHtml += `
+          <h3 style="font-size:14px; margin:14px 0 6px 0; color:#333;">72-Hour NWS Forecast Evaluation Matrix</h3>
+          ${document.getElementById('matrix').outerHTML}
+        `;
+      }
+
+      if (showMap) {
+        reportHtml += `
+          <h3 style="font-size:14px; margin:14px 0 6px 0; color:#333;">Unit Boundary Satellite Location Preview</h3>
+          ${document.getElementById('map-preview').outerHTML}
+        `;
+      }
+
+      reportHtml += `
+          <script>
+            window.onload = function() {
+              window.focus();
+              setTimeout(function() { window.print(); }, 300);
+            };
+          <\/script>
+        </body>
+        </html>
+      `;
+
+      printWin.document.open();
+      printWin.document.write(reportHtml);
+      printWin.document.close();
     }
 
     if (cleanUnitId) {
