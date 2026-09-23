@@ -185,51 +185,67 @@
       return { fm10, fm1 };
     }
 
-   async function fetchRawsData(lat, lon) {
+  async function fetchRawsData(lat, lon) {
   try {
     const stationsRes = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}/stations`);
     if (!stationsRes.ok) return;
     const stationsData = await stationsRes.json();
-    const station = stationsData.features?.[0]?.properties;
-    if (!station) return;
+    const stations = stationsData.features || [];
+    if (!stations.length) return;
 
-    const obsRes = await fetch(`https://api.weather.gov/stations/${station.stationIdentifier}/observations/latest`);
-    if (!obsRes.ok) return;
-    const obsData = await obsRes.json();
-    const props = obsData.properties || {};
+    // Loop through nearby stations to find the first ACTIVE station with live observations
+    for (const item of stations) {
+      const station = item.properties;
+      if (!station || !station.stationIdentifier) continue;
 
-    const tempC = props.temperature?.value;
-    const rhVal = props.relativeHumidity?.value;
-    const windKmh = props.windSpeed?.value;
+      try {
+        const obsRes = await fetch(`https://api.weather.gov/stations/${station.stationIdentifier}/observations/latest`);
+        if (!obsRes.ok) continue;
 
-    // Parse timestamp from observation response
-  // Parse timestamp with Date & Time (e.g., Sep 23, 2:15 PM)
-const obsTimestamp = props.timestamp;
-let timeFormatted = 'N/A';
-if (obsTimestamp) {
-  const t = new Date(obsTimestamp);
-  timeFormatted = t.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-}
+        const obsData = await obsRes.json();
+        const props = obsData.properties || {};
 
-    const tempF = (tempC !== null && tempC !== undefined) ? Math.round((tempC * 9/5) + 32) : null;
-    const rh = (rhVal !== null && rhVal !== undefined) ? Math.round(rhVal) : null;
-    const windMph = (windKmh !== null && windKmh !== undefined) ? Math.round(windKmh * 0.621371) : null;
+        const tempC = props.temperature?.value;
+        const rhVal = props.relativeHumidity?.value;
+        const windKmh = props.windSpeed?.value;
+        const obsTimestamp = props.timestamp;
 
-    document.getElementById('raws-header').innerText = `Nearest RAWS Station: ${station.name} (${station.stationIdentifier})`;
-    document.getElementById('raws-temp').innerText = tempF !== null ? `${tempF}°F` : 'N/A';
-    document.getElementById('raws-rh').innerText = rh !== null ? `${rh}%` : 'N/A';
-    document.getElementById('raws-wind').innerText = windMph !== null ? `${windMph} mph` : 'N/A';
-    document.getElementById('raws-time').innerText = timeFormatted;
+        // Skip station if active weather/RH inputs are missing
+        if (tempC === null || tempC === undefined || rhVal === null || rhVal === undefined) {
+          console.warn(`Station ${station.stationIdentifier} is inactive/missing data. Trying next station...`);
+          continue;
+        }
 
-    if (tempF !== null && rh !== null) {
-      const fm = calculateFuelMoisture(tempF, rh);
-      document.getElementById('raws-fm10').innerText = fm.fm10;
-      document.getElementById('raws-fm1').innerText = fm.fm1;
+        const tempF = Math.round((tempC * 9/5) + 32);
+        const rh = Math.round(rhVal);
+        const windMph = (windKmh !== null && windKmh !== undefined) ? Math.round(windKmh * 0.621371) : null;
+
+        let timeFormatted = 'N/A';
+        if (obsTimestamp) {
+          const t = new Date(obsTimestamp);
+          timeFormatted = t.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        document.getElementById('raws-header').innerText = `Nearest Active RAWS Station: ${station.name} (${station.stationIdentifier})`;
+        document.getElementById('raws-temp').innerText = `${tempF}°F`;
+        document.getElementById('raws-rh').innerText = `${rh}%`;
+        document.getElementById('raws-wind').innerText = windMph !== null ? `${windMph} mph` : 'N/A';
+        document.getElementById('raws-time').innerText = timeFormatted;
+
+        const fm = calculateFuelMoisture(tempF, rh);
+        document.getElementById('raws-fm10').innerText = fm.fm10;
+        document.getElementById('raws-fm1').innerText = fm.fm1;
+
+        document.getElementById('raws-box').style.display = 'block';
+        return; // Active station found & loaded successfully
+      } catch (err) {
+        console.warn(`Failed observation check for station ${station.stationIdentifier}, trying next station...`, err);
+      }
     }
 
-    document.getElementById('raws-box').style.display = 'block';
+    console.warn("No active RAWS stations with valid observations found nearby.");
   } catch (e) {
-    console.warn("Could not load RAWS station observation:", e);
+    console.warn("Could not load RAWS station observations:", e);
   }
 }
 
