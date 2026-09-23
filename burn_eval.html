@@ -203,12 +203,13 @@
     const windKmh = props.windSpeed?.value;
 
     // Parse timestamp from observation response
-    const obsTimestamp = props.timestamp;
-    let timeFormatted = 'N/A';
-    if (obsTimestamp) {
-      const t = new Date(obsTimestamp);
-      timeFormatted = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
+  // Parse timestamp with Date & Time (e.g., Sep 23, 2:15 PM)
+const obsTimestamp = props.timestamp;
+let timeFormatted = 'N/A';
+if (obsTimestamp) {
+  const t = new Date(obsTimestamp);
+  timeFormatted = t.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
 
     const tempF = (tempC !== null && tempC !== undefined) ? Math.round((tempC * 9/5) + 32) : null;
     const rh = (rhVal !== null && rhVal !== undefined) ? Math.round(rhVal) : null;
