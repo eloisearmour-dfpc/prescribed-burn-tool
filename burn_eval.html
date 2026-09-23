@@ -85,16 +85,18 @@
   </table>
 
   <!-- 2. RAWS Station & Live Fuel Moisture Box (Below Forecast) -->
-  <div id="raws-box" class="data-box" style="display:none;">
-    <div style="font-weight:bold; color:#0078d4; margin-bottom:4px;" id="raws-header">Nearest RAWS Observation & Fuel Moisture</div>
-    <div class="data-grid">
-      <div class="data-item"><div class="label">Observed Temp</div><div class="val" id="raws-temp">--</div></div>
-      <div class="data-item"><div class="label">Observed RH</div><div class="val" id="raws-rh">--</div></div>
-      <div class="data-item"><div class="label">Observed Wind</div><div class="val" id="raws-wind">--</div></div>
-      <div class="data-item"><div class="label">10-Hr Fuel Moisture</div><div class="val" id="raws-fm10">--</div></div>
-      <div class="data-item"><div class="label">1-Hr Fuel Moisture</div><div class="val" id="raws-fm1">--</div></div>
-    </div>
+<div id="raws-box" class="data-box" style="display:none;">
+  <div style="font-weight:bold; color:#0078d4; margin-bottom:4px;" id="raws-header">Nearest RAWS Observation & Fuel Moisture</div>
+  <div class="data-grid">
+    <div class="data-item"><div class="label">Observed Temp</div><div class="val" id="raws-temp">--</div></div>
+    <div class="data-item"><div class="label">Observed RH</div><div class="val" id="raws-rh">--</div></div>
+    <div class="data-item"><div class="label">Observed Wind</div><div class="val" id="raws-wind">--</div></div>
+    <div class="data-item"><div class="label">10-Hr Fuel Moisture</div><div class="val" id="raws-fm10">--</div></div>
+    <div class="data-item"><div class="label">1-Hr Fuel Moisture</div><div class="val" id="raws-fm1">--</div></div>
+    <!-- ADD THIS LINE BELOW -->
+    <div class="data-item"><div class="label">Observed At</div><div class="val" id="raws-time">--</div></div>
   </div>
+</div>
 
   <!-- 3. Satellite Map Preview Container with Vector Perimeter Overlay -->
   <div id="map-preview" class="map-container">
@@ -183,43 +185,52 @@
       return { fm10, fm1 };
     }
 
-    async function fetchRawsData(lat, lon) {
-      try {
-        const stationsRes = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}/stations`);
-        if (!stationsRes.ok) return;
-        const stationsData = await stationsRes.json();
-        const station = stationsData.features?.[0]?.properties;
-        if (!station) return;
+   async function fetchRawsData(lat, lon) {
+  try {
+    const stationsRes = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}/stations`);
+    if (!stationsRes.ok) return;
+    const stationsData = await stationsRes.json();
+    const station = stationsData.features?.[0]?.properties;
+    if (!station) return;
 
-        const obsRes = await fetch(`https://api.weather.gov/stations/${station.stationIdentifier}/observations/latest`);
-        if (!obsRes.ok) return;
-        const obsData = await obsRes.json();
-        const props = obsData.properties || {};
+    const obsRes = await fetch(`https://api.weather.gov/stations/${station.stationIdentifier}/observations/latest`);
+    if (!obsRes.ok) return;
+    const obsData = await obsRes.json();
+    const props = obsData.properties || {};
 
-        const tempC = props.temperature?.value;
-        const rhVal = props.relativeHumidity?.value;
-        const windKmh = props.windSpeed?.value;
+    const tempC = props.temperature?.value;
+    const rhVal = props.relativeHumidity?.value;
+    const windKmh = props.windSpeed?.value;
 
-        const tempF = (tempC !== null && tempC !== undefined) ? Math.round((tempC * 9/5) + 32) : null;
-        const rh = (rhVal !== null && rhVal !== undefined) ? Math.round(rhVal) : null;
-        const windMph = (windKmh !== null && windKmh !== undefined) ? Math.round(windKmh * 0.621371) : null;
-
-        document.getElementById('raws-header').innerText = `Nearest RAWS Station: ${station.name} (${station.stationIdentifier})`;
-        document.getElementById('raws-temp').innerText = tempF !== null ? `${tempF}°F` : 'N/A';
-        document.getElementById('raws-rh').innerText = rh !== null ? `${rh}%` : 'N/A';
-        document.getElementById('raws-wind').innerText = windMph !== null ? `${windMph} mph` : 'N/A';
-
-        if (tempF !== null && rh !== null) {
-          const fm = calculateFuelMoisture(tempF, rh);
-          document.getElementById('raws-fm10').innerText = fm.fm10;
-          document.getElementById('raws-fm1').innerText = fm.fm1;
-        }
-
-        document.getElementById('raws-box').style.display = 'block';
-      } catch (e) {
-        console.warn("Could not load RAWS station observation:", e);
-      }
+    // Parse timestamp from observation response
+    const obsTimestamp = props.timestamp;
+    let timeFormatted = 'N/A';
+    if (obsTimestamp) {
+      const t = new Date(obsTimestamp);
+      timeFormatted = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
+
+    const tempF = (tempC !== null && tempC !== undefined) ? Math.round((tempC * 9/5) + 32) : null;
+    const rh = (rhVal !== null && rhVal !== undefined) ? Math.round(rhVal) : null;
+    const windMph = (windKmh !== null && windKmh !== undefined) ? Math.round(windKmh * 0.621371) : null;
+
+    document.getElementById('raws-header').innerText = `Nearest RAWS Station: ${station.name} (${station.stationIdentifier})`;
+    document.getElementById('raws-temp').innerText = tempF !== null ? `${tempF}°F` : 'N/A';
+    document.getElementById('raws-rh').innerText = rh !== null ? `${rh}%` : 'N/A';
+    document.getElementById('raws-wind').innerText = windMph !== null ? `${windMph} mph` : 'N/A';
+    document.getElementById('raws-time').innerText = timeFormatted;
+
+    if (tempF !== null && rh !== null) {
+      const fm = calculateFuelMoisture(tempF, rh);
+      document.getElementById('raws-fm10').innerText = fm.fm10;
+      document.getElementById('raws-fm1').innerText = fm.fm1;
+    }
+
+    document.getElementById('raws-box').style.display = 'block';
+  } catch (e) {
+    console.warn("Could not load RAWS station observation:", e);
+  }
+}
 
     function queryArcGISJsonp(id) {
       return new Promise((resolve, reject) => {
