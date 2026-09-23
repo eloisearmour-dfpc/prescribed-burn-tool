@@ -14,14 +14,14 @@
     .coord-box input { width: 100%; padding: 8px; font-size: 12px; border: 1px solid #0078d4; border-radius: 4px; box-sizing: border-box; margin-top: 4px; }
     
     .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 12px; }
-    .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 6px; }
+    .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-top: 6px; }
     .data-item { background: white; padding: 6px 8px; border-radius: 4px; border: 1px solid #d0e1f9; }
     .data-item .label { font-size: 10px; color: #555; text-transform: uppercase; font-weight: bold; }
-    .data-item .val { font-size: 14px; font-weight: bold; color: #0078d4; margin-top: 2px; }
+    .data-item .val { font-size: 13px; font-weight: bold; color: #0078d4; margin-top: 2px; }
 
     button { background: #0078d4; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; margin-top: 10px; width: 100%; }
     button:hover { background: #005a9e; }
-    button.export-btn { background: #28a745; margin-top: 12px; }
+    button.export-btn { background: #28a745; margin-top: 12px; margin-bottom: 12px; font-size: 14px; }
     button.export-btn:hover { background: #218838; }
 
     .go { background-color: #d4edda; color: #155724; font-weight: bold; }
@@ -39,7 +39,7 @@
     .map-preview { text-align: center; margin: 12px 0; display: none; }
     .map-preview img { max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; }
 
-    /* Print Stylesheet for Clean PDF Export */
+    /* Print Stylesheet for PDF Export */
     @media print {
       body { background: white; padding: 0; margin: 0; color: #000; }
       .no-print, button, .coord-box, .modal-overlay, .rx-grid { display: none !important; }
@@ -76,7 +76,7 @@
       <div class="rx-field">Max Vent (kt-ft)<input type="number" id="maxVent" value="150"></div>
     </div>
     
-    <button id="evalBtn" class="no-print" onclick="runEvaluation()">Evaluate 72-Hour Burn Window</button>
+    <button id="evalBtn" class="no-print" onclick="runEvaluation(true)">Evaluate 72-Hour Burn Window</button>
   </div>
 
   <!-- RAWS Station & Live Fuel Moisture Box -->
@@ -108,8 +108,8 @@
     <img id="map-img" src="" alt="Unit Location Satellite Image">
   </div>
 
-  <!-- Export Report Modal Trigger Button -->
-  <button id="exportMenuBtn" class="export-btn no-print" style="display:none;" onclick="openExportModal()">Export Data Summary / PDF</button>
+  <!-- Export Report Button -->
+  <button id="exportMenuBtn" class="export-btn no-print" style="display:none;" onclick="openExportModal()">📄 Export Data Summary / PDF</button>
 
   <!-- Forecast Table -->
   <table id="matrix" style="display:none;">
@@ -126,7 +126,7 @@
     <tbody id="matrix-body"></tbody>
   </table>
 
-  <!-- Export Menu Modal -->
+  <!-- Export Options Modal -->
   <div id="exportModal" class="modal-overlay">
     <div class="modal">
       <h4>Export Report Options</h4>
@@ -147,6 +147,7 @@
     const rawUnit = urlParams.get('unit');
     const rawId = urlParams.get('id') || '';
     
+    // Extract clean numeric OBJECTID
     const cleanUnitId = rawId.replace(/[^0-9]/g, '');
     const unitName = (rawUnit && rawUnit !== '{Name}') ? decodeURIComponent(rawUnit) : null;
 
@@ -293,33 +294,39 @@
       return { lat: sumLat / points.length, lon: sumLon / points.length };
     }
 
-    async function runEvaluation() {
-      let coords = parseSmartCoordinates(document.getElementById('coordInput').value);
+    async function runEvaluation(isManual = false) {
+      let coords = null;
 
-      if (!coords && cleanUnitId) {
+      // Prioritize official map unit selection if cleanUnitId is present and user didn't explicitly force manual mode
+      if (cleanUnitId && !isManual) {
         document.getElementById('status').innerText = "Locating TWIG unit boundary...";
         try {
-          const fetchedCoords = await getUnitCoordinatesById(cleanUnitId);
-          coords = fetchedCoords;
+          coords = await getUnitCoordinatesById(cleanUnitId);
           document.getElementById('coordInput').value = `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`;
         } catch (err) {
-          document.getElementById('status').innerText = "TWIG Lookup Error: " + err.message + ". Paste coordinates manually above.";
-          return;
+          console.warn("TWIG lookup fallback to manual input:", err);
+          coords = parseSmartCoordinates(document.getElementById('coordInput').value);
+          if (!coords) {
+            document.getElementById('status').innerText = "TWIG Lookup Error: " + err.message + ". Enter coordinates manually below.";
+            return;
+          }
         }
+      } else {
+        coords = parseSmartCoordinates(document.getElementById('coordInput').value);
       }
 
       if (!coords) {
-        document.getElementById('status').innerText = "Select a unit on the map or paste coordinates above.";
+        document.getElementById('status').innerText = "Select a unit on the map or enter coordinates above.";
         return;
       }
 
       const { lat, lon } = coords;
 
-      // Update Esri World Imagery static map preview URL
+      // Update Esri World Imagery static map preview URL for PDF export
       const bbox = `${lon - 0.025},${lat - 0.025},${lon + 0.025},${lat + 0.025}`;
       document.getElementById('map-img').src = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
 
-      // Fetch RAWS station data concurrently
+      // Fetch RAWS station observations concurrently
       fetchRawsData(lat, lon);
 
       const minTemp = parseFloat(document.getElementById('minTemp').value);
@@ -418,7 +425,6 @@
           tbody.appendChild(tr);
         });
 
-        // Populate Transport Winds & Dispersion Summary
         if (inRxCount > 0) {
           document.getElementById('disp-hours').innerText = `${inRxCount} Hours`;
           document.getElementById('disp-wind').innerText = `${Math.round(tWindSum / inRxCount)} mph`;
@@ -434,12 +440,10 @@
       }
     }
 
-    // Modal Control Functions
     function openExportModal() { document.getElementById('exportModal').style.display = 'flex'; }
     function closeExportModal() { document.getElementById('exportModal').style.display = 'none'; }
 
     function generatePDF() {
-      // Toggle DOM element display based on user checkbox choices
       document.getElementById('matrix').style.display = document.getElementById('chkMatrix').checked ? 'table' : 'none';
       document.getElementById('dispersion-box').style.display = document.getElementById('chkDispersion').checked ? 'block' : 'none';
       document.getElementById('raws-box').style.display = document.getElementById('chkRaws').checked ? 'block' : 'none';
@@ -449,8 +453,9 @@
       setTimeout(() => { window.print(); }, 200);
     }
 
+    // Auto-run when cleanUnitId exists on map click
     if (cleanUnitId) {
-      runEvaluation();
+      runEvaluation(false);
     }
   </script>
 </body>
