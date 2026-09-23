@@ -107,24 +107,13 @@
     </div>
   </div>
 
-  <!-- 3. Smoke Dispersion & Transport Winds Summary Box (Below Forecast) -->
-  <div id="dispersion-box" class="data-box" style="display:none; background:#f4f9f5; border-left-color:#28a745;">
-    <div style="font-weight:bold; color:#28a745; margin-bottom:4px;">Smoke Dispersion & Transport Winds (In-Rx Hours)</div>
-    <div class="data-grid">
-      <div class="data-item"><div class="label">Avg Transport Wind</div><div class="val" id="disp-wind">--</div></div>
-      <div class="data-item"><div class="label">Mixing Height Range</div><div class="val" id="disp-mix">--</div></div>
-      <div class="data-item"><div class="label">Vent Rate Range</div><div class="val" id="disp-vent">--</div></div>
-      <div class="data-item"><div class="label">In-Rx Burn Hours</div><div class="val" id="disp-hours">--</div></div>
-    </div>
-  </div>
-
-  <!-- 4. Static Satellite Map Preview for PDF Export -->
+  <!-- 3. Static Satellite Map Preview for PDF Export -->
   <div id="map-preview" class="map-preview">
     <div style="font-size:11px; font-weight:bold; margin-bottom:4px; text-transform:uppercase;">Unit Location Satellite Preview</div>
     <img id="map-img" src="" alt="Unit Location Satellite Image">
   </div>
 
-  <!-- 5. Export Report Button (At Bottom) -->
+  <!-- 4. Export Report Button (At Bottom) -->
   <button id="exportMenuBtn" class="export-btn no-print" style="display:none;" onclick="openExportModal()">📄 Export Data Summary / PDF</button>
 
   <!-- Export Options Modal -->
@@ -134,7 +123,6 @@
       <p style="font-size:12px; color:#666; margin-bottom:12px;">Select data sections to include in your printed PDF report:</p>
       
       <label class="modal-option"><input type="checkbox" id="chkMatrix" checked> 72-Hour Forecast Matrix</label>
-      <label class="modal-option"><input type="checkbox" id="chkDispersion" checked> Transport Winds & Dispersion Summary</label>
       <label class="modal-option"><input type="checkbox" id="chkRaws" checked> Live RAWS Station & Fuel Moisture</label>
       <label class="modal-option"><input type="checkbox" id="chkMap" checked> Unit Satellite Map Preview</label>
 
@@ -368,11 +356,6 @@
         document.getElementById('matrix').style.display = 'table';
         document.getElementById('exportMenuBtn').style.display = 'block';
 
-        let inRxCount = 0;
-        let tWindSum = 0;
-        let mixMin = 99999, mixMax = 0;
-        let ventMin = 99999, ventMax = 0;
-
         periods.forEach(p => {
           const pTime = new Date(p.startTime);
           const temp = p.temperature;
@@ -387,15 +370,6 @@
             const mHeightFt = mHeightMeters * 3.28084;
             const tWindKt   = tWindKmh * 0.539957;
             ventRate = Math.round((mHeightFt * tWindKt) / 1000);
-
-            if (temp >= minTemp && temp <= maxTemp && wind <= maxWind && (rh >= minRH && rh <= maxRH) && (ventRate >= minVent && ventRate <= maxVent)) {
-              inRxCount++;
-              tWindSum += (tWindKmh * 0.621371);
-              if (mHeightFt < mixMin) mixMin = mHeightFt;
-              if (mHeightFt > mixMax) mixMax = mHeightFt;
-              if (ventRate < ventMin) ventMin = ventRate;
-              if (ventRate > ventMax) ventMax = ventRate;
-            }
           }
 
           const tempOk = (temp >= minTemp && temp <= maxTemp);
@@ -424,16 +398,6 @@
           tbody.appendChild(tr);
         });
 
-        if (inRxCount > 0) {
-          document.getElementById('disp-hours').innerText = `${inRxCount} Hours`;
-          document.getElementById('disp-wind').innerText = `${Math.round(tWindSum / inRxCount)} mph`;
-          document.getElementById('disp-mix').innerText = `${Math.round(mixMin)} - ${Math.round(mixMax)} ft`;
-          document.getElementById('disp-vent').innerText = `${ventMin} - ${ventMax} kt-ft`;
-          document.getElementById('dispersion-box').style.display = 'block';
-        } else {
-          document.getElementById('dispersion-box').style.display = 'none';
-        }
-
       } catch (err) {
         document.getElementById('status').innerText = 'Error: ' + err.message;
       }
@@ -443,21 +407,17 @@
     function closeExportModal() { document.getElementById('exportModal').style.display = 'none'; }
 
     function generatePDF() {
+      // 1. Show/hide selected sections based on modal checkboxes
       document.getElementById('matrix').style.display = document.getElementById('chkMatrix').checked ? 'table' : 'none';
-      document.getElementById('dispersion-box').style.display = document.getElementById('chkDispersion').checked ? 'block' : 'none';
       document.getElementById('raws-box').style.display = document.getElementById('chkRaws').checked ? 'block' : 'none';
       document.getElementById('map-preview').style.display = document.getElementById('chkMap').checked ? 'block' : 'none';
 
+      // 2. Hide the option modal overlay
       closeExportModal();
 
-      setTimeout(() => {
-        try {
-          window.focus();
-          window.print();
-        } catch (e) {
-          alert("Unable to trigger print automatically. Use Ctrl+P or Cmd+P to print.");
-        }
-      }, 250);
+      // 3. Synchronously focus and print immediately (preserves user activation gesture)
+      window.focus();
+      window.print();
     }
 
     if (cleanUnitId) {
