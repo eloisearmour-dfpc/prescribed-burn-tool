@@ -21,7 +21,7 @@
 
     button { background: #0078d4; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; margin-top: 10px; width: 100%; }
     button:hover { background: #005a9e; }
-    button.export-btn { background: #28a745; margin-top: 12px; margin-bottom: 12px; font-size: 14px; }
+    button.export-btn { background: #28a745; margin-top: 14px; margin-bottom: 14px; font-size: 14px; }
     button.export-btn:hover { background: #218838; }
 
     .go { background-color: #d4edda; color: #155724; font-weight: bold; }
@@ -39,7 +39,7 @@
     .map-preview { text-align: center; margin: 12px 0; display: none; }
     .map-preview img { max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; }
 
-    /* Print Stylesheet for PDF Export */
+    /* Print Stylesheet for Clean PDF Export */
     @media print {
       body { background: white; padding: 0; margin: 0; color: #000; }
       .no-print, button, .coord-box, .modal-overlay, .rx-grid { display: none !important; }
@@ -56,8 +56,9 @@
 <body>
 
   <div class="card">
-    <h3 id="unit-title" style="margin:0 0 4px 0; font-size:16px;">Prescription Evaluator</h3>
-    <div id="status" style="font-size: 11px; color: #666; margin-bottom: 8px;">Select a unit on the map or type in coordinates below...</div>
+    <h3 id="unit-title" style="margin:0 0 2px 0; font-size:16px;">Unit Weather Forecast</h3>
+    <div style="font-size: 11px; color: #555; margin-bottom: 6px;">Select a unit on the map or enter your own coordinates below:</div>
+    <div id="status" style="font-size: 11px; color: #0078d4; font-weight: 500; margin-bottom: 8px;">Ready to evaluate forecast...</div>
 
     <!-- Smart Coordinate Input Box -->
     <div class="coord-box">
@@ -79,39 +80,7 @@
     <button id="evalBtn" class="no-print" onclick="runEvaluation(true)">Evaluate 72-Hour Burn Window</button>
   </div>
 
-  <!-- RAWS Station & Live Fuel Moisture Box -->
-  <div id="raws-box" class="data-box" style="display:none;">
-    <div style="font-weight:bold; color:#0078d4; margin-bottom:4px;" id="raws-header">Nearest RAWS Observation & Fuel Moisture</div>
-    <div class="data-grid">
-      <div class="data-item"><div class="label">Observed Temp</div><div class="val" id="raws-temp">--</div></div>
-      <div class="data-item"><div class="label">Observed RH</div><div class="val" id="raws-rh">--</div></div>
-      <div class="data-item"><div class="label">Observed Wind</div><div class="val" id="raws-wind">--</div></div>
-      <div class="data-item"><div class="label">10-Hr Fuel Moisture</div><div class="val" id="raws-fm10">--</div></div>
-      <div class="data-item"><div class="label">1-Hr Fuel Moisture</div><div class="val" id="raws-fm1">--</div></div>
-    </div>
-  </div>
-
-  <!-- Smoke Dispersion & Transport Winds Summary Box -->
-  <div id="dispersion-box" class="data-box" style="display:none; background:#f4f9f5; border-left-color:#28a745;">
-    <div style="font-weight:bold; color:#28a745; margin-bottom:4px;">Smoke Dispersion & Transport Winds (In-Rx Hours)</div>
-    <div class="data-grid">
-      <div class="data-item"><div class="label">Avg Transport Wind</div><div class="val" id="disp-wind">--</div></div>
-      <div class="data-item"><div class="label">Mixing Height Range</div><div class="val" id="disp-mix">--</div></div>
-      <div class="data-item"><div class="label">Vent Rate Range</div><div class="val" id="disp-vent">--</div></div>
-      <div class="data-item"><div class="label">In-Rx Burn Hours</div><div class="val" id="disp-hours">--</div></div>
-    </div>
-  </div>
-
-  <!-- Static Satellite Map Preview for PDF Export -->
-  <div id="map-preview" class="map-preview">
-    <div style="font-size:11px; font-weight:bold; margin-bottom:4px; text-transform:uppercase;">Unit Location Satellite Preview</div>
-    <img id="map-img" src="" alt="Unit Location Satellite Image">
-  </div>
-
-  <!-- Export Report Button -->
-  <button id="exportMenuBtn" class="export-btn no-print" style="display:none;" onclick="openExportModal()">📄 Export Data Summary / PDF</button>
-
-  <!-- Forecast Table -->
+  <!-- 1. 72-Hour Forecast Matrix Table -->
   <table id="matrix" style="display:none;">
     <thead>
       <tr>
@@ -125,6 +94,38 @@
     </thead>
     <tbody id="matrix-body"></tbody>
   </table>
+
+  <!-- 2. RAWS Station & Live Fuel Moisture Box (Below Forecast) -->
+  <div id="raws-box" class="data-box" style="display:none;">
+    <div style="font-weight:bold; color:#0078d4; margin-bottom:4px;" id="raws-header">Nearest RAWS Observation & Fuel Moisture</div>
+    <div class="data-grid">
+      <div class="data-item"><div class="label">Observed Temp</div><div class="val" id="raws-temp">--</div></div>
+      <div class="data-item"><div class="label">Observed RH</div><div class="val" id="raws-rh">--</div></div>
+      <div class="data-item"><div class="label">Observed Wind</div><div class="val" id="raws-wind">--</div></div>
+      <div class="data-item"><div class="label">10-Hr Fuel Moisture</div><div class="val" id="raws-fm10">--</div></div>
+      <div class="data-item"><div class="label">1-Hr Fuel Moisture</div><div class="val" id="raws-fm1">--</div></div>
+    </div>
+  </div>
+
+  <!-- 3. Smoke Dispersion & Transport Winds Summary Box (Below Forecast) -->
+  <div id="dispersion-box" class="data-box" style="display:none; background:#f4f9f5; border-left-color:#28a745;">
+    <div style="font-weight:bold; color:#28a745; margin-bottom:4px;">Smoke Dispersion & Transport Winds (In-Rx Hours)</div>
+    <div class="data-grid">
+      <div class="data-item"><div class="label">Avg Transport Wind</div><div class="val" id="disp-wind">--</div></div>
+      <div class="data-item"><div class="label">Mixing Height Range</div><div class="val" id="disp-mix">--</div></div>
+      <div class="data-item"><div class="label">Vent Rate Range</div><div class="val" id="disp-vent">--</div></div>
+      <div class="data-item"><div class="label">In-Rx Burn Hours</div><div class="val" id="disp-hours">--</div></div>
+    </div>
+  </div>
+
+  <!-- 4. Static Satellite Map Preview for PDF Export -->
+  <div id="map-preview" class="map-preview">
+    <div style="font-size:11px; font-weight:bold; margin-bottom:4px; text-transform:uppercase;">Unit Location Satellite Preview</div>
+    <img id="map-img" src="" alt="Unit Location Satellite Image">
+  </div>
+
+  <!-- 5. Export Report Button (At Bottom) -->
+  <button id="exportMenuBtn" class="export-btn no-print" style="display:none;" onclick="openExportModal()">📄 Export Data Summary / PDF</button>
 
   <!-- Export Options Modal -->
   <div id="exportModal" class="modal-overlay">
@@ -147,11 +148,12 @@
     const rawUnit = urlParams.get('unit');
     const rawId = urlParams.get('id') || '';
     
-    // Extract clean numeric OBJECTID
     const cleanUnitId = rawId.replace(/[^0-9]/g, '');
     const unitName = (rawUnit && rawUnit !== '{Name}') ? decodeURIComponent(rawUnit) : null;
 
-    document.getElementById('unit-title').innerText = unitName || 'Custom Location / Unit';
+    if (unitName) {
+      document.getElementById('unit-title').innerText = unitName;
+    }
 
     const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
 
@@ -297,7 +299,6 @@
     async function runEvaluation(isManual = false) {
       let coords = null;
 
-      // Prioritize official map unit selection if cleanUnitId is present and user didn't explicitly force manual mode
       if (cleanUnitId && !isManual) {
         document.getElementById('status').innerText = "Locating TWIG unit boundary...";
         try {
@@ -322,11 +323,9 @@
 
       const { lat, lon } = coords;
 
-      // Update Esri World Imagery static map preview URL for PDF export
       const bbox = `${lon - 0.025},${lat - 0.025},${lon + 0.025},${lat + 0.025}`;
       document.getElementById('map-img').src = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
 
-      // Fetch RAWS station observations concurrently
       fetchRawsData(lat, lon);
 
       const minTemp = parseFloat(document.getElementById('minTemp').value);
@@ -365,7 +364,7 @@
         tbody.innerHTML = '';
         
         const loc = pointData.properties.relativeLocation.properties;
-        document.getElementById('status').innerText = `Forecast Zone: ${loc.city}, ${loc.state} (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
+        document.getElementById('status').innerText = `Zone: ${loc.city}, ${loc.state} (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
         document.getElementById('matrix').style.display = 'table';
         document.getElementById('exportMenuBtn').style.display = 'block';
 
@@ -450,10 +449,17 @@
       document.getElementById('map-preview').style.display = document.getElementById('chkMap').checked ? 'block' : 'none';
 
       closeExportModal();
-      setTimeout(() => { window.print(); }, 200);
+
+      setTimeout(() => {
+        try {
+          window.focus();
+          window.print();
+        } catch (e) {
+          alert("Unable to trigger print automatically. Use Ctrl+P or Cmd+P to print.");
+        }
+      }, 250);
     }
 
-    // Auto-run when cleanUnitId exists on map click
     if (cleanUnitId) {
       runEvaluation(false);
     }
