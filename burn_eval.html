@@ -202,7 +202,7 @@ async function fetchRawsData(lat, lon) {
     const windKmh = props.windSpeed?.value;
     const obsTimestamp = props.timestamp;
 
-    // Parse exact Observation Date & Time (e.g., Sep 23, 2:48 PM)
+    // Parse Observation Date & Time (e.g., Sep 23, 2:48 PM)
     let timeFormatted = 'NO DATA';
     if (obsTimestamp) {
       const t = new Date(obsTimestamp);
@@ -213,16 +213,13 @@ async function fetchRawsData(lat, lon) {
     const rh = (rhVal !== null && rhVal !== undefined) ? Math.round(rhVal) : null;
     const windMph = (windKmh !== null && windKmh !== undefined) ? Math.round(windKmh * 0.621371) : null;
 
-    // Header info
     document.getElementById('raws-header').innerText = `Nearest RAWS Station: ${station.name} (${station.stationIdentifier})`;
-    
-    // Observed values (Fallback to NO DATA if sensor is missing/null)
     document.getElementById('raws-temp').innerText = tempF !== null ? `${tempF}°F` : 'NO DATA';
     document.getElementById('raws-rh').innerText = rh !== null ? `${rh}%` : 'NO DATA';
     document.getElementById('raws-wind').innerText = windMph !== null ? `${windMph} mph` : 'NO DATA';
     document.getElementById('raws-time').innerText = timeFormatted;
 
-    // Fuel Moisture Calculation (Fallback to NO DATA if Temp/RH unavailable)
+    // Estimated Dead Fuel Moisture (EMC) Calculations
     if (tempF !== null && rh !== null) {
       const fm = calculateFuelMoisture(tempF, rh);
       document.getElementById('raws-fm10').innerText = fm.fm10;
