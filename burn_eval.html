@@ -59,9 +59,9 @@
     <div class="rx-grid">
       <div class="rx-field">Min Temp (°F)<input type="number" id="minTemp" value="40"></div>
       <div class="rx-field">Max Temp (°F)<input type="number" id="maxTemp" value="75"></div>
-      <div class="rx-field">Max Wind (mph)<input type="number" id="maxWind" value="12"></div>
       <div class="rx-field">Min RH (%)<input type="number" id="minRH" value="20"></div>
       <div class="rx-field">Max RH (%)<input type="number" id="maxRH" value="50"></div>
+      <div class="rx-field">Max Sustained Wind (mph)<input type="number" id="maxWind" value="12"></div>
       <div class="rx-field">Min Vent (kt-ft)<input type="number" id="minVent" value="10"></div>
       <div class="rx-field">Max Vent (kt-ft)<input type="number" id="maxVent" value="150"></div>
       <div class="rx-field">Max Gust (mph)<input type="number" id="maxGust" value="20"></div>
@@ -72,7 +72,7 @@
 
   <!-- Smoke Dispersion Warning Banner -->
   <div id="vent-alert" style="display:none; background:#fff3cd; color:#856404; border:1px solid #ffeeba; padding:10px; border-radius:6px; margin:10px 0; font-size:12px;">
-    <strong>Smoke Dispersion Notice:</strong> Forecast contains <span id="poor-count" style="font-weight:bold; color:#721c24;">0</span> hour(s) with <strong>POOR</strong> ventilation (&lt; 12 kt-ft).
+ <strong>Smoke Dispersion Notice:</strong> Forecast contains <span id="poor-count" style="font-weight:bold; color:#721c24;">0</span> hour(s) with <strong>POOR</strong> ventilation (&lt; 12 kt-ft).
   </div>
 
   <!-- 1. 72-Hour Forecast Matrix Table -->
@@ -81,7 +81,8 @@
       <tr>
         <th>Date / Time</th>
         <th>Temp</th>
-        <th>Wind</th>
+        <th>20ft Wind</th>
+        <th>Transport Wind</th>
         <th>RH</th>
         <th>Vent Rate</th>
         <th>Status</th>
@@ -448,9 +449,15 @@
           const gust = p.windGust ? parseInt(p.windGust) : wind;
           const windDisplay = p.windGust ? `${p.windSpeed} (G${parseInt(p.windGust)} mph)` : p.windSpeed;
 
+          // 2. Fetch Mixing Height & Transport Wind
           let ventRate = null;
+          let tWindMph = null;
           const mHeightMeters = getValueForTime(mixingHeightVals, pTime);
           const tWindKmh      = getValueForTime(transportWindVals, pTime);
+
+          if (tWindKmh !== null) {
+            tWindMph = Math.round(tWindKmh * 0.621371);
+          }
 
           if (mHeightMeters !== null && tWindKmh !== null) {
             const mHeightFt = mHeightMeters * 3.28084;
@@ -458,11 +465,11 @@
             ventRate = Math.round((mHeightFt * tWindKt) / 1000);
           }
 
-          // 2. Track Ventilation Category & Poor Hours
+          // 3. Track Ventilation Category & Poor Hours
           const ventCat = getVentCategory(ventRate);
           if (ventCat.isPoor) poorVentCount++;
 
-          // 3. Evaluate Prescription Limits
+          // 4. Evaluate Prescription Limits
           const tempOk = (temp >= minTemp && temp <= maxTemp);
           const windOk = (wind <= maxWind);
           const gustOk = (gust <= maxGust);
@@ -475,7 +482,7 @@
 
           const isGo = tempOk && windOk && gustOk && rhOk && ventOk;
 
-          // 4. Format Vent Display Text (e.g., "8 kt-ft (POOR)")
+          // 5. Format Vent Display Text (e.g., "8 kt-ft (POOR)")
           let ventDisplay = 'N/A';
           if (ventRate !== null) {
             ventDisplay = `${ventRate} kt-ft <span style="font-size:10px; opacity:0.85;">(${ventCat.text})</span>`;
@@ -493,6 +500,7 @@
             <td>${weekday} ${month}/${day}, ${time}</td>
             <td>${temp}°F</td>
             <td>${windDisplay}</td>
+            <td>${tWindMph !== null ? tWindMph + ' mph' : 'N/A'}</td>
             <td>${rh !== null ? rh + '%' : 'N/A'}</td>
             <td>${ventDisplay}</td>
             <td>${isGo ? 'IN-RX' : 'OUT-OF-RX'}</td>
@@ -500,7 +508,7 @@
           tbody.appendChild(tr);
         });
 
-        // 5. Show or Hide the Smoke Dispersion Warning Banner
+        // 6. Show or Hide the Smoke Dispersion Warning Banner
         const alertBox = document.getElementById('vent-alert');
         if (alertBox) {
           if (poorVentCount > 0) {
