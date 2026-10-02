@@ -50,9 +50,12 @@
     <!-- Smart Coordinate & File Upload Box -->
     <div class="coord-box">
       <input type="text" id="coordInput" placeholder="Coordinates (e.g., 40.782, -106.455)">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px; font-size: 11px; color: #555;">
-        <span style="font-weight: 500;">Or Upload Unit File (.geojson, .json, .kml):</span>
-        <input type="file" id="fileInput" accept=".json,.geojson,.kml" onchange="handleFileUpload(event)" style="font-size: 11px; max-width: 200px;">
+      
+      <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #c0d4ea;">
+        <label for="fileInput" style="display: block; font-size: 11px; font-weight: bold; color: #444; margin-bottom: 5px;">
+          Or Upload Unit File (.geojson, .json, .kml):
+        </label>
+        <input type="file" id="fileInput" accept=".json,.geojson,.kml" onchange="handleFileUpload(event)" style="font-size: 11px; width: 100%; box-sizing: border-box;">
       </div>
     </div>
 
@@ -74,7 +77,7 @@
 
   <!-- Smoke Dispersion Warning Banner -->
   <div id="vent-alert" style="display:none; background:#fff3cd; color:#856404; border:1px solid #ffeeba; padding:10px; border-radius:6px; margin:10px 0; font-size:12px;">
-  <strong>Smoke Dispersion Notice:</strong> Forecast contains <span id="poor-count" style="font-weight:bold; color:#721c24;">0</span> hour(s) with <strong>POOR</strong> ventilation (&lt; 12 kt-ft).
+    ⚠️ <strong>Smoke Dispersion Notice:</strong> Forecast contains <span id="poor-count" style="font-weight:bold; color:#721c24;">0</span> hour(s) with <strong>POOR</strong> ventilation (&lt; 12 kt-ft).
   </div>
 
   <!-- 1. 72-Hour Forecast Matrix Table -->
@@ -151,8 +154,8 @@
 
     const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
     let currentRings = null;
+    let isUploadedUnit = false;
 
-    // Parse URL-passed custom geometry rings if provided
     if (rawGeometry) {
       try {
         const parsed = JSON.parse(decodeURIComponent(rawGeometry));
@@ -170,7 +173,6 @@
       }
     }
 
-    // Direct File Upload Parser (GeoJSON / KML / JSON)
     function handleFileUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -223,9 +225,12 @@
 
           if (rings && rings.length > 0) {
             currentRings = rings;
-            document.getElementById('unit-title').innerText = name;
+            isUploadedUnit = true;
             
-            // Calculate Polygon Centroid
+            window.history.replaceState({}, document.title, window.location.pathname);
+
+            document.getElementById('unit-title').innerText = `📄 ${name} (Custom Upload)`;
+            
             let points = [];
             currentRings.forEach(ring => ring.forEach(pt => points.push(pt)));
             let sumLon = 0, sumLat = 0;
@@ -234,7 +239,7 @@
             const cLon = sumLon / points.length;
 
             document.getElementById('coordInput').value = `${cLat.toFixed(4)}, ${cLon.toFixed(4)}`;
-            document.getElementById('status').innerText = `Uploaded unit loaded: ${name}`;
+            document.getElementById('status').innerText = `Active Boundary: Uploaded File "${name}" (${cLat.toFixed(2)}, ${cLon.toFixed(2)})`;
             
             runEvaluation(true);
           } else {
@@ -252,7 +257,6 @@
       const nums = rawText.match(/[-+]?\d*\.?\d+/g);
       if (!nums || nums.length < 2) return null;
 
-      // Detect Multi-point Polygon Rings (3+ Lat/Lon Pairs)
       if (nums.length >= 6 && nums.length % 2 === 0) {
         let pts = [];
         let sumLat = 0, sumLon = 0;
@@ -272,8 +276,9 @@
         return { lat: sumLat / pts.length, lon: sumLon / pts.length };
       }
 
-      // Single Point Fallback - Explicitly clear rings so old polygons never linger
-      currentRings = null;
+      if (!isUploadedUnit) {
+        currentRings = null;
+      }
 
       let n1 = parseFloat(nums[0]);
       let n2 = parseFloat(nums[1]);
@@ -476,9 +481,16 @@
     }
 
     async function runEvaluation(isManual = false) {
+      if (isManual && typeof event !== 'undefined' && event && event.type === 'click') {
+        const filePicker = document.getElementById('fileInput');
+        if (filePicker && !filePicker.files.length) {
+          isUploadedUnit = false;
+        }
+      }
+
       let coords = null;
 
-      if (cleanUnitId && !isManual) {
+      if (cleanUnitId && !isManual && !isUploadedUnit) {
         document.getElementById('status').innerText = "Locating TWIG unit boundary...";
         try {
           coords = await getUnitCoordinatesById(cleanUnitId);
@@ -641,6 +653,7 @@
       try {
         const payload = (typeof event.data === 'string') ? JSON.parse(event.data) : event.data;
         if (payload.rings || payload.geometry?.rings || payload.geojson) {
+          isUploadedUnit = false;
           const geom = payload.rings || payload.geometry?.rings || payload.geojson;
           if (Array.isArray(geom)) {
             currentRings = Array.isArray(geom[0][0]) ? geom : [geom];
