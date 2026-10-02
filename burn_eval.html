@@ -64,13 +64,12 @@
   <div class="card">
     <h3 id="unit-title" style="margin:0 0 2px 0; font-size:16px;">Unit Weather Forecast</h3>
     <div id="status" style="font-size: 11px; color: #0078d4; font-weight: 500; margin-bottom: 8px;">
-      Select a unit on the map, drop a boundary file, or enter coordinates below.
+      Select a unit on the map, upload your own boundary file, or enter coordinates below.
     </div>
 
     <!-- Drag & Drop Unit File Zone -->
     <div id="dropZone" class="drop-zone" onclick="document.getElementById('fileInput').click()">
       <div class="drop-zone-text">Upload a Unit File (.geojson, .kml)</div>
-      <div class="drop-zone-subtext">or click here to browse files</div>
       <input type="file" id="fileInput" accept=".json,.geojson,.kml" onchange="handleFileUpload(event)" style="display:none;">
     </div>
 
@@ -97,7 +96,7 @@
   </div>
 
   <div id="vent-alert" style="display:none; background:#fff3cd; color:#856404; border:1px solid #ffeeba; padding:10px; border-radius:6px; margin:10px 0; font-size:12px;">
-   <strong>Smoke Dispersion Notice:</strong> Forecast contains <span id="poor-count" style="font-weight:bold; color:#721c24;">0</span> hour(s) with <strong>POOR</strong> ventilation (&lt; 12 kt-ft).
+  <strong>Smoke Dispersion Notice:</strong> Forecast contains <span id="poor-count" style="font-weight:bold; color:#721c24;">0</span> hour(s) with <strong>POOR</strong> ventilation (&lt; 12 kt-ft).
   </div>
 
   <table id="matrix" style="display:none;">
@@ -156,8 +155,8 @@
 
   <script>
     const urlParams = new URLSearchParams(window.location.search);
-    const rawUnit = urlParams.get('unit');
-    const rawId = urlParams.get('id') || '';
+    const rawUnit = urlParams.get('unit') || urlParams.get('Name') || urlParams.get('name');
+    const rawId = urlParams.get('id') || urlParams.get('OBJECTID') || urlParams.get('objectid') || '';
     const rawGeometry = urlParams.get('rings') || urlParams.get('geometry') || urlParams.get('geojson');
     
     const cleanUnitId = rawId.replace(/[^0-9]/g, '');
@@ -166,11 +165,9 @@
     const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
     let currentRings = null;
     let isUploadedUnit = false;
-    let activeUnitLabel = unitName ? (cleanUnitId ? `${unitName} (Object ID: ${cleanUnitId})` : unitName) : (cleanUnitId ? `Unit Object ID: ${cleanUnitId}` : '');
+    let activeUnitLabel = unitName || (cleanUnitId ? `Unit ID: ${cleanUnitId}` : 'Unit Weather Forecast');
 
-    if (activeUnitLabel) {
-      document.getElementById('unit-title').innerText = activeUnitLabel;
-    }
+    document.getElementById('unit-title').innerText = activeUnitLabel;
 
     // Parse URL-passed custom geometry rings if provided
     if (rawGeometry) {
@@ -442,13 +439,15 @@
 
       const feat = data.features[0];
       const attrs = feat.attributes || {};
-      const fName = attrs.Name || attrs.NAME || attrs.unit_name || attrs.UnitName || attrs.UNIT_NAME || attrs.unit;
+      
+      // Strict Name Attribute Lookup
+      const fName = attrs.Name || attrs.NAME || attrs.unit_name || attrs.UnitName || attrs.UNIT_NAME || attrs.unit || attrs.Unit;
       const fId = attrs.OBJECTID || attrs.objectid || id;
 
-      if (fName) {
-        activeUnitLabel = `${fName} (Object ID: ${fId})`;
+      if (fName && String(fName).trim() !== '' && fName !== '{Name}') {
+        activeUnitLabel = String(fName).trim();
       } else {
-        activeUnitLabel = `Unit Object ID: ${fId}`;
+        activeUnitLabel = `Unit ID: ${fId}`;
       }
 
       document.getElementById('unit-title').innerText = activeUnitLabel;
@@ -604,8 +603,7 @@
         tbody.innerHTML = '';
         
         const loc = pointData.properties.relativeLocation.properties;
-        const zoneInfo = `Zone: ${loc.city}, ${loc.state} (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
-        document.getElementById('status').innerText = activeUnitLabel ? `${activeUnitLabel} | ${zoneInfo}` : zoneInfo;
+        document.getElementById('status').innerText = `Zone: ${loc.city}, ${loc.state} (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
         
         document.getElementById('matrix').style.display = 'table';
         document.getElementById('exportMenuBtn').style.display = 'block';
@@ -704,7 +702,13 @@
           
           const pName = payload.unit || payload.name;
           const pId = payload.id || payload.objectId;
-          activeUnitLabel = pName ? `${pName}${pId ? ' (Object ID: ' + pId + ')' : ''}` : (pId ? `Unit Object ID: ${pId}` : 'Unit Weather Forecast');
+          if (pName && String(pName).trim() !== '' && pName !== '{Name}') {
+            activeUnitLabel = String(pName).trim();
+          } else if (pId) {
+            activeUnitLabel = `Unit ID: ${pId}`;
+          } else {
+            activeUnitLabel = 'Unit Weather Forecast';
+          }
           
           document.getElementById('unit-title').innerText = activeUnitLabel;
           runEvaluation(true);
