@@ -154,7 +154,7 @@
   </div>
 
   <script>
-    const urlParams = new URLSearchParams(window.location.search);
+  const urlParams = new URLSearchParams(window.location.search);
     const rawUnit = urlParams.get('unit') || urlParams.get('Name') || urlParams.get('name');
     const rawId = urlParams.get('id') || urlParams.get('OBJECTID') || urlParams.get('objectid') || '';
     const rawGeometry = urlParams.get('rings') || urlParams.get('geometry') || urlParams.get('geojson');
@@ -165,8 +165,9 @@
     const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
     let currentRings = null;
     let isUploadedUnit = false;
-    let activeUnitLabel = unitName || (cleanUnitId ? `Unit ID: ${cleanUnitId}` : 'Unit Weather Forecast');
-
+    
+    // Strict Name-only label logic
+    let activeUnitLabel = unitName || 'Unit Weather Forecast';
     document.getElementById('unit-title').innerText = activeUnitLabel;
 
     // Parse URL-passed custom geometry rings if provided
@@ -437,17 +438,16 @@
       const data = await queryArcGISJsonp(id);
       if (!data.features || data.features.length === 0) throw new Error(`Unit ID ${id} not found.`);
 
-      const feat = data.features[0];
+    const feat = data.features[0];
       const attrs = feat.attributes || {};
       
-      // Strict Name Attribute Lookup
+      // Look exclusively for Name field attributes
       const fName = attrs.Name || attrs.NAME || attrs.unit_name || attrs.UnitName || attrs.UNIT_NAME || attrs.unit || attrs.Unit;
-      const fId = attrs.OBJECTID || attrs.objectid || id;
 
       if (fName && String(fName).trim() !== '' && fName !== '{Name}') {
         activeUnitLabel = String(fName).trim();
       } else {
-        activeUnitLabel = `Unit ID: ${fId}`;
+        activeUnitLabel = 'Unit Weather Forecast';
       }
 
       document.getElementById('unit-title').innerText = activeUnitLabel;
@@ -688,7 +688,8 @@
       }
     }
 
-    // Listen for live parent map feature selection postMessages
+
+// Listen for live parent map feature selection postMessages
     window.addEventListener('message', function(event) {
       if (!event.data) return;
       try {
@@ -701,11 +702,8 @@
           }
           
           const pName = payload.unit || payload.name;
-          const pId = payload.id || payload.objectId;
           if (pName && String(pName).trim() !== '' && pName !== '{Name}') {
             activeUnitLabel = String(pName).trim();
-          } else if (pId) {
-            activeUnitLabel = `Unit ID: ${pId}`;
           } else {
             activeUnitLabel = 'Unit Weather Forecast';
           }
@@ -714,6 +712,7 @@
           runEvaluation(true);
         }
       } catch(e) {}
+    });
     });
 
     function openExportModal() { document.getElementById('exportModal').style.display = 'flex'; }
