@@ -27,7 +27,6 @@
       border-color: #005a9e;
     }
     .drop-zone-text { font-size: 12px; color: #0078d4; font-weight: bold; }
-    .drop-zone-subtext { font-size: 10px; color: #666; margin-top: 3px; }
 
     .coord-box { background: #f0f4f8; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
     .coord-box input { width: 100%; padding: 8px; font-size: 12px; border: 1px solid #0078d4; border-radius: 4px; box-sizing: border-box; margin-top: 4px; }
@@ -96,7 +95,7 @@
   </div>
 
   <div id="vent-alert" style="display:none; background:#fff3cd; color:#856404; border:1px solid #ffeeba; padding:10px; border-radius:6px; margin:10px 0; font-size:12px;">
-  <strong>Smoke Dispersion Notice:</strong> Forecast contains <span id="poor-count" style="font-weight:bold; color:#721c24;">0</span> hour(s) with <strong>POOR</strong> ventilation (&lt; 12 kt-ft).
+    ⚠️ <strong>Smoke Dispersion Notice:</strong> Forecast contains <span id="poor-count" style="font-weight:bold; color:#721c24;">0</span> hour(s) with <strong>POOR</strong> ventilation (&lt; 12 kt-ft).
   </div>
 
   <table id="matrix" style="display:none;">
@@ -154,7 +153,7 @@
   </div>
 
   <script>
-  const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(window.location.search);
     const rawUnit = urlParams.get('unit') || urlParams.get('Name') || urlParams.get('name');
     const rawId = urlParams.get('id') || urlParams.get('OBJECTID') || urlParams.get('objectid') || '';
     const rawGeometry = urlParams.get('rings') || urlParams.get('geometry') || urlParams.get('geojson');
@@ -438,7 +437,7 @@
       const data = await queryArcGISJsonp(id);
       if (!data.features || data.features.length === 0) throw new Error(`Unit ID ${id} not found.`);
 
-    const feat = data.features[0];
+      const feat = data.features[0];
       const attrs = feat.attributes || {};
       
       // Look exclusively for Name field attributes
@@ -688,8 +687,7 @@
       }
     }
 
-
-// Listen for live parent map feature selection postMessages
+    // Listen for live parent map feature selection postMessages
     window.addEventListener('message', function(event) {
       if (!event.data) return;
       try {
@@ -712,7 +710,6 @@
           runEvaluation(true);
         }
       } catch(e) {}
-    });
     });
 
     function openExportModal() { document.getElementById('exportModal').style.display = 'flex'; }
