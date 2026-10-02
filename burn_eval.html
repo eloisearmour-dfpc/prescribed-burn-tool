@@ -95,7 +95,7 @@
   </div>
 
   <div id="vent-alert" style="display:none; background:#fff3cd; color:#856404; border:1px solid #ffeeba; padding:10px; border-radius:6px; margin:10px 0; font-size:12px;">
-    ⚠️ <strong>Smoke Dispersion Notice:</strong> Forecast contains <span id="poor-count" style="font-weight:bold; color:#721c24;">0</span> hour(s) with <strong>POOR</strong> ventilation (&lt; 12 kt-ft).
+    <strong>Smoke Dispersion Notice:</strong> Forecast contains <span id="poor-count" style="font-weight:bold; color:#721c24;">0</span> hour(s) with <strong>POOR</strong> ventilation (&lt; 12 kt-ft).
   </div>
 
   <table id="matrix" style="display:none;">
@@ -165,11 +165,9 @@
     let currentRings = null;
     let isUploadedUnit = false;
     
-    // Strict Name-only label logic
     let activeUnitLabel = unitName || 'Unit Weather Forecast';
     document.getElementById('unit-title').innerText = activeUnitLabel;
 
-    // Parse URL-passed custom geometry rings if provided
     if (rawGeometry) {
       try {
         const parsed = JSON.parse(decodeURIComponent(rawGeometry));
@@ -187,7 +185,6 @@
       }
     }
 
-    // Drag & Drop File Listeners
     const dropZone = document.getElementById('dropZone');
     ['dragenter', 'dragover'].forEach(eventName => {
       dropZone.addEventListener(eventName, (e) => { e.preventDefault(); dropZone.classList.add('dragover'); }, false);
@@ -391,28 +388,28 @@
       }
     }
 
-function queryArcGISJsonp(id) {
-  return new Promise((resolve, reject) => {
-    const cbName = 'arcgis_cb_' + Math.floor(Math.random() * 10000000);
-    const queryUrl = `${FEATURE_SERVICE_URL}?where=OBJECTID%3D${id}&outFields=Name,NAME,unit_name,UnitName,UNIT_NAME,unit,Activity,ACTIVITY,TWIG_Category&returnGeometry=true&outSR=4326&f=json&callback=${cbName}`;
+    function queryArcGISJsonp(id) {
+      return new Promise((resolve, reject) => {
+        const cbName = 'arcgis_cb_' + Math.floor(Math.random() * 10000000);
+        const queryUrl = `${FEATURE_SERVICE_URL}?where=OBJECTID%3D${id}&outFields=*&returnGeometry=true&outSR=4326&f=json&callback=${cbName}`;
 
-    window[cbName] = function(data) {
-      delete window[cbName];
-      if (script.parentNode) script.parentNode.removeChild(script);
-      if (data.error) reject(new Error(`ArcGIS error: ${data.error.message}`));
-      else resolve(data);
-    };
+        window[cbName] = function(data) {
+          delete window[cbName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+          if (data.error) reject(new Error(`ArcGIS error: ${data.error.message}`));
+          else resolve(data);
+        };
 
-    const script = document.createElement('script');
-    script.src = queryUrl;
-    script.onerror = function() {
-      delete window[cbName];
-      if (script.parentNode) script.parentNode.removeChild(script);
-      reject(new Error("Network request to ArcGIS service failed."));
-    };
-    document.head.appendChild(script);
-  });
-}
+        const script = document.createElement('script');
+        script.src = queryUrl;
+        script.onerror = function() {
+          delete window[cbName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+          reject(new Error("Network request to ArcGIS service failed."));
+        };
+        document.head.appendChild(script);
+      });
+    }
 
     function getValueForTime(valuesArray, targetTime) {
       if (!valuesArray || !valuesArray.length) return null;
@@ -440,8 +437,7 @@ function queryArcGISJsonp(id) {
       const feat = data.features[0];
       const attrs = feat.attributes || {};
       
-      // Look exclusively for Name field attributes
-      const fName = attrs.Name || attrs.NAME || attrs.unit_name || attrs.UnitName || attrs.UNIT_NAME || attrs.unit || attrs.Unit;
+      const fName = attrs.Name || attrs.name || attrs.NAME || attrs.unit_name || attrs.UnitName || attrs.UNIT_NAME || attrs.unit || attrs.Unit;
 
       if (fName && String(fName).trim() !== '' && fName !== '{Name}') {
         activeUnitLabel = String(fName).trim();
