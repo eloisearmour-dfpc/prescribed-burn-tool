@@ -64,9 +64,15 @@
       <div class="rx-field">Max RH (%)<input type="number" id="maxRH" value="50"></div>
       <div class="rx-field">Min Vent (kt-ft)<input type="number" id="minVent" value="10"></div>
       <div class="rx-field">Max Vent (kt-ft)<input type="number" id="maxVent" value="150"></div>
+      <div class="rx-field">Max Gust (mph)<input type="number" id="maxGust" value="20"></div>
     </div>
     
     <button id="evalBtn" onclick="runEvaluation(true)">Evaluate 72-Hour Burn Window</button>
+  </div>
+
+  <!-- Smoke Dispersion Warning Banner -->
+  <div id="vent-alert" style="display:none; background:#fff3cd; color:#856404; border:1px solid #ffeeba; padding:10px; border-radius:6px; margin:10px 0; font-size:12px;">
+    ⚠️ <strong>Smoke Dispersion Notice:</strong> Forecast contains <span id="poor-count" style="font-weight:bold; color:#721c24;">0</span> hour(s) with <strong>POOR</strong> ventilation (&lt; 12 kt-ft).
   </div>
 
   <!-- 1. 72-Hour Forecast Matrix Table -->
@@ -84,18 +90,18 @@
     <tbody id="matrix-body"></tbody>
   </table>
 
-<!-- RAWS Station & Live Fuel Moisture Box -->
-<div id="raws-box" class="data-box" style="display:none;">
-  <div style="font-weight:bold; color:#0078d4; margin-bottom:4px;" id="raws-header">Nearest RAWS Observation & Fuel Moisture</div>
-  <div class="data-grid">
-    <div class="data-item"><div class="label">Observed Temp</div><div class="val" id="raws-temp">--</div></div>
-    <div class="data-item"><div class="label">Observed RH</div><div class="val" id="raws-rh">--</div></div>
-    <div class="data-item"><div class="label">Observed Wind</div><div class="val" id="raws-wind">--</div></div>
-    <div class="data-item"><div class="label">Est. 10-Hr Fuel Moisture</div><div class="val" id="raws-fm10">--</div></div>
-    <div class="data-item"><div class="label">Est. 1-Hr Fuel Moisture</div><div class="val" id="raws-fm1">--</div></div>
-    <div class="data-item"><div class="label">Observed At</div><div class="val" id="raws-time">--</div></div>
+  <!-- RAWS Station & Live Fuel Moisture Box -->
+  <div id="raws-box" class="data-box" style="display:none;">
+    <div style="font-weight:bold; color:#0078d4; margin-bottom:4px;" id="raws-header">Nearest RAWS Observation & Fuel Moisture</div>
+    <div class="data-grid">
+      <div class="data-item"><div class="label">Observed Temp</div><div class="val" id="raws-temp">--</div></div>
+      <div class="data-item"><div class="label">Observed RH</div><div class="val" id="raws-rh">--</div></div>
+      <div class="data-item"><div class="label">Observed Wind</div><div class="val" id="raws-wind">--</div></div>
+      <div class="data-item"><div class="label">Est. 10-Hr Fuel Moisture</div><div class="val" id="raws-fm10">--</div></div>
+      <div class="data-item"><div class="label">Est. 1-Hr Fuel Moisture</div><div class="val" id="raws-fm1">--</div></div>
+      <div class="data-item"><div class="label">Observed At</div><div class="val" id="raws-time">--</div></div>
+    </div>
   </div>
-</div>
 
   <!-- 3. Satellite Map Preview Container with Vector Perimeter Overlay -->
   <div id="map-preview" class="map-container">
@@ -184,56 +190,55 @@
       return { fm10, fm1 };
     }
 
-async function fetchRawsData(lat, lon) {
-  try {
-    const stationsRes = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}/stations`);
-    if (!stationsRes.ok) return;
-    const stationsData = await stationsRes.json();
-    const station = stationsData.features?.[0]?.properties;
-    if (!station || !station.stationIdentifier) return;
+    async function fetchRawsData(lat, lon) {
+      try {
+        const stationsRes = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}/stations`);
+        if (!stationsRes.ok) return;
+        const stationsData = await stationsRes.json();
+        const station = stationsData.features?.[0]?.properties;
+        if (!station || !station.stationIdentifier) return;
 
-    const obsRes = await fetch(`https://api.weather.gov/stations/${station.stationIdentifier}/observations/latest`);
-    if (!obsRes.ok) return;
-    const obsData = await obsRes.json();
-    const props = obsData.properties || {};
+        const obsRes = await fetch(`https://api.weather.gov/stations/${station.stationIdentifier}/observations/latest`);
+        if (!obsRes.ok) return;
+        const obsData = await obsRes.json();
+        const props = obsData.properties || {};
 
-    const tempC = props.temperature?.value;
-    const rhVal = props.relativeHumidity?.value;
-    const windKmh = props.windSpeed?.value;
-    const obsTimestamp = props.timestamp;
+        const tempC = props.temperature?.value;
+        const rhVal = props.relativeHumidity?.value;
+        const windKmh = props.windSpeed?.value;
+        const obsTimestamp = props.timestamp;
 
-    // Parse Observation Date & Time (e.g., Sep 23, 2:48 PM)
-    let timeFormatted = 'NO DATA';
-    if (obsTimestamp) {
-      const t = new Date(obsTimestamp);
-      timeFormatted = t.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        let timeFormatted = 'NO DATA';
+        if (obsTimestamp) {
+          const t = new Date(obsTimestamp);
+          timeFormatted = t.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        const tempF = (tempC !== null && tempC !== undefined) ? Math.round((tempC * 9/5) + 32) : null;
+        const rh = (rhVal !== null && rhVal !== undefined) ? Math.round(rhVal) : null;
+        const windMph = (windKmh !== null && windKmh !== undefined) ? Math.round(windKmh * 0.621371) : null;
+
+        document.getElementById('raws-header').innerText = `Nearest RAWS Station: ${station.name} (${station.stationIdentifier})`;
+        document.getElementById('raws-temp').innerText = tempF !== null ? `${tempF}°F` : 'NO DATA';
+        document.getElementById('raws-rh').innerText = rh !== null ? `${rh}%` : 'NO DATA';
+        document.getElementById('raws-wind').innerText = windMph !== null ? `${windMph} mph` : 'NO DATA';
+        document.getElementById('raws-time').innerText = timeFormatted;
+
+        if (tempF !== null && rh !== null) {
+          const fm = calculateFuelMoisture(tempF, rh);
+          document.getElementById('raws-fm10').innerText = fm.fm10;
+          document.getElementById('raws-fm1').innerText = fm.fm1;
+        } else {
+          document.getElementById('raws-fm10').innerText = 'NO DATA';
+          document.getElementById('raws-fm1').innerText = 'NO DATA';
+        }
+
+        document.getElementById('raws-box').style.display = 'block';
+      } catch (e) {
+        console.warn("Could not load RAWS station observation:", e);
+      }
     }
 
-    const tempF = (tempC !== null && tempC !== undefined) ? Math.round((tempC * 9/5) + 32) : null;
-    const rh = (rhVal !== null && rhVal !== undefined) ? Math.round(rhVal) : null;
-    const windMph = (windKmh !== null && windKmh !== undefined) ? Math.round(windKmh * 0.621371) : null;
-
-    document.getElementById('raws-header').innerText = `Nearest RAWS Station: ${station.name} (${station.stationIdentifier})`;
-    document.getElementById('raws-temp').innerText = tempF !== null ? `${tempF}°F` : 'NO DATA';
-    document.getElementById('raws-rh').innerText = rh !== null ? `${rh}%` : 'NO DATA';
-    document.getElementById('raws-wind').innerText = windMph !== null ? `${windMph} mph` : 'NO DATA';
-    document.getElementById('raws-time').innerText = timeFormatted;
-
-    // Estimated Dead Fuel Moisture (EMC) Calculations
-    if (tempF !== null && rh !== null) {
-      const fm = calculateFuelMoisture(tempF, rh);
-      document.getElementById('raws-fm10').innerText = fm.fm10;
-      document.getElementById('raws-fm1').innerText = fm.fm1;
-    } else {
-      document.getElementById('raws-fm10').innerText = 'NO DATA';
-      document.getElementById('raws-fm1').innerText = 'NO DATA';
-    }
-
-    document.getElementById('raws-box').style.display = 'block';
-  } catch (e) {
-    console.warn("Could not load RAWS station observation:", e);
-  }
-}
     function queryArcGISJsonp(id) {
       return new Promise((resolve, reject) => {
         const cbName = 'arcgis_cb_' + Math.floor(Math.random() * 10000000);
@@ -320,7 +325,6 @@ async function fetchRawsData(lat, lon) {
         minLon -= lonPadding; maxLon += lonPadding;
         minLat -= latPadding; maxLat += latPadding;
 
-        // Construct SVG vector perimeter path
         let svgPath = '';
         currentRings.forEach(ring => {
           ring.forEach((pt, idx) => {
@@ -334,7 +338,6 @@ async function fetchRawsData(lat, lon) {
         document.getElementById('svg-polygon').setAttribute('d', svgPath);
         document.getElementById('svg-pin').setAttribute('cx', '-50');
       } else {
-        // Custom location pin
         minLon = lon - 0.015; maxLon = lon + 0.015;
         minLat = lat - 0.015; maxLat = lat + 0.015;
 
@@ -346,6 +349,16 @@ async function fetchRawsData(lat, lon) {
       const bbox = `${minLon.toFixed(5)},${minLat.toFixed(5)},${maxLon.toFixed(5)},${maxLat.toFixed(5)}`;
       document.getElementById('map-img').src = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
       document.getElementById('map-preview').style.display = 'block';
+    }
+
+    // Ventilation Rate Standard Category Lookup
+    function getVentCategory(rate) {
+      if (rate === null || isNaN(rate)) return { text: 'N/A', isPoor: false };
+      if (rate < 6)  return { text: 'VERY POOR', isPoor: true };
+      if (rate < 12) return { text: 'POOR', isPoor: true };
+      if (rate < 25) return { text: 'FAIR', isPoor: false };
+      if (rate < 60) return { text: 'GOOD', isPoor: false };
+      return { text: 'EXCELLENT', isPoor: false };
     }
 
     async function runEvaluation(isManual = false) {
@@ -377,10 +390,7 @@ async function fetchRawsData(lat, lon) {
 
       const { lat, lon } = coords;
 
-      // Render satellite map preview with perimeter overlay
       updateSatelliteMapPreview(lat, lon);
-
-      // Fetch RAWS station observations concurrently
       fetchRawsData(lat, lon);
 
       const minTemp = parseFloat(document.getElementById('minTemp').value);
@@ -388,11 +398,14 @@ async function fetchRawsData(lat, lon) {
       const maxWind = parseFloat(document.getElementById('maxWind').value);
       const minRH   = parseFloat(document.getElementById('minRH').value);
       const maxRH   = parseFloat(document.getElementById('maxRH').value);
-      const minVent = parseFloat(document.getElementById('minVent').value);
-      const maxVent = parseFloat(document.getElementById('maxVent').value);
+      const maxGust = parseFloat(document.getElementById('maxGust').value);
 
-      if ([minTemp, maxTemp, maxWind, minRH, maxRH, minVent, maxVent].some(isNaN)) {
-        alert("Please enter valid numbers for all prescription fields.");
+      // Allow empty/blank inputs for ventilation bounds without throwing errors
+      const minVent = document.getElementById('minVent').value !== "" ? parseFloat(document.getElementById('minVent').value) : null;
+      const maxVent = document.getElementById('maxVent').value !== "" ? parseFloat(document.getElementById('maxVent').value) : null;
+
+      if ([minTemp, maxTemp, maxWind, minRH, maxRH, maxGust].some(isNaN)) {
+        alert("Please enter valid numbers for Temperature, Wind, RH, and Gust fields.");
         return;
       }
 
@@ -423,11 +436,17 @@ async function fetchRawsData(lat, lon) {
         document.getElementById('matrix').style.display = 'table';
         document.getElementById('exportMenuBtn').style.display = 'block';
 
+        let poorVentCount = 0;
+
         periods.forEach(p => {
           const pTime = new Date(p.startTime);
           const temp = p.temperature;
           const wind = parseInt(p.windSpeed);
           const rh = p.relativeHumidity ? p.relativeHumidity.value : null;
+
+          // 1. Calculate Gust and Wind Display Text
+          const gust = p.windGust ? parseInt(p.windGust) : wind;
+          const windDisplay = p.windGust ? `${p.windSpeed} (G${parseInt(p.windGust)} mph)` : p.windSpeed;
 
           let ventRate = null;
           const mHeightMeters = getValueForTime(mixingHeightVals, pTime);
@@ -439,12 +458,28 @@ async function fetchRawsData(lat, lon) {
             ventRate = Math.round((mHeightFt * tWindKt) / 1000);
           }
 
+          // 2. Track Ventilation Category & Poor Hours
+          const ventCat = getVentCategory(ventRate);
+          if (ventCat.isPoor) poorVentCount++;
+
+          // 3. Evaluate Prescription Limits
           const tempOk = (temp >= minTemp && temp <= maxTemp);
           const windOk = (wind <= maxWind);
+          const gustOk = (gust <= maxGust);
           const rhOk   = (rh !== null) ? (rh >= minRH && rh <= maxRH) : true;
-          const ventOk = (ventRate !== null) ? (ventRate >= minVent && ventRate <= maxVent) : true;
 
-          const isGo = tempOk && windOk && rhOk && ventOk;
+          // Optional Vent Check: Only fails Rx if user entered a limit AND rate breaks it
+          const minVentOk = (minVent === null || ventRate === null || ventRate >= minVent);
+          const maxVentOk = (maxVent === null || ventRate === null || ventRate <= maxVent);
+          const ventOk = minVentOk && maxVentOk;
+
+          const isGo = tempOk && windOk && gustOk && rhOk && ventOk;
+
+          // 4. Format Vent Display Text (e.g., "8 kt-ft (POOR)")
+          let ventDisplay = 'N/A';
+          if (ventRate !== null) {
+            ventDisplay = `${ventRate} kt-ft <span style="font-size:10px; opacity:0.85;">(${ventCat.text})</span>`;
+          }
 
           const tr = document.createElement('tr');
           tr.className = isGo ? 'go' : 'nogo';
@@ -457,13 +492,24 @@ async function fetchRawsData(lat, lon) {
           tr.innerHTML = `
             <td>${weekday} ${month}/${day}, ${time}</td>
             <td>${temp}°F</td>
-            <td>${p.windSpeed}</td>
+            <td>${windDisplay}</td>
             <td>${rh !== null ? rh + '%' : 'N/A'}</td>
-            <td>${ventRate !== null ? ventRate + ' kt-ft' : 'N/A'}</td>
+            <td>${ventDisplay}</td>
             <td>${isGo ? 'IN-RX' : 'OUT-OF-RX'}</td>
           `;
           tbody.appendChild(tr);
         });
+
+        // 5. Show or Hide the Smoke Dispersion Warning Banner
+        const alertBox = document.getElementById('vent-alert');
+        if (alertBox) {
+          if (poorVentCount > 0) {
+            document.getElementById('poor-count').innerText = poorVentCount;
+            alertBox.style.display = 'block';
+          } else {
+            alertBox.style.display = 'none';
+          }
+        }
 
       } catch (err) {
         document.getElementById('status').innerText = 'Error: ' + err.message;
