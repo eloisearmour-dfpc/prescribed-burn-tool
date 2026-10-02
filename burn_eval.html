@@ -30,12 +30,10 @@
     th, td { border: 1px solid #dee2e6; padding: 6px; text-align: center; }
     th { background: #e9ecef; }
 
-    /* Map Preview with SVG Vector Perimeter Overlay */
     .map-container { position: relative; width: 100%; max-width: 600px; margin: 12px auto; display: none; text-align: center; }
     .map-container img { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; display: block; }
     .map-container svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 
-    /* Modal Styling for Export Builder */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
     .modal { background: white; padding: 20px; border-radius: 8px; max-width: 380px; width: 90%; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
     .modal h4 { margin: 0 0 10px 0; font-size: 16px; color: #0078d4; }
@@ -49,9 +47,8 @@
     <div style="font-size: 11px; color: #555; margin-bottom: 6px;">Select a unit on the map or enter custom coordinates below:</div>
     <div id="status" style="font-size: 11px; color: #0078d4; font-weight: 500; margin-bottom: 8px;">Ready to evaluate forecast...</div>
 
-    <!-- Smart Coordinate Input Box -->
     <div class="coord-box">
-      <input type="text" id="coordInput" placeholder="Coordinates (e.g., 40.782, -106.455 or 106.455 40.782)">
+      <input type="text" id="coordInput" placeholder="Coordinates or GeoJSON Polygon Rings">
     </div>
 
     <div class="input-header">Prescription Limits</div>
@@ -70,18 +67,16 @@
     <button id="evalBtn" onclick="runEvaluation(true)">Evaluate 72-Hour Burn Window</button>
   </div>
 
-  <!-- Smoke Dispersion Warning Banner -->
   <div id="vent-alert" style="display:none; background:#fff3cd; color:#856404; border:1px solid #ffeeba; padding:10px; border-radius:6px; margin:10px 0; font-size:12px;">
- <strong>Smoke Dispersion Notice:</strong> Forecast contains <span id="poor-count" style="font-weight:bold; color:#721c24;">0</span> hour(s) with <strong>POOR</strong> ventilation (&lt; 12 kt-ft).
+   <strong>Smoke Dispersion Notice:</strong> Forecast contains <span id="poor-count" style="font-weight:bold; color:#721c24;">0</span> hour(s) with <strong>POOR</strong> ventilation (&lt; 12 kt-ft).
   </div>
 
-  <!-- 1. 72-Hour Forecast Matrix Table -->
   <table id="matrix" style="display:none;">
     <thead>
       <tr>
-        <th>Date/Time</th>
+        <th>Date / Time</th>
         <th>Temp</th>
-        <th>RH</th>
+         <th>RH</th>
         <th>20ft Wind</th>
         <th>Transport Wind</th>
         <th>Vent Rate</th>
@@ -91,7 +86,6 @@
     <tbody id="matrix-body"></tbody>
   </table>
 
-  <!-- RAWS Station & Live Fuel Moisture Box -->
   <div id="raws-box" class="data-box" style="display:none;">
     <div style="font-weight:bold; color:#0078d4; margin-bottom:4px;" id="raws-header">Nearest RAWS Observation & Fuel Moisture</div>
     <div class="data-grid">
@@ -104,7 +98,6 @@
     </div>
   </div>
 
-  <!-- 3. Satellite Map Preview Container with Vector Perimeter Overlay -->
   <div id="map-preview" class="map-container">
     <div style="font-size:11px; font-weight:bold; margin-bottom:4px; text-transform:uppercase;">Unit Location Satellite Preview</div>
     <div style="position:relative; display:inline-block; width:100%;">
@@ -116,10 +109,8 @@
     </div>
   </div>
 
-  <!-- 4. Export Report Button (At Bottom) -->
   <button id="exportMenuBtn" class="export-btn" style="display:none;" onclick="openExportModal()">📄 Export Data Summary / PDF</button>
 
-  <!-- Export Options Modal -->
   <div id="exportModal" class="modal-overlay">
     <div class="modal">
       <h4>Export Report Options</h4>
@@ -138,6 +129,7 @@
     const urlParams = new URLSearchParams(window.location.search);
     const rawUnit = urlParams.get('unit');
     const rawId = urlParams.get('id') || '';
+    const rawGeometry = urlParams.get('rings') || urlParams.get('geometry') || urlParams.get('geojson');
     
     const cleanUnitId = rawId.replace(/[^0-9]/g, '');
     const unitName = (rawUnit && rawUnit !== '{Name}') ? decodeURIComponent(rawUnit) : null;
@@ -149,32 +141,64 @@
     const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
     let currentRings = null;
 
+    // Parse URL-passed custom geometry rings if provided
+    if (rawGeometry) {
+      try {
+        const parsed = JSON.parse(decodeURIComponent(rawGeometry));
+        if (parsed.rings) {
+          currentRings = parsed.rings;
+        } else if (parsed.type === 'Feature' && parsed.geometry) {
+          currentRings = parsed.geometry.type === 'Polygon' ? parsed.geometry.coordinates : [parsed.geometry.coordinates[0]];
+        } else if (parsed.type === 'Polygon') {
+          currentRings = parsed.coordinates;
+        } else if (Array.isArray(parsed)) {
+          currentRings = Array.isArray(parsed[0][0]) ? parsed : [parsed];
+        }
+      } catch (e) {
+        console.warn("Could not parse URL geometry parameter:", e);
+      }
+    }
+
     function parseSmartCoordinates(rawText) {
       if (!rawText) return null;
       const nums = rawText.match(/[-+]?\d*\.?\d+/g);
       if (!nums || nums.length < 2) return null;
 
-      let n1 = parseFloat(nums[0]);
-      let n2 = parseFloat(nums[1]);
-
-      let lat, lon;
-
-      if (Math.abs(n1) > 50 && Math.abs(n2) <= 50) {
-        lon = n1; lat = n2;
-      } else if (Math.abs(n2) > 50 && Math.abs(n1) <= 50) {
-        lat = n1; lon = n2;
-      } else {
-        lat = n1; lon = n2;
+      // Detect Multi-point Polygon Rings (3+ Lat/Lon Pairs)
+      if (nums.length >= 6 && nums.length % 2 === 0) {
+        let pts = [];
+        let sumLat = 0, sumLon = 0;
+        for (let i = 0; i < nums.length; i += 2) {
+          let n1 = parseFloat(nums[i]);
+          let n2 = parseFloat(nums[i+1]);
+          let lat, lon;
+          if (Math.abs(n1) > 50 && Math.abs(n2) <= 50) { lon = n1; lat = n2; }
+          else if (Math.abs(n2) > 50 && Math.abs(n1) <= 50) { lat = n1; lon = n2; }
+          else { lat = n1; lon = n2; }
+          if (lon > 50 && lon < 180) lon = -lon;
+          pts.push([lon, lat]);
+          sumLat += lat;
+          sumLon += lon;
+        }
+        currentRings = [pts];
+        return { lat: sumLat / pts.length, lon: sumLon / pts.length };
       }
 
-      if (lon > 50 && lon < 180) lon = -lon;
+      // Single Point Fallback
+      let n1 = parseFloat(nums[0]);
+      let n2 = parseFloat(nums[1]);
+      let lat, lon;
 
+      if (Math.abs(n1) > 50 && Math.abs(n2) <= 50) { lon = n1; lat = n2; }
+      else if (Math.abs(n2) > 50 && Math.abs(n1) <= 50) { lat = n1; lon = n2; }
+      else { lat = n1; lon = n2; }
+
+      if (lon > 50 && lon < 180) lon = -lon;
       if (isNaN(lat) || isNaN(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
 
       return { lat, lon };
     }
 
-    // NFDRS Equilibrium Moisture Content (EMC) & Dead Fuel Moisture calculation
     function calculateFuelMoisture(tempF, rh) {
       if (isNaN(tempF) || isNaN(rh)) return { fm10: 'N/A', fm1: 'N/A' };
       let emc = 0;
@@ -352,7 +376,6 @@
       document.getElementById('map-preview').style.display = 'block';
     }
 
-    // Ventilation Rate Standard Category Lookup
     function getVentCategory(rate) {
       if (rate === null || isNaN(rate)) return { text: 'N/A', isPoor: false };
       if (rate < 6)  return { text: 'VERY POOR', isPoor: true };
@@ -371,17 +394,32 @@
           coords = await getUnitCoordinatesById(cleanUnitId);
           document.getElementById('coordInput').value = `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`;
         } catch (err) {
-          console.warn("TWIG lookup fallback to manual input:", err);
-          currentRings = null;
-          coords = parseSmartCoordinates(document.getElementById('coordInput').value);
-          if (!coords) {
-            document.getElementById('status').innerText = "TWIG Lookup Error: " + err.message + ". Enter coordinates manually below.";
-            return;
+          console.warn("TWIG lookup fallback to manual or URL geometry:", err);
+          if (currentRings && currentRings.length > 0) {
+            let points = [];
+            currentRings.forEach(ring => ring.forEach(pt => points.push(pt)));
+            let sumLon = 0, sumLat = 0;
+            points.forEach(pt => { sumLon += pt[0]; sumLat += pt[1]; });
+            coords = { lat: sumLat / points.length, lon: sumLon / points.length };
+            document.getElementById('coordInput').value = `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`;
+          } else {
+            coords = parseSmartCoordinates(document.getElementById('coordInput').value);
+            if (!coords) {
+              document.getElementById('status').innerText = "TWIG Lookup Error: " + err.message + ". Enter coordinates manually below.";
+              return;
+            }
           }
         }
       } else {
-        currentRings = null;
-        coords = parseSmartCoordinates(document.getElementById('coordInput').value);
+        if (!currentRings) {
+          coords = parseSmartCoordinates(document.getElementById('coordInput').value);
+        } else {
+          let points = [];
+          currentRings.forEach(ring => ring.forEach(pt => points.push(pt)));
+          let sumLon = 0, sumLat = 0;
+          points.forEach(pt => { sumLon += pt[0]; sumLat += pt[1]; });
+          coords = { lat: sumLat / points.length, lon: sumLon / points.length };
+        }
       }
 
       if (!coords) {
@@ -401,7 +439,6 @@
       const maxRH   = parseFloat(document.getElementById('maxRH').value);
       const maxGust = parseFloat(document.getElementById('maxGust').value);
 
-      // Allow empty/blank inputs for ventilation bounds without throwing errors
       const minVent = document.getElementById('minVent').value !== "" ? parseFloat(document.getElementById('minVent').value) : null;
       const maxVent = document.getElementById('maxVent').value !== "" ? parseFloat(document.getElementById('maxVent').value) : null;
 
@@ -445,11 +482,9 @@
           const wind = parseInt(p.windSpeed);
           const rh = p.relativeHumidity ? p.relativeHumidity.value : null;
 
-          // 1. Calculate Gust and Wind Display Text
           const gust = p.windGust ? parseInt(p.windGust) : wind;
           const windDisplay = p.windGust ? `${p.windSpeed} (G${parseInt(p.windGust)} mph)` : p.windSpeed;
 
-          // 2. Fetch Mixing Height & Transport Wind
           let ventRate = null;
           let tWindMph = null;
           const mHeightMeters = getValueForTime(mixingHeightVals, pTime);
@@ -465,24 +500,20 @@
             ventRate = Math.round((mHeightFt * tWindKt) / 1000);
           }
 
-          // 3. Track Ventilation Category & Poor Hours
           const ventCat = getVentCategory(ventRate);
           if (ventCat.isPoor) poorVentCount++;
 
-          // 4. Evaluate Prescription Limits
           const tempOk = (temp >= minTemp && temp <= maxTemp);
           const windOk = (wind <= maxWind);
           const gustOk = (gust <= maxGust);
           const rhOk   = (rh !== null) ? (rh >= minRH && rh <= maxRH) : true;
 
-          // Optional Vent Check: Only fails Rx if user entered a limit AND rate breaks it
           const minVentOk = (minVent === null || ventRate === null || ventRate >= minVent);
           const maxVentOk = (maxVent === null || ventRate === null || ventRate <= maxVent);
           const ventOk = minVentOk && maxVentOk;
 
           const isGo = tempOk && windOk && gustOk && rhOk && ventOk;
 
-          // 5. Format Vent Display Text (e.g., "8 kt-ft (POOR)")
           let ventDisplay = 'N/A';
           if (ventRate !== null) {
             ventDisplay = `${ventRate} kt-ft <span style="font-size:10px; opacity:0.85;">(${ventCat.text})</span>`;
@@ -508,7 +539,6 @@
           tbody.appendChild(tr);
         });
 
-        // 6. Show or Hide the Smoke Dispersion Warning Banner
         const alertBox = document.getElementById('vent-alert');
         if (alertBox) {
           if (poorVentCount > 0) {
@@ -524,10 +554,27 @@
       }
     }
 
+    // Listen for live parent map feature selection postMessages
+    window.addEventListener('message', function(event) {
+      if (!event.data) return;
+      try {
+        const payload = (typeof event.data === 'string') ? JSON.parse(event.data) : event.data;
+        if (payload.rings || payload.geometry?.rings || payload.geojson) {
+          const geom = payload.rings || payload.geometry?.rings || payload.geojson;
+          if (Array.isArray(geom)) {
+            currentRings = Array.isArray(geom[0][0]) ? geom : [geom];
+          }
+          if (payload.unit || payload.name) {
+            document.getElementById('unit-title').innerText = payload.unit || payload.name;
+          }
+          runEvaluation(true);
+        }
+      } catch(e) {}
+    });
+
     function openExportModal() { document.getElementById('exportModal').style.display = 'flex'; }
     function closeExportModal() { document.getElementById('exportModal').style.display = 'none'; }
 
-    // Option A: Pop-Out Printable Tab
     function generatePDF() {
       const showMatrix = document.getElementById('chkMatrix').checked;
       const showRaws   = document.getElementById('chkRaws').checked;
@@ -613,7 +660,7 @@
       printWin.document.close();
     }
 
-    if (cleanUnitId) {
+    if (cleanUnitId || currentRings) {
       runEvaluation(false);
     }
   </script>
