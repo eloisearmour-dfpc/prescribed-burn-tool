@@ -238,6 +238,16 @@
             const cLat = sumLat / points.length;
             const cLon = sumLon / points.length;
 
+            // Broadcast file upload data to the parent Experience Builder app
+if (window.parent && window.parent !== window) {
+  window.parent.postMessage({
+    type: 'BURN_EVAL_FILE_UPLOADED',
+    unitName: name,
+    centroid: { lat: cLat, lon: cLon },
+    rings: currentRings
+  }, '*');
+}
+
             document.getElementById('coordInput').value = `${cLat.toFixed(4)}, ${cLon.toFixed(4)}`;
             document.getElementById('status').innerText = `Active Boundary: Uploaded File "${name}" (${cLat.toFixed(2)}, ${cLon.toFixed(2)})`;
             
