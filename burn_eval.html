@@ -10,8 +10,27 @@
     .rx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 6px; }
     .rx-field { display: flex; flex-direction: column; font-size: 11px; font-weight: bold; color: #444; }
     .rx-field input { padding: 6px; font-size: 12px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 3px; background: #fff; }
+    
+    /* Drag and Drop Zone UI */
+    .drop-zone {
+      border: 2px dashed #0078d4;
+      border-radius: 6px;
+      padding: 12px;
+      text-align: center;
+      background: #f0f7fc;
+      cursor: pointer;
+      margin-bottom: 10px;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      background: #e1f0fa;
+      border-color: #005a9e;
+    }
+    .drop-zone-text { font-size: 12px; color: #0078d4; font-weight: bold; }
+    .drop-zone-subtext { font-size: 10px; color: #666; margin-top: 3px; }
+
     .coord-box { background: #f0f4f8; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
-    .coord-box input[type="text"] { width: 100%; padding: 8px; font-size: 12px; border: 1px solid #0078d4; border-radius: 4px; box-sizing: border-box; margin-top: 4px; }
+    .coord-box input { width: 100%; padding: 8px; font-size: 12px; border: 1px solid #0078d4; border-radius: 4px; box-sizing: border-box; margin-top: 4px; }
     
     .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 12px; }
     .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-top: 6px; }
@@ -44,19 +63,21 @@
 
   <div class="card">
     <h3 id="unit-title" style="margin:0 0 2px 0; font-size:16px;">Unit Weather Forecast</h3>
-    <div style="font-size: 11px; color: #555; margin-bottom: 6px;">Select a unit on the map, upload a file, or enter coordinates below:</div>
-    <div id="status" style="font-size: 11px; color: #0078d4; font-weight: 500; margin-bottom: 8px;">Ready to evaluate forecast...</div>
+    <div id="status" style="font-size: 11px; color: #0078d4; font-weight: 500; margin-bottom: 8px;">
+      Select a unit on the map, drop a boundary file, or enter coordinates below.
+    </div>
 
-    <!-- Smart Coordinate & File Upload Box -->
+    <!-- Drag & Drop Unit File Zone -->
+    <div id="dropZone" class="drop-zone" onclick="document.getElementById('fileInput').click()">
+      <div class="drop-zone-text">Upload a Unit File (.geojson, .kml)</div>
+      <div class="drop-zone-subtext">or click here to browse files</div>
+      <input type="file" id="fileInput" accept=".json,.geojson,.kml" onchange="handleFileUpload(event)" style="display:none;">
+    </div>
+
+    <!-- Smart Coordinate Entry Box -->
     <div class="coord-box">
-      <input type="text" id="coordInput" placeholder="Coordinates (e.g., 40.782, -106.455)">
-      
-      <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #c0d4ea;">
-        <label for="fileInput" style="display: block; font-size: 11px; font-weight: bold; color: #444; margin-bottom: 5px;">
-          Or Upload Unit File (.geojson, .json, .kml):
-        </label>
-        <input type="file" id="fileInput" accept=".json,.geojson,.kml" onchange="handleFileUpload(event)" style="font-size: 11px; width: 100%; box-sizing: border-box;">
-      </div>
+      <div style="font-size: 10px; font-weight: bold; color: #555;">Or Enter Lat/Lon Coordinates:</div>
+      <input type="text" id="coordInput" placeholder="Coordinates (e.g. 40.782, -106.455)">
     </div>
 
     <div class="input-header">Prescription Limits</div>
@@ -75,12 +96,10 @@
     <button id="evalBtn" onclick="runEvaluation(true)">Evaluate 72-Hour Burn Window</button>
   </div>
 
-  <!-- Smoke Dispersion Warning Banner -->
   <div id="vent-alert" style="display:none; background:#fff3cd; color:#856404; border:1px solid #ffeeba; padding:10px; border-radius:6px; margin:10px 0; font-size:12px;">
-    ⚠️ <strong>Smoke Dispersion Notice:</strong> Forecast contains <span id="poor-count" style="font-weight:bold; color:#721c24;">0</span> hour(s) with <strong>POOR</strong> ventilation (&lt; 12 kt-ft).
+   <strong>Smoke Dispersion Notice:</strong> Forecast contains <span id="poor-count" style="font-weight:bold; color:#721c24;">0</span> hour(s) with <strong>POOR</strong> ventilation (&lt; 12 kt-ft).
   </div>
 
-  <!-- 1. 72-Hour Forecast Matrix Table -->
   <table id="matrix" style="display:none;">
     <thead>
       <tr>
@@ -96,7 +115,6 @@
     <tbody id="matrix-body"></tbody>
   </table>
 
-  <!-- RAWS Station & Live Fuel Moisture Box -->
   <div id="raws-box" class="data-box" style="display:none;">
     <div style="font-weight:bold; color:#0078d4; margin-bottom:4px;" id="raws-header">Nearest RAWS Observation & Fuel Moisture</div>
     <div class="data-grid">
@@ -109,7 +127,6 @@
     </div>
   </div>
 
-  <!-- 3. Satellite Map Preview Container with Vector Perimeter Overlay -->
   <div id="map-preview" class="map-container">
     <div style="font-size:11px; font-weight:bold; margin-bottom:4px; text-transform:uppercase;">Unit Location Satellite Preview</div>
     <div style="position:relative; display:inline-block; width:100%;">
@@ -121,10 +138,8 @@
     </div>
   </div>
 
-  <!-- 4. Export Report Button (At Bottom) -->
   <button id="exportMenuBtn" class="export-btn" style="display:none;" onclick="openExportModal()">📄 Export Data Summary / PDF</button>
 
-  <!-- Export Options Modal -->
   <div id="exportModal" class="modal-overlay">
     <div class="modal">
       <h4>Export Report Options</h4>
@@ -148,14 +163,16 @@
     const cleanUnitId = rawId.replace(/[^0-9]/g, '');
     const unitName = (rawUnit && rawUnit !== '{Name}') ? decodeURIComponent(rawUnit) : null;
 
-    if (unitName) {
-      document.getElementById('unit-title').innerText = unitName;
-    }
-
     const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
     let currentRings = null;
     let isUploadedUnit = false;
+    let activeUnitLabel = unitName ? (cleanUnitId ? `${unitName} (Object ID: ${cleanUnitId})` : unitName) : (cleanUnitId ? `Unit Object ID: ${cleanUnitId}` : '');
 
+    if (activeUnitLabel) {
+      document.getElementById('unit-title').innerText = activeUnitLabel;
+    }
+
+    // Parse URL-passed custom geometry rings if provided
     if (rawGeometry) {
       try {
         const parsed = JSON.parse(decodeURIComponent(rawGeometry));
@@ -173,10 +190,27 @@
       }
     }
 
+    // Drag & Drop File Listeners
+    const dropZone = document.getElementById('dropZone');
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => { e.preventDefault(); dropZone.classList.add('dragover'); }, false);
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); }, false);
+    });
+    dropZone.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      if (dt.files && dt.files.length) {
+        processUploadedFile(dt.files[0]);
+      }
+    });
+
     function handleFileUpload(event) {
       const file = event.target.files[0];
-      if (!file) return;
+      if (file) processUploadedFile(file);
+    }
 
+    function processUploadedFile(file) {
       const reader = new FileReader();
       reader.onload = function(e) {
         try {
@@ -229,7 +263,8 @@
             
             window.history.replaceState({}, document.title, window.location.pathname);
 
-            document.getElementById('unit-title').innerText = `📄 ${name} (Custom Upload)`;
+            activeUnitLabel = `📄 ${name} (Custom Upload)`;
+            document.getElementById('unit-title').innerText = activeUnitLabel;
             
             let points = [];
             currentRings.forEach(ring => ring.forEach(pt => points.push(pt)));
@@ -237,16 +272,6 @@
             points.forEach(pt => { sumLon += pt[0]; sumLat += pt[1]; });
             const cLat = sumLat / points.length;
             const cLon = sumLon / points.length;
-
-            // Broadcast file upload data to the parent Experience Builder app
-if (window.parent && window.parent !== window) {
-  window.parent.postMessage({
-    type: 'BURN_EVAL_FILE_UPLOADED',
-    unitName: name,
-    centroid: { lat: cLat, lon: cLon },
-    rings: currentRings
-  }, '*');
-}
 
             document.getElementById('coordInput').value = `${cLat.toFixed(4)}, ${cLon.toFixed(4)}`;
             document.getElementById('status').innerText = `Active Boundary: Uploaded File "${name}" (${cLat.toFixed(2)}, ${cLon.toFixed(2)})`;
@@ -372,7 +397,7 @@ if (window.parent && window.parent !== window) {
     function queryArcGISJsonp(id) {
       return new Promise((resolve, reject) => {
         const cbName = 'arcgis_cb_' + Math.floor(Math.random() * 10000000);
-        const queryUrl = `${FEATURE_SERVICE_URL}?where=OBJECTID%3D${id}&returnGeometry=true&outSR=4326&f=json&callback=${cbName}`;
+        const queryUrl = `${FEATURE_SERVICE_URL}?where=OBJECTID%3D${id}&outFields=*&returnGeometry=true&outSR=4326&f=json&callback=${cbName}`;
 
         window[cbName] = function(data) {
           delete window[cbName];
@@ -415,7 +440,20 @@ if (window.parent && window.parent !== window) {
       const data = await queryArcGISJsonp(id);
       if (!data.features || data.features.length === 0) throw new Error(`Unit ID ${id} not found.`);
 
-      const geom = data.features[0].geometry;
+      const feat = data.features[0];
+      const attrs = feat.attributes || {};
+      const fName = attrs.Name || attrs.NAME || attrs.unit_name || attrs.UnitName || attrs.UNIT_NAME || attrs.unit;
+      const fId = attrs.OBJECTID || attrs.objectid || id;
+
+      if (fName) {
+        activeUnitLabel = `${fName} (Object ID: ${fId})`;
+      } else {
+        activeUnitLabel = `Unit Object ID: ${fId}`;
+      }
+
+      document.getElementById('unit-title').innerText = activeUnitLabel;
+
+      const geom = feat.geometry;
       if (geom.rings) {
         currentRings = geom.rings;
       } else {
@@ -491,13 +529,6 @@ if (window.parent && window.parent !== window) {
     }
 
     async function runEvaluation(isManual = false) {
-      if (isManual && typeof event !== 'undefined' && event && event.type === 'click') {
-        const filePicker = document.getElementById('fileInput');
-        if (filePicker && !filePicker.files.length) {
-          isUploadedUnit = false;
-        }
-      }
-
       let coords = null;
 
       if (cleanUnitId && !isManual && !isUploadedUnit) {
@@ -526,7 +557,7 @@ if (window.parent && window.parent !== window) {
       }
 
       if (!coords) {
-        document.getElementById('status').innerText = "Select a unit on the map or enter coordinates above.";
+        document.getElementById('status').innerText = "Select a unit on the map, drop a file, or enter coordinates above.";
         return;
       }
 
@@ -573,7 +604,9 @@ if (window.parent && window.parent !== window) {
         tbody.innerHTML = '';
         
         const loc = pointData.properties.relativeLocation.properties;
-        document.getElementById('status').innerText = `Zone: ${loc.city}, ${loc.state} (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
+        const zoneInfo = `Zone: ${loc.city}, ${loc.state} (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
+        document.getElementById('status').innerText = activeUnitLabel ? `${activeUnitLabel} | ${zoneInfo}` : zoneInfo;
+        
         document.getElementById('matrix').style.display = 'table';
         document.getElementById('exportMenuBtn').style.display = 'block';
 
@@ -668,9 +701,12 @@ if (window.parent && window.parent !== window) {
           if (Array.isArray(geom)) {
             currentRings = Array.isArray(geom[0][0]) ? geom : [geom];
           }
-          if (payload.unit || payload.name) {
-            document.getElementById('unit-title').innerText = payload.unit || payload.name;
-          }
+          
+          const pName = payload.unit || payload.name;
+          const pId = payload.id || payload.objectId;
+          activeUnitLabel = pName ? `${pName}${pId ? ' (Object ID: ' + pId + ')' : ''}` : (pId ? `Unit Object ID: ${pId}` : 'Unit Weather Forecast');
+          
+          document.getElementById('unit-title').innerText = activeUnitLabel;
           runEvaluation(true);
         }
       } catch(e) {}
@@ -764,6 +800,7 @@ if (window.parent && window.parent !== window) {
       printWin.document.close();
     }
 
+    // Auto-run if URL query parameters contain an initial unit or geometry
     if (cleanUnitId || currentRings) {
       runEvaluation(false);
     }
