@@ -42,11 +42,16 @@
     button.export-btn { background: #28a745; margin-top: 14px; margin-bottom: 14px; font-size: 14px; }
     button.export-btn:hover { background: #218838; }
 
-    .go { background-color: #d4edda; color: #155724; font-weight: bold; }
-    .nogo { background-color: #f8d7da; color: #721c24; font-weight: bold; }
+    /* Neutral matrix table rows with cell-level highlights */
     table { width: 100%; border-collapse: collapse; background: white; margin-top: 10px; font-size: 12px; }
     th, td { border: 1px solid #dee2e6; padding: 6px; text-align: center; }
     th { background: #e9ecef; }
+    tr.matrix-row { background-color: #ffffff; }
+    tr.matrix-row:nth-child(even) { background-color: #fbfcfd; }
+    
+    .cell-pass { background-color: #d4edda !important; color: #155724 !important; font-weight: 600; }
+    .cell-fail { background-color: #f8d7da !important; color: #721c24 !important; font-weight: 600; }
+    .cell-warn { background-color: #fff3cd !important; color: #856404 !important; font-weight: 600; }
 
     .map-container { position: relative; width: 100%; max-width: 600px; margin: 12px auto; display: none; text-align: center; }
     .map-container img { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; display: block; }
@@ -87,7 +92,7 @@
       <div class="rx-field">Max RH (%)<input type="number" id="maxRH" value="50"></div>
       <div class="rx-field">Max Wind (mph)<input type="number" id="maxWind" value="12"></div>
       <div class="rx-field">Max Gust (mph)<input type="number" id="maxGust" value="20"></div>
-      <div class="rx-field">Min Vent (kt-ft)<input type="number" id="minVent" value="10"></div>
+      <div class="rx-field">Min Vent (kt-ft)<input type="number" id="minVent" value="40"></div>
       <div class="rx-field">Max Vent (kt-ft)<input type="number" id="maxVent" value="150"></div>
     </div>
     
@@ -154,6 +159,39 @@
     const rawId = urlParams.get('id') || urlParams.get('OBJECTID') || urlParams.get('objectid') || '';
     const rawGeometry = urlParams.get('rings') || urlParams.get('geometry') || urlParams.get('geojson');
     
+    // State ventilation rule profiles
+    const STATE_VENT_RULES = {
+      CO: {
+        name: 'Colorado (CDPHE Standards)',
+        defaultMinVent: 40,
+        poorLimit: 40,
+        fairLimit: 60,
+        goodLimit: 100
+      },
+      MT: {
+        name: 'Montana (Daily Call)',
+        defaultMinVent: 25,
+        poorLimit: 25,
+        fairLimit: 45,
+        goodLimit: 75
+      },
+      ID: {
+        name: 'Idaho (Daily Call)',
+        defaultMinVent: 25,
+        poorLimit: 25,
+        fairLimit: 45,
+        goodLimit: 75
+      }
+    };
+
+    const explicitState = (urlParams.get('state') || '').toUpperCase();
+    let activeStateCode = STATE_VENT_RULES[explicitState] ? explicitState : 'CO';
+    let userModifiedMinVent = false;
+
+    // Set initial default Min Vent based on active state
+    document.getElementById('minVent').value = STATE_VENT_RULES[activeStateCode].defaultMinVent;
+    document.getElementById('minVent').addEventListener('change', () => { userModifiedMinVent = true; });
+
     const cleanUnitId = rawId.replace(/[^0-9]/g, '');
     const unitName = (rawUnit && rawUnit !== '{Name}') ? decodeURIComponent(rawUnit) : null;
 
@@ -509,13 +547,14 @@
       document.getElementById('map-preview').style.display = 'block';
     }
 
-    function getVentCategory(rate) {
-      if (rate === null || isNaN(rate)) return { text: 'N/A', isPoor: false };
-      if (rate < 6)  return { text: 'VERY POOR', isPoor: true };
-      if (rate < 12) return { text: 'POOR', isPoor: true };
-      if (rate < 25) return { text: 'FAIR', isPoor: false };
-      if (rate < 60) return { text: 'GOOD', isPoor: false };
-      return { text: 'EXCELLENT', isPoor: false };
+    // Dynamic state-calibrated ventilation categories
+    function getVentCategory(rate, stateCode) {
+      const rules = STATE_VENT_RULES[stateCode] || STATE_VENT_RULES.CO;
+      if (rate === null || isNaN(rate)) return { text: 'N/A', cls: '' };
+      if (rate < rules.poorLimit)  return { text: `POOR (<${rules.poorLimit}k)`, cls: 'cell-fail' };
+      if (rate < rules.fairLimit)  return { text: `FAIR (${rules.poorLimit}-${rules.fairLimit}k)`, cls: 'cell-warn' };
+      if (rate < rules.goodLimit)  return { text: `GOOD (${rules.fairLimit}-${rules.goodLimit}k)`, cls: 'cell-pass' };
+      return { text: `EXCELLENT (≥${rules.goodLimit}k)`, cls: 'cell-pass' };
     }
 
     async function runEvaluation(isManual = false) {
@@ -578,6 +617,16 @@
         if (!pointRes.ok) throw new Error("NWS grid point response error (" + pointRes.status + ")");
         const pointData = await pointRes.json();
         
+        // Auto-detect State if not explicitly forced by URL param
+        const loc = pointData.properties.relativeLocation.properties;
+        const detectedState = (loc.state || '').toUpperCase();
+        if (!explicitState && STATE_VENT_RULES[detectedState]) {
+          activeStateCode = detectedState;
+          if (!userModifiedMinVent) {
+            document.getElementById('minVent').value = STATE_VENT_RULES[activeStateCode].defaultMinVent;
+          }
+        }
+
         const hourlyUrl = pointData.properties.forecastHourly;
         const gridUrl   = pointData.properties.forecastGridData;
 
@@ -593,13 +642,10 @@
         const tbody = document.getElementById('matrix-body');
         tbody.innerHTML = '';
         
-        const loc = pointData.properties.relativeLocation.properties;
-        document.getElementById('status').innerText = `Zone: ${loc.city}, ${loc.state} (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
+        document.getElementById('status').innerText = `Zone: ${loc.city}, ${loc.state} (${lat.toFixed(2)}, ${lon.toFixed(2)}) | Rules: ${STATE_VENT_RULES[activeStateCode].name}`;
         
         document.getElementById('matrix').style.display = 'table';
         document.getElementById('exportMenuBtn').style.display = 'block';
-
-        let poorVentCount = 0;
 
         periods.forEach(p => {
           const pTime = new Date(p.startTime);
@@ -625,8 +671,7 @@
             ventRate = Math.round((mHeightFt * tWindKt) / 1000);
           }
 
-          const ventCat = getVentCategory(ventRate);
-          if (ventCat.isPoor) poorVentCount++;
+          const ventCat = getVentCategory(ventRate, activeStateCode);
 
           const tempOk = (temp >= minTemp && temp <= maxTemp);
           const windOk = (wind <= maxWind);
@@ -645,7 +690,7 @@
           }
 
           const tr = document.createElement('tr');
-          tr.className = isGo ? 'go' : 'nogo';
+          tr.className = 'matrix-row';
 
           const weekday = pTime.toLocaleDateString([], { weekday: 'short' });
           const month   = String(pTime.getMonth() + 1).padStart(2, '0');
@@ -654,25 +699,15 @@
 
           tr.innerHTML = `
             <td>${weekday} ${month}/${day}, ${time}</td>
-            <td>${temp}°F</td>
-            <td>${rh !== null ? rh + '%' : 'N/A'}</td>
-            <td>${windDisplay}</td>
+            <td class="${tempOk ? 'cell-pass' : 'cell-fail'}">${temp}°F</td>
+            <td class="${rhOk ? 'cell-pass' : 'cell-fail'}">${rh !== null ? rh + '%' : 'N/A'}</td>
+            <td class="${(windOk && gustOk) ? 'cell-pass' : 'cell-fail'}">${windDisplay}</td>
             <td>${tWindMph !== null ? tWindMph + ' mph' : 'N/A'}</td>
-            <td>${ventDisplay}</td>
-            <td>${isGo ? 'IN-RX' : 'OUT-OF-RX'}</td>
+            <td class="${ventCat.cls}">${ventDisplay}</td>
+            <td class="${isGo ? 'cell-pass' : 'cell-fail'}">${isGo ? 'IN-RX' : 'OUT-OF-RX'}</td>
           `;
           tbody.appendChild(tr);
         });
-
-        const alertBox = document.getElementById('vent-alert');
-        if (alertBox) {
-          if (poorVentCount > 0) {
-            document.getElementById('poor-count').innerText = poorVentCount;
-            alertBox.style.display = 'block';
-          } else {
-            alertBox.style.display = 'none';
-          }
-        }
 
       } catch (err) {
         document.getElementById('status').innerText = 'Error: ' + err.message;
@@ -740,8 +775,9 @@
             table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 16px; }
             th, td { border: 1px solid #dee2e6; padding: 5px; text-align: center; }
             th { background: #e9ecef; }
-            .go { background-color: #d4edda; color: #155724; font-weight: bold; }
-            .nogo { background-color: #f8d7da; color: #721c24; font-weight: bold; }
+            .cell-pass { background-color: #d4edda !important; color: #155724 !important; font-weight: bold; }
+            .cell-fail { background-color: #f8d7da !important; color: #721c24 !important; font-weight: bold; }
+            .cell-warn { background-color: #fff3cd !important; color: #856404 !important; font-weight: bold; }
             .map-container { position: relative; width: 100%; max-width: 600px; margin: 12px auto; text-align: center; }
             .map-container img { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; display: block; }
             .map-container svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
