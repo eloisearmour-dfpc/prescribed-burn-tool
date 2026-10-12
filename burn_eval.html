@@ -191,8 +191,17 @@
     document.getElementById('minVent').value = STATE_VENT_RULES[activeStateCode].defaultMinVent;
     document.getElementById('minVent').addEventListener('change', () => { userModifiedMinVent = true; });
 
+    function sanitizeUnitName(name) {
+      if (!name) return null;
+      const s = String(name).trim();
+      if (s === '' || s === '{Name}' || s.toLowerCase() === 'none' || s.toLowerCase() === 'null') {
+        return null;
+      }
+      return s;
+    }
+
     const cleanUnitId = rawId.replace(/[^0-9]/g, '');
-    const unitName = (rawUnit && rawUnit !== '{Name}') ? decodeURIComponent(rawUnit) : null;
+    const unitName = sanitizeUnitName(rawUnit ? decodeURIComponent(rawUnit) : null);
 
     const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
     let currentRings = null;
@@ -250,14 +259,12 @@
             let geom = parsed;
             if (parsed.type === 'FeatureCollection' && parsed.features && parsed.features.length > 0) {
               geom = parsed.features[0].geometry;
-              if (parsed.features[0].properties && (parsed.features[0].properties.name || parsed.features[0].properties.Name)) {
-                name = parsed.features[0].properties.name || parsed.features[0].properties.Name;
-              }
+              const props = parsed.features[0].properties || {};
+              name = props.name || props.Name || name;
             } else if (parsed.type === 'Feature') {
               geom = parsed.geometry;
-              if (parsed.properties && (parsed.properties.name || parsed.properties.Name)) {
-                name = parsed.properties.name || parsed.properties.Name;
-              }
+              const props = parsed.properties || {};
+              name = props.name || props.Name || name;
             }
 
             if (geom.type === 'Polygon') {
@@ -275,9 +282,12 @@
               rawCoords.forEach(str => {
                 const parts = str.split(',');
                 if (parts.length >= 2) {
-                  const lon = parseFloat(parts[0]);
-                  const lat = parseFloat(parts[1]);
-                  if (!isNaN(lat) && !isNaN(lon)) pts.push([lon, lat]);
+                  const n1 = parseFloat(parts[0]);
+                  const n2 = parseFloat(parts[1]);
+                  if (!isNaN(n1) && !isNaN(n2)) {
+                    const norm = normalizePoint(n1, n2);
+                    pts.push([norm.lon, norm.lat]);
+                  }
                 }
               });
               if (pts.length >= 3) rings = [pts];
@@ -293,17 +303,12 @@
             activeUnitLabel = `📄 ${name} (Custom Upload)`;
             document.getElementById('unit-title').innerText = activeUnitLabel;
             
-            let points = [];
-            currentRings.forEach(ring => ring.forEach(pt => points.push(pt)));
-            let sumLon = 0, sumLat = 0;
-            points.forEach(pt => { sumLon += pt[0]; sumLat += pt[1]; });
-            const cLat = sumLat / points.length;
-            const cLon = sumLon / points.length;
-
-            document.getElementById('coordInput').value = `${cLat.toFixed(4)}, ${cLon.toFixed(4)}`;
-            document.getElementById('status').innerText = `Active Boundary: Uploaded File "${name}" (${cLat.toFixed(2)}, ${cLon.toFixed(2)})`;
-            
-            runEvaluation(true);
+            const centroid = calculateRingsCentroid(currentRings);
+            if (centroid) {
+              document.getElementById('coordInput').value = `${centroid.lat.toFixed(4)}, ${centroid.lon.toFixed(4)}`;
+              document.getElementById('status').innerText = `Active Boundary: Uploaded File "${name}" (${centroid.lat.toFixed(2)}, ${centroid.lon.toFixed(2)})`;
+              runEvaluation(true);
+            }
           } else {
             alert("Could not extract polygon geometry from file. Please upload a valid GeoJSON or KML polygon file.");
           }
@@ -314,25 +319,50 @@
       reader.readAsText(file);
     }
 
+    // Normalizes coordinate inputs into strict Lat and Lon
+    function normalizePoint(n1, n2) {
+      let lat, lon;
+      if (Math.abs(n1) > 50 && Math.abs(n2) <= 50) {
+        lon = n1; lat = n2;
+      } else if (Math.abs(n2) > 50 && Math.abs(n1) <= 50) {
+        lat = n1; lon = n2;
+      } else {
+        // Fallback assuming standard [lon, lat] order
+        lon = n1; lat = n2;
+      }
+      if (lon > 0 && lon < 180) lon = -lon; // Western hemisphere longitudes are negative
+      return { lat, lon };
+    }
+
+    function calculateRingsCentroid(rings) {
+      if (!rings || !rings.length) return null;
+      let sumLat = 0, sumLon = 0, count = 0;
+      rings.forEach(ring => {
+        ring.forEach(pt => {
+          const norm = normalizePoint(pt[0], pt[1]);
+          sumLat += norm.lat;
+          sumLon += norm.lon;
+          count++;
+        });
+      });
+      if (count === 0) return null;
+      return { lat: sumLat / count, lon: sumLon / count };
+    }
+
     function parseSmartCoordinates(rawText) {
       if (!rawText) return null;
       const nums = rawText.match(/[-+]?\d*\.?\d+/g);
       if (!nums || nums.length < 2) return null;
 
+      // Handle multi-point polygon rings
       if (nums.length >= 6 && nums.length % 2 === 0) {
         let pts = [];
         let sumLat = 0, sumLon = 0;
         for (let i = 0; i < nums.length; i += 2) {
-          let n1 = parseFloat(nums[i]);
-          let n2 = parseFloat(nums[i+1]);
-          let lat, lon;
-          if (Math.abs(n1) > 50 && Math.abs(n2) <= 50) { lon = n1; lat = n2; }
-          else if (Math.abs(n2) > 50 && Math.abs(n1) <= 50) { lat = n1; lon = n2; }
-          else { lat = n1; lon = n2; }
-          if (lon > 50 && lon < 180) lon = -lon;
-          pts.push([lon, lat]);
-          sumLat += lat;
-          sumLon += lon;
+          const norm = normalizePoint(parseFloat(nums[i]), parseFloat(nums[i+1]));
+          pts.push([norm.lon, norm.lat]);
+          sumLat += norm.lat;
+          sumLon += norm.lon;
         }
         currentRings = [pts];
         return { lat: sumLat / pts.length, lon: sumLon / pts.length };
@@ -342,18 +372,14 @@
         currentRings = null;
       }
 
-      let n1 = parseFloat(nums[0]);
-      let n2 = parseFloat(nums[1]);
-      let lat, lon;
+      const norm = normalizePoint(parseFloat(nums[0]), parseFloat(nums[1]));
+      
+      // Strict US CONUS bounds check
+      if (isNaN(norm.lat) || isNaN(norm.lon) || norm.lat < 24 || norm.lat > 50 || norm.lon > -65 || norm.lon < -130) {
+        return null;
+      }
 
-      if (Math.abs(n1) > 50 && Math.abs(n2) <= 50) { lon = n1; lat = n2; }
-      else if (Math.abs(n2) > 50 && Math.abs(n1) <= 50) { lat = n1; lon = n2; }
-      else { lat = n1; lon = n2; }
-
-      if (lon > 50 && lon < 180) lon = -lon;
-      if (isNaN(lat) || isNaN(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
-
-      return { lat, lon };
+      return norm;
     }
 
     function calculateFuelMoisture(tempF, rh) {
@@ -470,14 +496,8 @@
       const feat = data.features[0];
       const attrs = feat.attributes || {};
       
-      const fName = attrs.Name || attrs.name || attrs.NAME || attrs.unit_name || attrs.UnitName || attrs.UNIT_NAME || attrs.unit || attrs.Unit;
-
-      if (fName && String(fName).trim() !== '' && fName !== '{Name}') {
-        activeUnitLabel = String(fName).trim();
-      } else {
-        activeUnitLabel = 'Unit Weather Forecast';
-      }
-
+      const fName = sanitizeUnitName(attrs.Name || attrs.name || attrs.NAME || attrs.unit_name || attrs.UnitName || attrs.UNIT_NAME || attrs.unit || attrs.Unit);
+      activeUnitLabel = fName || 'Unit Weather Forecast';
       document.getElementById('unit-title').innerText = activeUnitLabel;
 
       const geom = feat.geometry;
@@ -487,16 +507,15 @@
         currentRings = null;
       }
 
-      let points = [];
-      if (geom.rings) geom.rings.forEach(ring => ring.forEach(pt => points.push(pt)));
-      else if (geom.x && geom.y) return { lat: geom.y, lon: geom.x };
+      if (geom.rings) {
+        const centroid = calculateRingsCentroid(geom.rings);
+        if (!centroid) throw new Error("Could not compute centroid from polygon coordinates.");
+        return centroid;
+      } else if (geom.x && geom.y) {
+        return normalizePoint(geom.x, geom.y);
+      }
 
-      if (points.length === 0) throw new Error("Could not extract polygon coordinates.");
-
-      let sumLon = 0, sumLat = 0;
-      points.forEach(pt => { sumLon += pt[0]; sumLat += pt[1]; });
-
-      return { lat: sumLon / points.length, lon: sumLon / points.length };
+      throw new Error("No usable geometry found in unit record.");
     }
 
     function updateSatelliteMapPreview(lat, lon) {
@@ -505,8 +524,9 @@
       if (currentRings && currentRings.length > 0) {
         let allLons = [], allLats = [];
         currentRings.forEach(ring => ring.forEach(pt => {
-          allLons.push(pt[0]);
-          allLats.push(pt[1]);
+          const norm = normalizePoint(pt[0], pt[1]);
+          allLons.push(norm.lon);
+          allLats.push(norm.lat);
         }));
 
         minLon = Math.min(...allLons);
@@ -523,8 +543,9 @@
         let svgPath = '';
         currentRings.forEach(ring => {
           ring.forEach((pt, idx) => {
-            const x = (((pt[0] - minLon) / (maxLon - minLon)) * 600).toFixed(1);
-            const y = ((1 - (pt[1] - minLat) / (maxLat - minLat)) * 350).toFixed(1);
+            const norm = normalizePoint(pt[0], pt[1]);
+            const x = (((norm.lon - minLon) / (maxLon - minLon)) * 600).toFixed(1);
+            const y = ((1 - (norm.lat - minLat) / (maxLat - minLat)) * 350).toFixed(1);
             svgPath += (idx === 0 ? `M ${x} ${y} ` : `L ${x} ${y} `);
           });
           svgPath += 'Z ';
@@ -576,20 +597,25 @@
       } else {
         coords = parseSmartCoordinates(document.getElementById('coordInput').value);
         if (!coords && currentRings && currentRings.length > 0) {
-          let points = [];
-          currentRings.forEach(ring => ring.forEach(pt => points.push(pt)));
-          let sumLon = 0, sumLat = 0;
-          points.forEach(pt => { sumLon += pt[0]; sumLat += pt[1]; });
-          coords = { lat: sumLat / points.length, lon: sumLon / points.length };
+          coords = calculateRingsCentroid(currentRings);
+          if (coords) {
+            document.getElementById('coordInput').value = `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`;
+          }
         }
       }
 
       if (!coords) {
-        document.getElementById('status').innerText = "Select a unit on the map, drop a file, or enter coordinates above.";
+        document.getElementById('status').innerText = "Select a unit on the map, drop a file, or enter valid US coordinates (e.g., 39.59, -106.43).";
         return;
       }
 
       const { lat, lon } = coords;
+
+      // Range check before calling NWS
+      if (lat < 24 || lat > 50 || lon > -65 || lon < -130) {
+        document.getElementById('status').innerText = `Error: Coordinates (${lat.toFixed(2)}, ${lon.toFixed(2)}) fall outside the NWS forecast grid.`;
+        return;
+      }
 
       updateSatelliteMapPreview(lat, lon);
       fetchRawsData(lat, lon);
@@ -723,12 +749,8 @@
             currentRings = Array.isArray(geom[0][0]) ? geom : [geom];
           }
           
-          const pName = payload.unit || payload.name;
-          if (pName && String(pName).trim() !== '' && pName !== '{Name}') {
-            activeUnitLabel = String(pName).trim();
-          } else {
-            activeUnitLabel = 'Unit Weather Forecast';
-          }
+          const pName = sanitizeUnitName(payload.unit || payload.name);
+          activeUnitLabel = pName || 'Unit Weather Forecast';
           
           document.getElementById('unit-title').innerText = activeUnitLabel;
           runEvaluation(true);
