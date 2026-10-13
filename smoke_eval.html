@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Rx Smoke Screening & Plume Evaluator</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 12px; background: #f8f9fa; color: #333; margin: 0; }
+    .card { background: white; padding: 14px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 12px; }
+    .input-header { font-size: 11px; font-weight: bold; color: #0078d4; text-transform: uppercase; letter-spacing: 0.5px; margin: 10px 0 6px 0; }
+    
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+    .form-field { display: flex; flex-direction: column; font-size: 11px; font-weight: bold; color: #444; }
+    .form-field input, .form-field select { padding: 6px; font-size: 12px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 3px; background: #fff; }
+
+    .drop-zone {
+      border: 2px dashed #0078d4;
+      border-radius: 6px;
+      padding: 10px;
+      text-align: center;
+      background: #f0f7fc;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+    .drop-zone:hover { background: #e1f0fa; }
+    .drop-zone-text { font-size: 11px; color: #0078d4; font-weight: bold; }
+
+    .coord-box { background: #f0f4f8; padding: 8px 10px; border-radius: 6px; margin-bottom: 10px; }
+    .coord-box input { width: 100%; padding: 6px; font-size: 12px; border: 1px solid #0078d4; border-radius: 4px; box-sizing: border-box; margin-top: 4px; }
+
+    button { background: #0078d4; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; margin-top: 10px; width: 100%; }
+    button:hover { background: #005a9e; }
+    button.download-btn { background: #28a745; margin-top: 8px; }
+    button.download-btn:hover { background: #218838; }
+
+    .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 12px; }
+    .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-top: 6px; }
+    .data-item { background: white; padding: 6px 8px; border-radius: 4px; border: 1px solid #d0e1f9; }
+    .data-item .label { font-size: 10px; color: #555; text-transform: uppercase; font-weight: bold; }
+    .data-item .val { font-size: 13px; font-weight: bold; color: #0078d4; margin-top: 2px; }
+
+    .alert-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 12px; color: #856404; }
+
+    .map-container { position: relative; width: 100%; max-width: 600px; margin: 12px auto; display: none; text-align: center; }
+    .map-container img { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; display: block; }
+    .map-container svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h3 id="unit-title" style="margin:0 0 2px 0; font-size:16px;">Smoke Screening Evaluator</h3>
+    <div id="status" style="font-size: 11px; color: #0078d4; font-weight: 500; margin-bottom: 8px;">
+      Select a unit on the map or enter coordinates to screen smoke trajectory.
+    </div>
+
+    <!-- Drag & Drop Unit File Zone -->
+    <div id="dropZone" class="drop-zone" onclick="document.getElementById('fileInput').click()">
+      <div class="drop-zone-text">Upload Unit Boundary (.geojson, .kml)</div>
+      <input type="file" id="fileInput" accept=".json,.geojson,.kml" onchange="handleFileUpload(event)" style="display:none;">
+    </div>
+
+    <!-- Lat/Lon Box -->
+    <div class="coord-box">
+      <div style="font-size: 10px; font-weight: bold; color: #555;">Target Lat/Lon Coordinates:</div>
+      <input type="text" id="coordInput" placeholder="Coordinates (e.g. 39.59, -106.43)">
+    </div>
+
+    <div class="input-header">Ignition Window & Fuel Parameters</div>
+    
+    <div class="form-grid">
+      <div class="form-field">
+        Ignition Date
+        <input type="date" id="ignDate">
+      </div>
+      <div class="form-field">
+        Start Time
+        <select id="ignHour">
+          <option value="09:00">09:00 AM</option>
+          <option value="10:00" selected>10:00 AM</option>
+          <option value="11:00">11:00 AM</option>
+          <option value="12:00">12:00 PM</option>
+          <option value="13:00">01:00 PM</option>
+          <option value="14:00">02:00 PM</option>
+          <option value="15:00">03:00 PM</option>
+        </select>
+      </div>
+      <div class="form-field">
+        Duration
+        <select id="burnDuration">
+          <option value="2">2 Hours</option>
+          <option value="4" selected>4 Hours</option>
+          <option value="6">6 Hours</option>
+          <option value="8">8 Hours</option>
+        </select>
+      </div>
+      <div class="form-field">
+        Burn Category
+        <select id="burnType" onchange="toggleSizeLabel()">
+          <option value="broadcast" selected>Broadcast Burn</option>
+          <option value="hand">Hand Piles</option>
+          <option value="machine">Landing / Machine Piles</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <span id="sizeLabel">Treated Acres</span>
+        <input type="number" id="burnSize" value="75">
+      </div>
+    </div>
+
+    <button id="calcBtn" onclick="runSmokeScreening()">Generate Downwind Smoke Cone</button>
+  </div>
+
+  <!-- Operational Briefing Metrics -->
+  <div id="results-box" class="data-box" style="display:none;">
+    <div style="font-weight:bold; color:#0078d4; margin-bottom:4px;" id="results-header">NWCG Smoke Screening Summary (PMS 420-3)</div>
+    <div class="data-grid">
+      <div class="data-item"><div class="label">Transport Wind</div><div class="val" id="res-twind">--</div></div>
+      <div class="data-item"><div class="label">Plume Heading</div><div class="val" id="res-heading">--</div></div>
+      <div class="data-item"><div class="label">Screening Distance</div><div class="val" id="res-dist">--</div></div>
+      <div class="data-item"><div class="label">Mixing Height</div><div class="val" id="res-mix">--</div></div>
+    </div>
+  </div>
+
+  <!-- Overnight Drainage Notice -->
+  <div id="drainage-alert" class="alert-box" style="display:none;">
+    <strong>⚠️ Nocturnal Smolder Alert:</strong> Machine and landing piles retain residual heat overnight. When thermal lift ceases after sunset, smoke will drain into low-lying stream bottoms (katabatic flow). Inspect the <strong>USGS NHD Flowlines</strong> directly downstream for populated valley bottoms.
+  </div>
+
+  <!-- Satellite Preview with Cone -->
+  <div id="map-preview" class="map-container">
+    <div style="font-size:11px; font-weight:bold; margin-bottom:4px; text-transform:uppercase;">Plume Trajectory & Receptor Screening Preview</div>
+    <div style="position:relative; display:inline-block; width:100%;">
+      <img id="map-img" src="" alt="Unit Satellite Imagery">
+      <svg id="map-svg" viewBox="0 0 600 400" preserveAspectRatio="none">
+        <path id="svg-cone" d="" fill="rgba(255, 140, 0, 0.35)" stroke="#ff8c00" stroke-width="2.5" stroke-dasharray="5,3" />
+        <path id="svg-polygon" d="" fill="rgba(0, 255, 255, 0.4)" stroke="#00ffff" stroke-width="2" />
+        <circle id="svg-pin" cx="-50" cy="-50" r="7" fill="#ff0000" stroke="#ffffff" stroke-width="2" />
+      </svg>
+    </div>
+    <button id="downloadGeoJsonBtn" class="download-btn" onclick="downloadConeGeoJSON()">📥 Download Smoke Cone (.geojson) for Map</button>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const rawUnit = urlParams.get('unit') || urlParams.get('Name') || urlParams.get('name');
+    const rawId = urlParams.get('id') || urlParams.get('OBJECTID') || urlParams.get('objectid') || '';
+    const rawGeometry = urlParams.get('rings') || urlParams.get('geometry') || urlParams.get('geojson');
+    const cleanUnitId = rawId.replace(/[^0-9]/g, '');
+
+    const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
+
+    let currentRings = null;
+    let isUploadedUnit = false;
+    let activeUnitLabel = sanitizeUnitName(rawUnit ? decodeURIComponent(rawUnit) : null) || 'Smoke Screening Evaluator';
+    document.getElementById('unit-title').innerText = activeUnitLabel;
+
+    let latestConeFeature = null;
+
+    // Set default ignition date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('ignDate').value = today;
+
+    function sanitizeUnitName(name) {
+      if (!name) return null;
+      const s = String(name).trim();
+      return (s === '' || s === '{Name}' || s.toLowerCase() === 'none' || s.toLowerCase() === 'null') ? null : s;
+    }
+
+    function toggleSizeLabel() {
+      const type = document.getElementById('burnType').value;
+      const label = document.getElementById('sizeLabel');
+      const input = document.getElementById('burnSize');
+      if (type === 'broadcast') {
+        label.innerText = 'Treated Acres';
+        if (input.value > 1000) input.value = 75;
+      } else {
+        label.innerText = 'Number of Piles';
+        if (input.value < 10) input.value = 50;
+      }
+    }
+
+    function normalizePoint(n1, n2) {
+      let lat, lon;
+      if (Math.abs(n1) > 50 && Math.abs(n2) <= 50) { lon = n1; lat = n2; }
+      else if (Math.abs(n2) > 50 && Math.abs(n1) <= 50) { lat = n1; lon = n2; }
+      else { lon = n1; lat = n2; }
+      if (lon > 0 && lon < 180) lon = -lon;
+      return { lat, lon };
+    }
+
+    function calculateRingsCentroid(rings) {
+      if (!rings?.length) return null;
+      let sumLat = 0, sumLon = 0, count = 0;
+      rings.forEach(ring => ring.forEach(pt => {
+        const norm = normalizePoint(pt[0], pt[1]);
+        sumLat += norm.lat; sumLon += norm.lon; count++;
+      }));
+      return count ? { lat: sumLat / count, lon: sumLon / count } : null;
+    }
+
+    function parseSmartCoordinates(rawText) {
+      if (!rawText) return null;
+      const nums = rawText.match(/[-+]?\d*\.?\d+/g);
+      if (!nums || nums.length < 2) return null;
+      const norm = normalizePoint(parseFloat(nums[0]), parseFloat(nums[1]));
+      return (norm.lat >= 24 && norm.lat <= 50 && norm.lon <= -65 && norm.lon >= -130) ? norm : null;
+    }
+
+    function queryArcGISJsonp(id) {
+      return new Promise((resolve, reject) => {
+        const cbName = 'arcgis_cb_' + Math.floor(Math.random() * 10000000);
+        const script = document.createElement('script');
+        script.src = `${FEATURE_SERVICE_URL}?where=OBJECTID%3D${id}&outFields=*&returnGeometry=true&outSR=4326&f=json&callback=${cbName}`;
+        window[cbName] = data => { delete window[cbName]; script.remove(); data.error ? reject(new Error(data.error.message)) : resolve(data); };
+        script.onerror = () => { delete window[cbName]; script.remove(); reject(new Error("ArcGIS service failed.")); };
+        document.head.appendChild(script);
+      });
+    }
+
+    async function getUnitCoordinatesById(id) {
+      const data = await queryArcGISJsonp(id);
+      if (!data.features?.length) throw new Error(`Unit ID ${id} not found.`);
+      const feat = data.features[0];
+      const attrs = feat.attributes || {};
+      
+      const fName = sanitizeUnitName(attrs.Name || attrs.name || attrs.NAME || attrs.unit_name || attrs.UnitName);
+      activeUnitLabel = fName || 'Smoke Screening Evaluator';
+      document.getElementById('unit-title').innerText = activeUnitLabel;
+
+      if (attrs.GIS_ACRES || attrs.TREATMENT_ACRES || attrs.acres) {
+        document.getElementById('burnSize').value = Math.round(attrs.GIS_ACRES || attrs.TREATMENT_ACRES || attrs.acres);
+      }
+
+      currentRings = feat.geometry?.rings || null;
+      if (currentRings) return calculateRingsCentroid(currentRings);
+      if (feat.geometry?.x && feat.geometry?.y) return normalizePoint(feat.geometry.x, feat.geometry.y);
+      throw new Error("No valid geometry found.");
+    }
+
+    function getDestinationPoint(lat, lon, distanceMiles, bearingDeg) {
+      const R = 3958.8; // Earth radius in miles
+      const d = distanceMiles / R;
+      const brng = (bearingDeg * Math.PI) / 180;
+      const lat1 = (lat * Math.PI) / 180;
+      const lon1 = (lon * Math.PI) / 180;
+
+      const lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brng));
+      const lon2 = lon1 + Math.atan2(Math.sin(brng) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
+
+      return {
+        lat: (lat2 * 180) / Math.PI,
+        lon: (lon2 * 180) / Math.PI
+      };
+    }
+
+    // NWCG 30-45° Plume Cone Generator
+    function generateSmokeConePolygon(centerLat, centerLon, distanceMiles, downwindBearing) {
+      const spreadAngle = 40; // 40-degree angular spread
+      const startAngle = (downwindBearing - (spreadAngle / 2) + 360) % 360;
+      const endAngle = (downwindBearing + (spreadAngle / 2) + 360) % 360;
+
+      const coords = [[centerLon, centerLat]];
+      const steps = 16;
+      for (let i = 0; i <= steps; i++) {
+        const angle = startAngle + (i / steps) * spreadAngle;
+        const pt = getDestinationPoint(centerLat, centerLon, distanceMiles, angle);
+        coords.push([pt.lon, pt.lat]);
+      }
+      coords.push([centerLon, centerLat]); // Close polygon
+      return coords;
+    }
+
+    async function runSmokeScreening() {
+      let coords = null;
+      if (cleanUnitId && !isUploadedUnit) {
+        try {
+          coords = await getUnitCoordinatesById(cleanUnitId);
+          document.getElementById('coordInput').value = `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`;
+        } catch (e) {
+          coords = parseSmartCoordinates(document.getElementById('coordInput').value);
+        }
+      } else {
+        coords = parseSmartCoordinates(document.getElementById('coordInput').value);
+      }
+
+      if (!coords) {
+        document.getElementById('status').innerText = "Please provide valid coordinates or select a unit.";
+        return;
+      }
+
+      const { lat, lon } = coords;
+      const dateStr = document.getElementById('ignDate').value;
+      const timeStr = document.getElementById('ignHour').value;
+      const durationHours = parseInt(document.getElementById('burnDuration').value);
+      const burnType = document.getElementById('burnType').value;
+      const sizeVal = parseFloat(document.getElementById('burnSize').value) || 50;
+
+      const targetStart = new Date(`${dateStr}T${timeStr}:00`);
+
+      document.getElementById('status').innerText = `Pulling NWS transport wind forecast (${lat.toFixed(2)}, ${lon.toFixed(2)})...`;
+
+      try {
+        const pointRes = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`);
+        if (!pointRes.ok) throw new Error("Could not reach NWS point endpoint.");
+        const pointData = await pointRes.json();
+
+        const gridRes = await fetch(pointData.properties.forecastGridData);
+        const gridData = await gridRes.json();
+
+        const twSpeedVals = gridData.properties?.transportWindSpeed?.values || [];
+        const twDirVals = gridData.properties?.transportWindDirection?.values || [];
+        const mixVals = gridData.properties?.mixingHeight?.values || [];
+
+        // Extract average transport wind over ignition window
+        let sumDir = 0, sumSpeed = 0, sumMix = 0, count = 0;
+        for (let h = 0; h < durationHours; h++) {
+          const t = new Date(targetStart.getTime() + (h * 3600000));
+          const spdKmh = getValueForTime(twSpeedVals, t);
+          const dirDeg = getValueForTime(twDirVals, t);
+          const mixM = getValueForTime(mixVals, t);
+
+          if (dirDeg !== null && spdKmh !== null) {
+            sumDir += dirDeg;
+            sumSpeed += (spdKmh * 0.621371);
+            if (mixM !== null) sumMix += (mixM * 3.28084);
+            count++;
+          }
+        }
+
+        let twSpeedMph = count ? Math.round(sumSpeed / count) : 12;
+        let twDirDeg = count ? Math.round(sumDir / count) : 250; // default WSW
+        let mixHeightFt = count ? Math.round(sumMix / count) : 4500;
+
+        // Downwind trajectory is 180 degrees from wind source
+        const downwindBearing = (twDirDeg + 180) % 360;
+
+        // Calculate Screening Distance based on NWCG standards
+        let screeningDistanceMiles = 5;
+        if (burnType === 'broadcast') {
+          if (sizeVal < 50) screeningDistanceMiles = 3.5;
+          else if (sizeVal <= 250) screeningDistanceMiles = 6.5;
+          else screeningDistanceMiles = 10.0;
+        } else if (burnType === 'hand') {
+          screeningDistanceMiles = (sizeVal > 150) ? 4.0 : 2.5;
+        } else {
+          // Machine piles
+          screeningDistanceMiles = 4.5;
+        }
+
+        // Generate downwind cone coordinates
+        const coneCoordinates = generateSmokeConePolygon(lat, lon, screeningDistanceMiles, downwindBearing);
+
+        latestConeFeature = {
+          type: "Feature",
+          properties: {
+            unit: activeUnitLabel,
+            burnType: burnType,
+            size: sizeVal,
+            screeningDistanceMiles: screeningDistanceMiles,
+            transportWindMph: twSpeedMph,
+            downwindBearingDeg: downwindBearing,
+            date: dateStr,
+            time: timeStr
+          },
+          geometry: {
+            type: "Polygon",
+            coordinates: [coneCoordinates]
+          }
+        };
+
+        // Render briefing cards
+        document.getElementById('res-twind').innerText = `${twSpeedMph} mph @ ${twDirDeg}°`;
+        document.getElementById('res-heading').innerText = `${downwindBearing}° (${getCompass(downwindBearing)})`;
+        document.getElementById('res-dist').innerText = `${screeningDistanceMiles} miles`;
+        document.getElementById('res-mix').innerText = `${mixHeightFt.toLocaleString()} ft`;
+
+        document.getElementById('results-box').style.display = 'block';
+        document.getElementById('drainage-alert').style.display = (burnType === 'machine') ? 'block' : 'none';
+
+        renderSatelliteConePreview(lat, lon, coneCoordinates);
+        document.getElementById('status').innerText = `Screening Generated: Plume carries ${screeningDistanceMiles} mi toward ${getCompass(downwindBearing)}.`;
+
+      } catch (err) {
+        document.getElementById('status').innerText = "Screening Error: " + err.message;
+      }
+    }
+
+    function getValueForTime(valuesArray, targetTime) {
+      if (!valuesArray?.length) return null;
+      const targetMs = targetTime.getTime();
+      for (const item of valuesArray) {
+        const [timeStr, durationStr] = item.validTime.split('/');
+        const startMs = new Date(timeStr).getTime();
+        const durationMs = durationStr?.startsWith('PT') ? (parseInt(durationStr.replace('PT', '').replace('H', '')) || 1) * 3600000 : 3600000;
+        if (targetMs >= startMs && targetMs < (startMs + durationMs)) return item.value;
+      }
+      return null;
+    }
+
+    function getCompass(degrees) {
+      const val = Math.floor((degrees / 22.5) + 0.5);
+      const arr = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+      return arr[(val % 16)];
+    }
+
+    function renderSatelliteConePreview(centerLat, centerLon, coneCoords) {
+      let lons = coneCoords.map(p => p[0]);
+      let lats = coneCoords.map(p => p[1]);
+
+      if (currentRings?.length) {
+        currentRings.forEach(ring => ring.forEach(pt => {
+          const norm = normalizePoint(pt[0], pt[1]);
+          lons.push(norm.lon); lats.push(norm.lat);
+        }));
+      }
+
+      let minLon = Math.min(...lons), maxLon = Math.max(...lons);
+      let minLat = Math.min(...lats), maxLat = Math.max(...lats);
+
+      const lonPad = ((maxLon - minLon) || 0.02) * 0.25;
+      const latPad = ((maxLat - minLat) || 0.02) * 0.25;
+      minLon -= lonPad; maxLon += lonPad; minLat -= latPad; maxLat += latPad;
+
+      // Draw SVG Cone
+      let conePath = '';
+      coneCoords.forEach((pt, idx) => {
+        const x = (((pt[0] - minLon) / (maxLon - minLon)) * 600).toFixed(1);
+        const y = ((1 - (pt[1] - minLat) / (maxLat - minLat)) * 400).toFixed(1);
+        conePath += (idx === 0 ? `M ${x} ${y} ` : `L ${x} ${y} `);
+      });
+      conePath += 'Z ';
+      document.getElementById('svg-cone').setAttribute('d', conePath);
+
+      // Draw Unit boundary if polygon exists
+      if (currentRings?.length) {
+        let unitPath = '';
+        currentRings.forEach(ring => {
+          ring.forEach((pt, idx) => {
+            const norm = normalizePoint(pt[0], pt[1]);
+            const x = (((norm.lon - minLon) / (maxLon - minLon)) * 600).toFixed(1);
+            const y = ((1 - (norm.lat - minLat) / (maxLat - minLat)) * 400).toFixed(1);
+            unitPath += (idx === 0 ? `M ${x} ${y} ` : `L ${x} ${y} `);
+          });
+          unitPath += 'Z ';
+        });
+        document.getElementById('svg-polygon').setAttribute('d', unitPath);
+        document.getElementById('svg-pin').setAttribute('cx', '-50');
+      } else {
+        const cx = (((centerLon - minLon) / (maxLon - minLon)) * 600).toFixed(1);
+        const cy = ((1 - (centerLat - minLat) / (maxLat - minLat)) * 400).toFixed(1);
+        document.getElementById('svg-polygon').setAttribute('d', '');
+        document.getElementById('svg-pin').setAttribute('cx', cx);
+        document.getElementById('svg-pin').setAttribute('cy', cy);
+      }
+
+      document.getElementById('map-img').src = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${minLon.toFixed(5)},${minLat.toFixed(5)},${maxLon.toFixed(5)},${maxLat.toFixed(5)}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
+      document.getElementById('map-preview').style.display = 'block';
+    }
+
+    function downloadConeGeoJSON() {
+      if (!latestConeFeature) return;
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(latestConeFeature));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `${activeUnitLabel.replace(/\s+/g, '_')}_smoke_cone.geojson`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    window.addEventListener('message', function(event) {
+      if (!event.data) return;
+      try {
+        const payload = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (payload.rings || payload.geometry?.rings || payload.geojson) {
+          isUploadedUnit = false;
+          const geom = payload.rings || payload.geometry?.rings || payload.geojson;
+          currentRings = Array.isArray(geom[0]?.[0]) ? geom : [geom];
+          activeUnitLabel = sanitizeUnitName(payload.unit || payload.name) || 'Smoke Screening Evaluator';
+          document.getElementById('unit-title').innerText = activeUnitLabel;
+          runSmokeScreening();
+        }
+      } catch(e) {}
+    });
+
+    if (cleanUnitId || currentRings) runSmokeScreening();
+  </script>
+</body>
+</html>
