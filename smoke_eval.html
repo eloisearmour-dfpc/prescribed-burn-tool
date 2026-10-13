@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Rx Smoke Screening & Plume Evaluator</title>
+  <title>Rx Smoke Screening</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 12px; background: #f8f9fa; color: #333; margin: 0; }
     .card { background: white; padding: 14px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 12px; }
@@ -42,7 +42,7 @@
     button { background: #0078d4; color: white; border: none; padding: 11px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; margin-top: 8px; width: 100%; transition: background 0.2s; }
     button:hover { background: #005a9e; }
     button:disabled { cursor: not-allowed; }
-    button.running { background: #5c2d91; } /* Non-alarming deep purple during execution */
+    button.running { background: #5c2d91; }
     button.export-btn { background: #28a745; margin-top: 10px; }
     button.export-btn:hover { background: #218838; }
 
@@ -56,7 +56,6 @@
 
     .alert-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 12px; color: #856404; }
 
-    /* Map Controls & Legend */
     .map-controls-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 11px; font-weight: bold; }
     .map-btn-group { display: flex; gap: 4px; }
     .map-toggle-btn { padding: 4px 8px; font-size: 11px; border: 1px solid #0078d4; background: #fff; color: #0078d4; border-radius: 4px; cursor: pointer; width: auto; margin: 0; }
@@ -87,15 +86,14 @@
     .map-container svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 
     .disclaimer-text {
-  font-size: 11px;
-  color: #444;
-  line-height: 1.4;
-  margin-top: 10px;
-  font-style: normal;
-  text-align: left;
-}
+      font-size: 11px;
+      color: #444;
+      line-height: 1.4;
+      margin-top: 10px;
+      font-style: normal;
+      text-align: left;
+    }
 
-    /* Export Modal */
     .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.55); display: none; justify-content: center; align-items: center; z-index: 9999; }
     .modal-box { background: white; border-radius: 8px; padding: 18px; width: 90%; max-width: 440px; box-shadow: 0 4px 16px rgba(0,0,0,0.25); text-align: left; }
     .modal-title { font-size: 15px; font-weight: bold; color: #0078d4; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
@@ -111,22 +109,22 @@
 <body>
 
   <div class="card">
-    <h3 id="unit-title" style="margin:0 0 2px 0; font-size:16px;">Smoke Screening Evaluator</h3>
+    <h3 id="unit-title" style="margin:0 0 2px 0; font-size:16px;">Smoke Screening</h3>
     <div id="status" style="font-size: 11px; color: #0078d4; font-weight: 500; margin-bottom: 8px;">
-      Select a unit on the map or enter coordinates to screen smoke trajectory.
+      Click a unit on the map or enter coordinates.
     </div>
 
     <div id="dropZone" class="drop-zone" onclick="document.getElementById('fileInput').click()">
-      <div class="drop-zone-text">Upload Unit Boundary (.geojson, .kml)</div>
+      <div class="drop-zone-text">Upload Boundary (.geojson, .kml)</div>
       <input type="file" id="fileInput" accept=".json,.geojson,.kml" onchange="handleFileUpload(event)" style="display:none;">
     </div>
 
     <div class="coord-box">
-      <div style="font-size: 10px; font-weight: bold; color: #555;">Target Lat/Lon Coordinates:</div>
+      <div style="font-size: 10px; font-weight: bold; color: #555;">Coordinates:</div>
       <input type="text" id="coordInput" placeholder="Coordinates (e.g. 39.59, -106.43)">
     </div>
 
-    <div class="input-header">Ignition Window & Fuel Parameters</div>
+    <div class="input-header">Burn Parameters</div>
     
     <div class="form-grid">
       <div class="form-field">
@@ -155,7 +153,7 @@
         </select>
       </div>
       <div class="form-field">
-        Burn Category
+        Burn Type
         <select id="burnType" onchange="toggleSizeLabel()">
           <option value="broadcast" selected>Broadcast Burn</option>
           <option value="hand">Hand Piles</option>
@@ -163,28 +161,28 @@
         </select>
       </div>
       <div class="form-field">
-        <span id="sizeLabel">Treated Acres</span>
+        <span id="sizeLabel">Acres</span>
         <input type="number" id="burnSize" value="75">
       </div>
     </div>
 
     <div class="time-warning-banner">
-      ⏱️ <strong>Processing Note:</strong> Queries can take 1 to 4 minutes. Please do not refresh.
+      ⏱️ <strong>Processing takes 1–3 minutes. Please wait.</strong>
     </div>
 
-    <button id="calcBtn" onclick="runSmokeScreening()">Generate Downwind Smoke Cone</button>
+    <button id="calcBtn" onclick="runSmokeScreening()">Run Smoke Screening</button>
   </div>
 
-  <!-- Operational Briefing Metrics -->
+  <!-- Screening Metrics -->
   <div id="results-box" class="data-box" style="display:none;">
     <div style="font-weight:bold; color:#0078d4; margin-bottom:4px;" id="results-header">NWCG Smoke Screening Summary (PMS 420-3)</div>
     <div class="data-grid">
       <div class="data-item"><div class="label">Transport Wind</div><div class="val" id="res-twind">--</div></div>
-      <div class="data-item"><div class="label">Day Plume Heading</div><div class="val" id="res-heading">--</div></div>
-      <div class="data-item"><div class="label">Screening Distance</div><div class="val" id="res-dist">--</div></div>
+      <div class="data-item"><div class="label">Day Drift Direction</div><div class="val" id="res-heading">--</div></div>
+      <div class="data-item"><div class="label">Day Drift Distance</div><div class="val" id="res-dist">--</div></div>
       <div class="data-item"><div class="label">Mixing Height</div><div class="val" id="res-mix">--</div></div>
-      <div class="data-item"><div class="label">Night Drainage Flow</div><div class="val" id="res-drainage">--</div></div>
-      <div class="data-item"><div class="label">Nocturnal Reach</div><div class="val" id="res-drainage-dist">--</div></div>
+      <div class="data-item"><div class="label">Night Drainage</div><div class="val" id="res-drainage">--</div></div>
+      <div class="data-item"><div class="label">Night Reach</div><div class="val" id="res-drainage-dist">--</div></div>
     </div>
     
     <div style="margin-top:8px; display:flex; align-items:center; gap:8px;">
@@ -195,7 +193,7 @@
 
   <!-- Overnight Drainage Notice -->
   <div id="drainage-alert" class="alert-box" style="display:none;">
-    <strong>⚠️ Overnight Smoke:</strong> Cold air can drain smoke down the <strong><span id="drainage-name">local drainage corridor</span></strong>. Inspect downstream valley bottoms along the blue corridor ribbon.
+    <strong>⚠️ Overnight Drainage:</strong> Smoke will drain down <strong><span id="drainage-name">local drainage corridor</span></strong>. Check downstream valley bottoms for pooling.
   </div>
 
   <!-- Multi-View Preview Map -->
@@ -210,16 +208,16 @@
 
     <!-- Map Legend -->
     <div class="legend-bar">
-      <div class="legend-item"><span class="legend-color" style="background:rgba(255, 140, 0, 0.5); border:1px solid #ff8c00;"></span> Daytime Plume Estimate</div>
-      <div class="legend-item"><span class="legend-color" style="background:rgba(40, 85, 121, 0.5); border:1px solid #1d3d57;"></span> Night Drainage Estimate</div>
+      <div class="legend-item"><span class="legend-color" style="background:rgba(255, 140, 0, 0.5); border:1px solid #ff8c00;"></span> Day Plume</div>
+      <div class="legend-item"><span class="legend-color" style="background:rgba(40, 85, 121, 0.5); border:1px solid #1d3d57;"></span> Night Drainage</div>
       <div class="legend-item"><span class="legend-color" style="background:rgba(0, 255, 255, 0.5); border:1px solid #00ffff;"></span> Unit Boundary</div>
-      <div class="legend-item"><span class="legend-color" style="background:#8fa9c4; border-radius:50%;"></span> WUI Clusters</div>
+      <div class="legend-item"><span class="legend-color" style="background:#8fa9c4; border-radius:50%;"></span> WUI Density</div>
     </div>
 
     <div class="layer-toggles-row">
-      <label><input type="checkbox" id="chkDay" onchange="renderSvgOverlays()" checked> <span style="color:#e65100;">■ Daytime Plume</span></label>
+      <label><input type="checkbox" id="chkDay" onchange="renderSvgOverlays()" checked> <span style="color:#e65100;">■ Day Plume</span></label>
       <label><input type="checkbox" id="chkNight" onchange="renderSvgOverlays()" checked> <span style="color:#285579;">■ Night Drainage</span></label>
-      <label><input type="checkbox" id="chkWui" onchange="toggleWuiOverlay()" checked>WUI Density</label>
+      <label><input type="checkbox" id="chkWui" onchange="toggleWuiOverlay()" checked> WUI Density</label>
     </div>
 
     <div style="position:relative; display:inline-block; width:100%;">
@@ -235,7 +233,7 @@
     </div>
 
     <div class="disclaimer-text">
-      Smoke plume and drainage models based on NWS transport forecasts and USGS flowlines. Does not replace on-site fire weather observations or local smoke management requirements.
+      Screening model based on NWS forecasts and USGS stream flowlines. Confirm conditions on site and follow local smoke permits.
     </div>
 
     <button id="exportReportBtn" class="export-btn" onclick="openExportModal()">Export (PDF)</button>
@@ -277,8 +275,9 @@
 
     let cachedCoords = null;
     let currentRings = null;
+    let isUploadedUnit = false;
     let unitDataInitialLoaded = false;
-    let activeUnitLabel = sanitizeUnitName(rawUnit ? decodeURIComponent(rawUnit) : null) || 'Smoke Screening Evaluator';
+    let activeUnitLabel = sanitizeUnitName(rawUnit ? decodeURIComponent(rawUnit) : null) || 'Smoke Screening';
     document.getElementById('unit-title').innerText = activeUnitLabel;
 
     let currentLocalBbox = null;
@@ -291,7 +290,7 @@
     let latestDrainageBearing = 180;
     let latestScreeningDist = 5;
     let latestNightDist = 4.5;
-    let latestConfidenceInfo = { text: "Good", color: "#28a745" };
+    let latestConfidenceInfo = { text: "High (Consistent Winds)", color: "#28a745" };
 
     document.getElementById('ignDate').value = new Date().toISOString().split('T')[0];
 
@@ -305,9 +304,9 @@
       const type = document.getElementById('burnType').value;
       const label = document.getElementById('sizeLabel');
       if (type === 'broadcast') {
-        label.innerText = 'Treated Acres';
+        label.innerText = 'Acres';
       } else {
-        label.innerText = 'Number of Piles';
+        label.innerText = 'Piles';
       }
     }
 
@@ -336,6 +335,41 @@
       if (!nums || nums.length < 2) return null;
       const norm = normalizePoint(parseFloat(nums[0]), parseFloat(nums[1]));
       return (norm.lat >= 24 && norm.lat <= 50 && norm.lon <= -65 && norm.lon >= -130) ? norm : null;
+    }
+
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const geojson = JSON.parse(e.target.result);
+          isUploadedUnit = true;
+          let coordsArr = null;
+          if (geojson.type === "FeatureCollection" && geojson.features.length) {
+            coordsArr = geojson.features[0].geometry.coordinates;
+            activeUnitLabel = geojson.features[0].properties?.name || file.name.replace(/\.[^/.]+$/, "");
+          } else if (geojson.type === "Feature") {
+            coordsArr = geojson.geometry.coordinates;
+            activeUnitLabel = geojson.properties?.name || file.name.replace(/\.[^/.]+$/, "");
+          } else if (geojson.coordinates) {
+            coordsArr = geojson.coordinates;
+            activeUnitLabel = file.name.replace(/\.[^/.]+$/, "");
+          }
+          if (coordsArr) {
+            currentRings = Array.isArray(coordsArr[0]?.[0]) ? coordsArr : [coordsArr];
+            document.getElementById('unit-title').innerText = activeUnitLabel;
+            cachedCoords = calculateRingsCentroid(currentRings);
+            if (cachedCoords) {
+              document.getElementById('coordInput').value = `${cachedCoords.lat.toFixed(4)}, ${cachedCoords.lon.toFixed(4)}`;
+            }
+            runSmokeScreening();
+          }
+        } catch(err) {
+          alert("Could not parse file. Please upload standard GeoJSON.");
+        }
+      };
+      reader.readAsText(file);
     }
 
     function queryArcGISJsonp(id) {
@@ -466,13 +500,13 @@
       let coords = cachedCoords || parseSmartCoordinates(document.getElementById('coordInput').value);
 
       if (!coords) {
-        document.getElementById('status').innerText = "Please provide valid coordinates or select a unit.";
+        document.getElementById('status').innerText = "Click a unit on the map or enter coordinates.";
         return;
       }
 
       calcBtn.disabled = true;
       calcBtn.classList.add('running');
-      calcBtn.innerText = "⏳ Processing (1/3: Query NWS Winds)...";
+      calcBtn.innerText = "⏳ 1/3 Fetching NWS Winds...";
 
       const { lat, lon } = coords;
       const dateStr = document.getElementById('ignDate').value;
@@ -487,7 +521,7 @@
         if (!pointRes.ok) throw new Error("Could not reach NWS point endpoint.");
         const pointData = await pointRes.json();
 
-        calcBtn.innerText = "⏳ Processing (2/3: Query Hydrography)...";
+        calcBtn.innerText = "⏳ 2/3 Tracing Drainages...";
         const [gridRes, drainageInfo] = await Promise.all([
           fetch(pointData.properties.forecastGridData),
           fetchDownstreamDrainageVector(lat, lon)
@@ -537,23 +571,22 @@
         latestConeCoords = generateSmokeConePolygon(lat, lon, screeningDistanceMiles, downwindBearing);
         latestNightCorridorCoords = generateDrainageRibbon(lat, lon, latestNightDist, latestDrainageBearing, 0.6);
 
-        // Confidence Logic (NWCG PMS 420-3 criteria)
         if (twSpeedMph < 9) {
-          latestConfidenceInfo = { text: "Low (Light & Variable Winds — High Plume Uncertainty)", color: "#d97706" };
+          latestConfidenceInfo = { text: "Low (Light & Variable Winds)", color: "#d97706" };
         } else if (twSpeedMph > 25) {
-          latestConfidenceInfo = { text: "Moderate (High Transport Winds — Rapid Reach)", color: "#2563eb" };
+          latestConfidenceInfo = { text: "Moderate (High Winds)", color: "#2563eb" };
         } else {
-          latestConfidenceInfo = { text: "Good (Consistent Transport Winds)", color: "#28a745" };
+          latestConfidenceInfo = { text: "High (Consistent Winds)", color: "#28a745" };
         }
 
-        calcBtn.innerText = "⏳ Processing (3/3: Rendering Maps)...";
+        calcBtn.innerText = "⏳ 3/3 Building Maps...";
 
         document.getElementById('res-twind').innerText = `${twSpeedMph} mph @ ${twDirDeg}°`;
         document.getElementById('res-heading').innerText = `${downwindBearing}° (${getCompass(downwindBearing)})`;
         document.getElementById('res-dist').innerText = `${screeningDistanceMiles} miles`;
         document.getElementById('res-mix').innerText = `${mixHeightFt.toLocaleString()} ft`;
         document.getElementById('res-drainage').innerText = `${latestDrainageBearing}° (${getCompass(latestDrainageBearing)})`;
-        document.getElementById('res-drainage-dist').innerText = `${latestNightDist} mi down ${latestDrainageName}`;
+        document.getElementById('res-drainage-dist').innerText = `${latestNightDist} mi down valley`;
 
         const confBadge = document.getElementById('res-confidence');
         confBadge.innerText = latestConfidenceInfo.text;
@@ -576,7 +609,7 @@
       } finally {
         calcBtn.disabled = false;
         calcBtn.classList.remove('running');
-        calcBtn.innerText = "Generate Downwind Smoke Cone";
+        calcBtn.innerText = "Run Smoke Screening";
       }
     }
 
@@ -676,7 +709,6 @@
       }
     }
 
-    // Dynamic SVG Generator for Local & Regional Map Projections
     function getSvgStringForBbox(bboxStr, showDay = true, showNight = true) {
       if (!bboxStr) return '';
       const [minLon, minLat, maxLon, maxLat] = bboxStr.split(',').map(parseFloat);
@@ -809,15 +841,7 @@
             .map-wrapper { position: relative; width: 100%; max-width: 600px; margin: 0 auto; }
             .map-wrapper img.base { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px; display: block; }
             .map-wrapper img.wui { position: absolute; top:0; left:0; width: 100%; height: 100%; }
-           .disclaimer-report {
-  font-size: 11px;
-  color: #333;
-  line-height: 1.4;
-  border-top: 1px solid #ddd;
-  padding-top: 8px;
-  margin-top: 14px;
-  font-style: normal;
-}
+            .disclaimer-report { font-size: 11px; color: #333; line-height: 1.4; border-top: 1px solid #ddd; padding-top: 8px; margin-top: 14px; font-style: normal; }
             @media print { body { padding: 0; } .map-card { page-break-inside: avoid; } }
           </style>
         </head>
@@ -827,12 +851,12 @@
 
           ${incParams ? `
             <div class="data-box">
-              <strong style="color:#0078d4; font-size:11px; text-transform:uppercase;">Prescription & Ignition Parameters</strong>
+              <strong style="color:#0078d4; font-size:11px; text-transform:uppercase;">Prescription Parameters</strong>
               <div class="data-grid">
                 <div class="data-item"><div class="label">Date / Time</div><div class="val">${dateVal} @${timeVal}</div></div>
-                <div class="data-item"><div class="label">Planned Duration</div><div class="val">${durVal} Hours</div></div>
-                <div class="data-item"><div class="label">Treatment Category</div><div class="val">${typeVal}</div></div>
-                <div class="data-item"><div class="label">Treatment Size</div><div class="val">${sizeVal}${typeVal.includes('Piles') ? 'Piles' : 'Acres'}</div></div>
+                <div class="data-item"><div class="label">Duration</div><div class="val">${durVal} Hours</div></div>
+                <div class="data-item"><div class="label">Burn Type</div><div class="val">${typeVal}</div></div>
+                <div class="data-item"><div class="label">Size</div><div class="val">${sizeVal}${typeVal.includes('Piles') ? 'Piles' : 'Acres'}</div></div>
               </div>
             </div>
           ` : ''}
@@ -841,15 +865,15 @@
           ${incNight && document.getElementById('drainage-alert').style.display !== 'none' ? document.getElementById('drainage-alert').outerHTML : ''}
 
           <div class="legend-bar">
-            <div class="legend-item"><span class="legend-color" style="background:rgba(255, 140, 0, 0.5); border:1px solid #ff8c00;"></span> Day Plume Cone</div>
-            <div class="legend-item"><span class="legend-color" style="background:rgba(40, 85, 121, 0.5); border:1px solid #1d3d57;"></span> Night Drainage Ribbon</div>
+            <div class="legend-item"><span class="legend-color" style="background:rgba(255, 140, 0, 0.5); border:1px solid #ff8c00;"></span> Day Plume</div>
+            <div class="legend-item"><span class="legend-color" style="background:rgba(40, 85, 121, 0.5); border:1px solid #1d3d57;"></span> Night Drainage</div>
             <div class="legend-item"><span class="legend-color" style="background:rgba(0, 255, 255, 0.5); border:1px solid #00ffff;"></span> Unit Boundary</div>
-            <div class="legend-item"><span class="legend-color" style="background:#8fa9c4; border-radius:50%;"></span> WUI Clusters</div>
+            <div class="legend-item"><span class="legend-color" style="background:#8fa9c4; border-radius:50%;"></span> WUI Density</div>
           </div>
 
           ${incSat ? `
             <div class="map-card">
-              <div class="map-card-title">1. Local Satellite Screening Footprint</div>
+              <div class="map-card-title">1. Satellite View (Local)</div>
               <div class="map-wrapper">
                 <img class="base" src="${satUrl}">
                 <img class="wui" src="${wuiLocalUrl}" style="opacity:0.55;">
@@ -860,7 +884,7 @@
 
           ${incTopo ? `
             <div class="map-card">
-              <div class="map-card-title">2. Local Topographic & Drainage Corridor Footprint</div>
+              <div class="map-card-title">2. Topographic & Drainage View (Local)</div>
               <div class="map-wrapper">
                 <img class="base" src="${topoUrl}">
                 <img class="wui" src="${wuiLocalUrl}" style="mix-blend-mode:multiply; filter:contrast(220%) brightness(0.7); opacity:0.75;">
@@ -871,7 +895,7 @@
 
           ${incReg ? `
             <div class="map-card">
-              <div class="map-card-title">3. Regional Airshed Context (30–50 Mile Overview)</div>
+              <div class="map-card-title">3. Regional Overview (30–50 mi)</div>
               <div class="map-wrapper">
                 <img class="base" src="${regUrl}">
                 ${regionalSvgHtml}
@@ -880,7 +904,7 @@
           ` : ''}
 
           <div class="disclaimer-report">
-            Advisory Notice: This screening-level assessment is generated using NWS gridded transport wind forecasts and USGS NHD flowlines. It does not replace on-site fire behavior/smoke observations, microclimate adjustments, or agency burn permit compliance.
+            Screening model based on NWS forecasts and USGS stream flowlines. Confirm conditions on site and follow local smoke permits.
           </div>
 
           <script>
@@ -903,9 +927,10 @@
       try {
         const payload = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
         if (payload.rings || payload.geometry?.rings || payload.geojson) {
+          isUploadedUnit = false;
           const geom = payload.rings || payload.geometry?.rings || payload.geojson;
           currentRings = Array.isArray(geom[0]?.[0]) ? geom : [geom];
-          activeUnitLabel = sanitizeUnitName(payload.unit || payload.name) || 'Smoke Screening Evaluator';
+          activeUnitLabel = sanitizeUnitName(payload.unit || payload.name) || 'Smoke Screening';
           document.getElementById('unit-title').innerText = activeUnitLabel;
           cachedCoords = calculateRingsCentroid(currentRings);
           if (cachedCoords) {
