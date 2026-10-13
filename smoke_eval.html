@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Rx Smoke Model</title>
+  <title>Rx Smoke Screening</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 14px; background: #f8f9fa; color: #333; margin: 0; font-size: 13px; }
     .card { background: white; padding: 16px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 12px; }
@@ -54,9 +54,9 @@
 
     .confidence-tag { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 12px; font-weight: bold; color: white; margin-top: 2px; }
 
-    .alert-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; border-radius: 4px; margin-top: 12px; font-size: 13px; color: #856404; }
+    .alert-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; border-radius: 4px; margin-top: 10px; font-size: 13px; color: #856404; }
 
-    /* Enlarged Map Controls */
+    /* Map Controls */
     .map-controls-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; font-weight: bold; }
     .map-btn-group { display: flex; gap: 6px; }
     .map-toggle-btn { padding: 6px 12px; font-size: 13px; font-weight: 600; border: 1.5px solid #0078d4; background: #fff; color: #0078d4; border-radius: 4px; cursor: pointer; width: auto; margin: 0; }
@@ -95,6 +95,7 @@
       text-align: left;
     }
 
+    /* Export Modal */
     .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.55); display: none; justify-content: center; align-items: center; z-index: 9999; }
     .modal-box { background: white; border-radius: 8px; padding: 20px; width: 90%; max-width: 440px; box-shadow: 0 4px 16px rgba(0,0,0,0.25); text-align: left; }
     .modal-title { font-size: 16px; font-weight: bold; color: #0078d4; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
@@ -110,7 +111,7 @@
 <body>
 
   <div class="card">
-    <h3 id="unit-title" style="margin:0 0 4px 0; font-size:17px;">Smoke Model</h3>
+    <h3 id="unit-title" style="margin:0 0 4px 0; font-size:17px;">Smoke Screening</h3>
     <div id="status" style="font-size: 12px; color: #0078d4; font-weight: 500; margin-bottom: 10px;">
       Click a unit on the map or enter coordinates.
     </div>
@@ -167,7 +168,7 @@
       </div>
     </div>
 
-    <button id="calcBtn" onclick="runSmokeScreening()">Run Smoke Model</button>
+    <button id="calcBtn" onclick="runSmokeScreening()">Run Smoke Screening</button>
 
     <div class="time-warning-banner">
       ⏱️ <strong>Processing takes 1–3 minutes. Please wait.</strong>
@@ -176,12 +177,13 @@
 
   <!-- Screening Metrics -->
   <div id="results-box" class="data-box" style="display:none;">
-    <div style="font-weight:bold; color:#0078d4; margin-bottom:6px; font-size:14px;" id="results-header">Smoke Model Summary (PMS 420-3)</div>
+    <div style="font-weight:bold; color:#0078d4; margin-bottom:6px; font-size:14px;" id="results-header">NWCG Smoke Screening Summary (PMS 420-3)</div>
     <div class="data-grid">
       <div class="data-item"><div class="label">Transport Wind</div><div class="val" id="res-twind">--</div></div>
       <div class="data-item"><div class="label">Day Drift Direction</div><div class="val" id="res-heading">--</div></div>
-      <div class="data-item"><div class="label">Day Drift Distance</div><div class="val" id="res-dist">--</div></div>
+      <div class="data-item"><div class="label">Day Drift Reach</div><div class="val" id="res-dist">--</div></div>
       <div class="data-item"><div class="label">Mixing Height</div><div class="val" id="res-mix">--</div></div>
+      <div class="data-item"><div class="label">Ventilation Index</div><div class="val" id="res-vi">--</div></div>
       <div class="data-item"><div class="label">Night Drainage</div><div class="val" id="res-drainage">--</div></div>
       <div class="data-item"><div class="label">Night Reach</div><div class="val" id="res-drainage-dist">--</div></div>
     </div>
@@ -192,9 +194,14 @@
     </div>
   </div>
 
+  <!-- Morning Inversion Alert -->
+  <div id="inversion-alert" class="alert-box" style="display:none; background:#e7f3fe; border-left:4px solid #0078d4; color:#004578;">
+    <strong>ℹ️ Morning Inversion:</strong> Mixing height may start low (<span id="inv-mix-val">--</span> ft). Smoke may stay near the ground until surface heating breaks the inversion.
+  </div>
+
   <!-- Overnight Drainage Notice -->
   <div id="drainage-alert" class="alert-box" style="display:none;">
-    <strong>⚠️ Overnight Drainage:</strong> Smoke will drain down <strong><span id="drainage-name">local drainage corridor</span></strong>. Check downstream valley bottoms for pooling.
+    <strong>⚠️ Overnight Drainage:</strong> Smoke may drain down <strong><span id="drainage-name">local drainage corridor</span></strong>. Check downstream valley bottoms for potential pooling.
   </div>
 
   <!-- Multi-View Preview Map -->
@@ -278,7 +285,7 @@
     let currentRings = null;
     let isUploadedUnit = false;
     let unitDataInitialLoaded = false;
-    let activeUnitLabel = sanitizeUnitName(rawUnit ? decodeURIComponent(rawUnit) : null) || 'Smoke Model';
+    let activeUnitLabel = sanitizeUnitName(rawUnit ? decodeURIComponent(rawUnit) : null) || 'Smoke Screening';
     document.getElementById('unit-title').innerText = activeUnitLabel;
 
     let currentLocalBbox = null;
@@ -431,13 +438,12 @@
       return { lat: (lat2 * 180) / Math.PI, lon: (lon2 * 180) / Math.PI };
     }
 
-    function generateSmokeConePolygon(centerLat, centerLon, distanceMiles, downwindBearing) {
-      const spreadAngle = 40;
-      const startAngle = (downwindBearing - (spreadAngle / 2) + 360) % 360;
+    // Dynamic Plume Generator with Shifting Wind Sweep
+    function generateDynamicSmokeCone(centerLat, centerLon, distanceMiles, startAngle, spreadAngle) {
       const coords = [[centerLon, centerLat]];
-      const steps = 16;
+      const steps = Math.max(16, Math.round(spreadAngle / 2.5));
       for (let i = 0; i <= steps; i++) {
-        const angle = startAngle + (i / steps) * spreadAngle;
+        const angle = (startAngle + (i / steps) * spreadAngle + 360) % 360;
         const pt = getDestinationPoint(centerLat, centerLon, distanceMiles, angle);
         coords.push([pt.lon, pt.lat]);
       }
@@ -493,7 +499,7 @@
       } catch (e) {
         console.warn("NHD automated trace fallback:", e);
       }
-      return { name: "Valley Bottom Corridor", bearing: 165 };
+      return { name: "Valley Thalweg Corridor", bearing: 165 };
     }
 
     async function runSmokeScreening() {
@@ -533,7 +539,10 @@
         const twDirVals = gridData.properties?.transportWindDirection?.values || [];
         const mixVals = gridData.properties?.mixingHeight?.values || [];
 
-        let sumDir = 0, sumSpeed = 0, sumMix = 0, count = 0;
+        let hourlyBearings = [];
+        let sumSpeed = 0, sumMix = 0, count = 0;
+        let firstHourMixFt = null;
+
         for (let h = 0; h < durationHours; h++) {
           const t = new Date(targetStart.getTime() + (h * 3600000));
           const spdKmh = getValueForTime(twSpeedVals, t);
@@ -541,18 +550,41 @@
           const mixM = getValueForTime(mixVals, t);
 
           if (dirDeg !== null && spdKmh !== null) {
-            sumDir += dirDeg;
+            const downwind = (dirDeg + 180) % 360;
+            hourlyBearings.push(downwind);
             sumSpeed += (spdKmh * 0.621371);
-            if (mixM !== null) sumMix += (mixM * 3.28084);
+            if (mixM !== null) {
+              const ft = mixM * 3.28084;
+              sumMix += ft;
+              if (h === 0) firstHourMixFt = ft;
+            }
             count++;
           }
         }
 
         let twSpeedMph = count ? Math.round(sumSpeed / count) : 12;
-        let twDirDeg = count ? Math.round(sumDir / count) : 250;
         let mixHeightFt = count ? Math.round(sumMix / count) : 4500;
-        const downwindBearing = (twDirDeg + 180) % 360;
+        if (firstHourMixFt === null) firstHourMixFt = mixHeightFt;
 
+        // Calculate Wind Shift & Dynamic Plume Sweep
+        let refBearing = hourlyBearings[0] || 0;
+        let relativeAngles = hourlyBearings.map(b => ((b - refBearing + 540) % 360) - 180);
+        let minRel = Math.min(...relativeAngles);
+        let maxRel = Math.max(...relativeAngles);
+        let windShiftSpread = Math.round(maxRel - minRel);
+
+        let coneSpread = Math.max(40, windShiftSpread + 40);
+        let coneStartAngle = (refBearing + minRel - 20 + 360) % 360;
+        let meanBearing = Math.round((refBearing + (minRel + maxRel) / 2 + 360) % 360);
+
+        // Ventilation Index: (Transport Wind in Knots) * (Mixing Height in Feet)
+        let twSpeedKts = twSpeedMph * 0.868976;
+        let vi = Math.round(twSpeedKts * mixHeightFt);
+        let viCategory = "Poor";
+        if (vi > 40000) viCategory = "Good";
+        else if (vi >= 20000) viCategory = "Fair";
+
+        // Screening Distance
         let screeningDistanceMiles = 5;
         if (burnType === 'broadcast') {
           if (sizeVal < 50) screeningDistanceMiles = 3.5;
@@ -569,23 +601,29 @@
         latestDrainageName = drainageInfo.name;
         latestDrainageBearing = drainageInfo.bearing;
 
-        latestConeCoords = generateSmokeConePolygon(lat, lon, screeningDistanceMiles, downwindBearing);
+        latestConeCoords = generateDynamicSmokeCone(lat, lon, screeningDistanceMiles, coneStartAngle, coneSpread);
         latestNightCorridorCoords = generateDrainageRibbon(lat, lon, latestNightDist, latestDrainageBearing, 0.6);
 
-        if (twSpeedMph < 9) {
-          latestConfidenceInfo = { text: "Low (Light & Variable Winds)", color: "#d97706" };
+        // Confidence Logic
+        if (windShiftSpread > 30) {
+          latestConfidenceInfo = { text: `Low (Winds shift ${windShiftSpread}° over window)`, color: "#d97706" };
+        } else if (twSpeedMph < 9) {
+          latestConfidenceInfo = { text: "Low (Light & variable winds < 9 mph)", color: "#d97706" };
         } else if (twSpeedMph > 25) {
-          latestConfidenceInfo = { text: "Moderate (High Winds)", color: "#2563eb" };
+          latestConfidenceInfo = { text: "Moderate (High winds > 25 mph)", color: "#2563eb" };
+        } else if (viCategory === "Poor") {
+          latestConfidenceInfo = { text: "Moderate (Poor air clearing)", color: "#2563eb" };
         } else {
-          latestConfidenceInfo = { text: "High (Consistent Winds)", color: "#28a745" };
+          latestConfidenceInfo = { text: "High (Consistent winds & good lift)", color: "#28a745" };
         }
 
         calcBtn.innerText = "⏳ 3/3 Building Maps...";
 
-        document.getElementById('res-twind').innerText = `${twSpeedMph} mph @ ${twDirDeg}°`;
-        document.getElementById('res-heading').innerText = `${downwindBearing}° (${getCompass(downwindBearing)})`;
+        document.getElementById('res-twind').innerText = `${twSpeedMph} mph`;
+        document.getElementById('res-heading').innerText = `${meanBearing}° (${getCompass(meanBearing)})${windShiftSpread > 15 ? ` ±${Math.round(windShiftSpread/2)}°` : ''}`;
         document.getElementById('res-dist').innerText = `${screeningDistanceMiles} miles`;
         document.getElementById('res-mix').innerText = `${mixHeightFt.toLocaleString()} ft`;
+        document.getElementById('res-vi').innerText = `${viCategory} (${vi.toLocaleString()})`;
         document.getElementById('res-drainage').innerText = `${latestDrainageBearing}° (${getCompass(latestDrainageBearing)})`;
         document.getElementById('res-drainage-dist').innerText = `${latestNightDist} mi down valley`;
 
@@ -595,6 +633,16 @@
 
         document.getElementById('results-box').style.display = 'block';
 
+        // Morning Inversion Alert
+        const invBox = document.getElementById('inversion-alert');
+        if (firstHourMixFt < 1500) {
+          document.getElementById('inv-mix-val').innerText = Math.round(firstHourMixFt).toLocaleString();
+          invBox.style.display = 'block';
+        } else {
+          invBox.style.display = 'none';
+        }
+
+        // Overnight Drainage Notice
         const showDrainageAlert = (burnType === 'machine' || (burnType === 'hand' && sizeVal > 100));
         document.getElementById('drainage-alert').style.display = showDrainageAlert ? 'block' : 'none';
         document.getElementById('drainage-name').innerText = latestDrainageName;
@@ -603,14 +651,14 @@
         updateBasemapImage();
         renderSvgOverlays();
 
-        document.getElementById('status').innerText = `Screening Complete: Day plume carries ${screeningDistanceMiles} mi toward ${getCompass(downwindBearing)}.`;
+        document.getElementById('status').innerText = `Screening Complete: Day plume may carry up to ${screeningDistanceMiles} mi toward ${getCompass(meanBearing)}; Night drainage may follow ${latestDrainageName}.`;
 
       } catch (err) {
         document.getElementById('status').innerText = "Screening Error: " + err.message;
       } finally {
         calcBtn.disabled = false;
         calcBtn.classList.remove('running');
-        calcBtn.innerText = "Run Smoke Model";
+        calcBtn.innerText = "Run Smoke Screening";
       }
     }
 
@@ -822,13 +870,13 @@
         <!DOCTYPE html>
         <html>
         <head>
-          <title>${title} - Smoke Model Summary</title>
+          <title>${title} - Smoke Screening Summary</title>
           <style>
             body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color: #333; max-width: 800px; margin: 0 auto; font-size: 13px; }
             h2 { margin: 0 0 4px 0; color: #0078d4; }
             .meta { font-size: 12px; color: #555; margin-bottom: 12px; border-bottom: 2px solid #0078d4; padding-bottom: 6px; }
             .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 12px; border-radius: 4px; margin-bottom: 12px; }
-            .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-top: 8px; }
+            .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 8px; }
             .data-item { background: white; padding: 8px 10px; border-radius: 4px; border: 1px solid #d0e1f9; }
             .data-item .label { font-size: 10px; color: #555; text-transform: uppercase; font-weight: bold; }
             .data-item .val { font-size: 14px; font-weight: bold; color: #0078d4; margin-top: 3px; }
@@ -863,6 +911,7 @@
           ` : ''}
 
           ${(incDay || incNight) ? document.getElementById('results-box').outerHTML : ''}
+          ${document.getElementById('inversion-alert').style.display !== 'none' ? document.getElementById('inversion-alert').outerHTML : ''}
           ${incNight && document.getElementById('drainage-alert').style.display !== 'none' ? document.getElementById('drainage-alert').outerHTML : ''}
 
           <div class="legend-bar">
@@ -931,7 +980,7 @@
           isUploadedUnit = false;
           const geom = payload.rings || payload.geometry?.rings || payload.geojson;
           currentRings = Array.isArray(geom[0]?.[0]) ? geom : [geom];
-          activeUnitLabel = sanitizeUnitName(payload.unit || payload.name) || 'Smoke Model';
+          activeUnitLabel = sanitizeUnitName(payload.unit || payload.name) || 'Smoke Screening';
           document.getElementById('unit-title').innerText = activeUnitLabel;
           cachedCoords = calculateRingsCentroid(currentRings);
           if (cachedCoords) {
