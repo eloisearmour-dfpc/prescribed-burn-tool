@@ -378,21 +378,22 @@
       return norm;
     }
 
-    function calculateFuelMoisture(tempF, rh) {
-      if (isNaN(tempF) || isNaN(rh)) return { fm10: 'N/A', fm1: 'N/A' };
-      let emc = 0;
-      if (rh < 10) {
-        emc = 0.03229 + (0.281073 * rh) - (0.000578 * rh * tempF);
-      } else if (rh <= 50) {
-        emc = 2.22749 + (0.160107 * rh) - (0.01478 * tempF);
-      } else {
-        emc = 21.0606 + (0.005565 * Math.pow(tempF, 2)) - (0.00035 * tempF * rh) - (0.483199 * rh);
-      }
-      emc = Math.max(1, Math.min(emc, 35));
-      const fm1 = emc.toFixed(1) + '%';
-      const fm10 = (emc * 1.28).toFixed(1) + '%';
-      return { fm10, fm1 };
-    }
+function calculateFuelMoisture(tempF, rh) {
+  if (isNaN(tempF) || isNaN(rh)) return { fm10: 'N/A', fm1: 'N/A' };
+  let emc = 0;
+  if (rh < 10) {
+    emc = 0.03229 + (0.281073 * rh) - (0.000578 * rh * tempF);
+  } else if (rh <= 50) {
+    emc = 2.22749 + (0.160107 * rh) - (0.01478 * tempF);
+  } else {
+    // Corrected: square rh, not tempF
+    emc = 21.0606 + (0.005565 * Math.pow(rh, 2)) - (0.00035 * tempF * rh) - (0.483199 * rh);
+  }
+  emc = Math.max(1, Math.min(emc, 35));
+  const fm1 = emc.toFixed(1) + '%';
+  const fm10 = (emc * 1.28).toFixed(1) + '%';
+  return { fm10, fm1 };
+}
 
     async function fetchRawsData(lat, lon) {
       try {
