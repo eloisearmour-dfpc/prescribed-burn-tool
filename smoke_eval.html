@@ -506,7 +506,7 @@
 
       calcBtn.disabled = true;
       calcBtn.classList.add('running');
-      calcBtn.innerText = "⏳ 1/3 Fetching NWS Winds...";
+      calcBtn.innerText = "1/3 Fetching NWS Winds...";
 
       const { lat, lon } = coords;
       const dateStr = document.getElementById('ignDate').value;
@@ -521,7 +521,7 @@
         if (!pointRes.ok) throw new Error("Could not reach NWS point endpoint.");
         const pointData = await pointRes.json();
 
-        calcBtn.innerText = "⏳ 2/3 Tracing Drainages...";
+        calcBtn.innerText = "2/3 Tracing Drainages...";
         const [gridRes, drainageInfo] = await Promise.all([
           fetch(pointData.properties.forecastGridData),
           fetchDownstreamDrainageVector(lat, lon)
@@ -579,7 +579,7 @@
           latestConfidenceInfo = { text: "High (Consistent Winds)", color: "#28a745" };
         }
 
-        calcBtn.innerText = "⏳ 3/3 Building Maps...";
+        calcBtn.innerText = "3/3 Building Maps...";
 
         document.getElementById('res-twind').innerText = `${twSpeedMph} mph @ ${twDirDeg}°`;
         document.getElementById('res-heading').innerText = `${downwindBearing}° (${getCompass(downwindBearing)})`;
