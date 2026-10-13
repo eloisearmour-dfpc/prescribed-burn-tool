@@ -29,8 +29,8 @@
 
     button { background: #0078d4; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; margin-top: 10px; width: 100%; }
     button:hover { background: #005a9e; }
-    button.download-btn { background: #28a745; margin-top: 8px; }
-    button.download-btn:hover { background: #218838; }
+    button.export-btn { background: #28a745; margin-top: 10px; }
+    button.export-btn:hover { background: #218838; }
 
     .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 12px; }
     .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-top: 6px; }
@@ -40,9 +40,18 @@
 
     .alert-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 12px; color: #856404; }
 
+    /* Map Preview Controls */
+    .map-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 11px; font-weight: bold; }
+    .map-btn-group { display: flex; gap: 4px; }
+    .map-toggle-btn { padding: 3px 8px; font-size: 11px; border: 1px solid #0078d4; background: #fff; color: #0078d4; border-radius: 4px; cursor: pointer; width: auto; margin: 0; }
+    .map-toggle-btn.active { background: #0078d4; color: #fff; }
+
     .map-container { position: relative; width: 100%; max-width: 600px; margin: 12px auto; display: none; text-align: center; }
-    .map-container img { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; display: block; }
+    .map-container img.base-layer { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; display: block; }
+    .map-container img.overlay-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; border-radius: 6px; opacity: 0.55; }
     .map-container svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    
+    .secondary-link { font-size: 11px; color: #0078d4; text-decoration: underline; cursor: pointer; display: inline-block; margin-top: 6px; }
   </style>
 </head>
 <body>
@@ -123,21 +132,37 @@
 
   <!-- Overnight Drainage Notice -->
   <div id="drainage-alert" class="alert-box" style="display:none;">
-    <strong>⚠️ Nocturnal Smolder Alert:</strong> Machine and landing piles retain residual heat overnight. When thermal lift ceases after sunset, smoke will drain into low-lying stream bottoms (katabatic flow). Inspect the <strong>USGS NHD Flowlines</strong> directly downstream for populated valley bottoms.
+    <strong>⚠️ Nocturnal Smolder Alert:</strong> Machine and landing piles retain residual heat overnight. When thermal lift ceases after sunset, smoke will drain into low-lying stream bottoms (katabatic flow). Inspect downstream stream channels for populated valley bottoms.
   </div>
 
-  <!-- Satellite Preview with Cone -->
+  <!-- Multi-View Preview with Cone -->
   <div id="map-preview" class="map-container">
-    <div style="font-size:11px; font-weight:bold; margin-bottom:4px; text-transform:uppercase;">Plume Trajectory & Receptor Screening Preview</div>
+    <div class="map-controls">
+      <div class="map-btn-group">
+        <button class="map-toggle-btn active" id="btnSat" onclick="setBasemap('sat')">Satellite</button>
+        <button class="map-toggle-btn" id="btnTopo" onclick="setBasemap('topo')">Topographic</button>
+      </div>
+      <label style="cursor:pointer; display:flex; align-items:center; gap:4px;">
+        <input type="checkbox" id="chkWui" onchange="toggleWuiOverlay()" checked> + WUI Housing Density
+      </label>
+    </div>
+
     <div style="position:relative; display:inline-block; width:100%;">
-      <img id="map-img" src="" alt="Unit Satellite Imagery">
+      <img id="map-img-base" class="base-layer" src="" alt="Base Map Imagery">
+      <img id="map-img-wui" class="overlay-layer" src="" alt="WUI Overlay" style="display:none;">
+      
       <svg id="map-svg" viewBox="0 0 600 400" preserveAspectRatio="none">
         <path id="svg-cone" d="" fill="rgba(255, 140, 0, 0.35)" stroke="#ff8c00" stroke-width="2.5" stroke-dasharray="5,3" />
         <path id="svg-polygon" d="" fill="rgba(0, 255, 255, 0.4)" stroke="#00ffff" stroke-width="2" />
         <circle id="svg-pin" cx="-50" cy="-50" r="7" fill="#ff0000" stroke="#ffffff" stroke-width="2" />
       </svg>
     </div>
-    <button id="downloadGeoJsonBtn" class="download-btn" onclick="downloadConeGeoJSON()">📥 Download Smoke Cone (.geojson) for Map</button>
+
+    <!-- Download Model / PDF Button -->
+    <button id="exportReportBtn" class="export-btn" onclick="exportModelReport()">📄 Export Smoke Model Summary (PDF)</button>
+    <div>
+      <span class="secondary-link" onclick="downloadConeGeoJSON()">Download Raw Cone (.geojson) for GIS</span>
+    </div>
   </div>
 
   <script>
@@ -155,10 +180,11 @@
     document.getElementById('unit-title').innerText = activeUnitLabel;
 
     let latestConeFeature = null;
+    let currentBbox = null;
+    let currentBasemapType = 'sat';
 
     // Set default ignition date to today
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('ignDate').value = today;
+    document.getElementById('ignDate').value = new Date().toISOString().split('T')[0];
 
     function sanitizeUnitName(name) {
       if (!name) return null;
@@ -238,7 +264,7 @@
     }
 
     function getDestinationPoint(lat, lon, distanceMiles, bearingDeg) {
-      const R = 3958.8; // Earth radius in miles
+      const R = 3958.8;
       const d = distanceMiles / R;
       const brng = (bearingDeg * Math.PI) / 180;
       const lat1 = (lat * Math.PI) / 180;
@@ -253,12 +279,9 @@
       };
     }
 
-    // NWCG 30-45° Plume Cone Generator
     function generateSmokeConePolygon(centerLat, centerLon, distanceMiles, downwindBearing) {
-      const spreadAngle = 40; // 40-degree angular spread
+      const spreadAngle = 40;
       const startAngle = (downwindBearing - (spreadAngle / 2) + 360) % 360;
-      const endAngle = (downwindBearing + (spreadAngle / 2) + 360) % 360;
-
       const coords = [[centerLon, centerLat]];
       const steps = 16;
       for (let i = 0; i <= steps; i++) {
@@ -266,7 +289,7 @@
         const pt = getDestinationPoint(centerLat, centerLon, distanceMiles, angle);
         coords.push([pt.lon, pt.lat]);
       }
-      coords.push([centerLon, centerLat]); // Close polygon
+      coords.push([centerLon, centerLat]);
       return coords;
     }
 
@@ -294,7 +317,6 @@
       const durationHours = parseInt(document.getElementById('burnDuration').value);
       const burnType = document.getElementById('burnType').value;
       const sizeVal = parseFloat(document.getElementById('burnSize').value) || 50;
-
       const targetStart = new Date(`${dateStr}T${timeStr}:00`);
 
       document.getElementById('status').innerText = `Pulling NWS transport wind forecast (${lat.toFixed(2)}, ${lon.toFixed(2)})...`;
@@ -311,7 +333,6 @@
         const twDirVals = gridData.properties?.transportWindDirection?.values || [];
         const mixVals = gridData.properties?.mixingHeight?.values || [];
 
-        // Extract average transport wind over ignition window
         let sumDir = 0, sumSpeed = 0, sumMix = 0, count = 0;
         for (let h = 0; h < durationHours; h++) {
           const t = new Date(targetStart.getTime() + (h * 3600000));
@@ -328,13 +349,10 @@
         }
 
         let twSpeedMph = count ? Math.round(sumSpeed / count) : 12;
-        let twDirDeg = count ? Math.round(sumDir / count) : 250; // default WSW
+        let twDirDeg = count ? Math.round(sumDir / count) : 250;
         let mixHeightFt = count ? Math.round(sumMix / count) : 4500;
-
-        // Downwind trajectory is 180 degrees from wind source
         const downwindBearing = (twDirDeg + 180) % 360;
 
-        // Calculate Screening Distance based on NWCG standards
         let screeningDistanceMiles = 5;
         if (burnType === 'broadcast') {
           if (sizeVal < 50) screeningDistanceMiles = 3.5;
@@ -343,11 +361,9 @@
         } else if (burnType === 'hand') {
           screeningDistanceMiles = (sizeVal > 150) ? 4.0 : 2.5;
         } else {
-          // Machine piles
           screeningDistanceMiles = 4.5;
         }
 
-        // Generate downwind cone coordinates
         const coneCoordinates = generateSmokeConePolygon(lat, lon, screeningDistanceMiles, downwindBearing);
 
         latestConeFeature = {
@@ -368,7 +384,6 @@
           }
         };
 
-        // Render briefing cards
         document.getElementById('res-twind').innerText = `${twSpeedMph} mph @ ${twDirDeg}°`;
         document.getElementById('res-heading').innerText = `${downwindBearing}° (${getCompass(downwindBearing)})`;
         document.getElementById('res-dist').innerText = `${screeningDistanceMiles} miles`;
@@ -377,7 +392,7 @@
         document.getElementById('results-box').style.display = 'block';
         document.getElementById('drainage-alert').style.display = (burnType === 'machine') ? 'block' : 'none';
 
-        renderSatelliteConePreview(lat, lon, coneCoordinates);
+        renderMultiViewConePreview(lat, lon, coneCoordinates);
         document.getElementById('status').innerText = `Screening Generated: Plume carries ${screeningDistanceMiles} mi toward ${getCompass(downwindBearing)}.`;
 
       } catch (err) {
@@ -403,7 +418,31 @@
       return arr[(val % 16)];
     }
 
-    function renderSatelliteConePreview(centerLat, centerLon, coneCoords) {
+    function setBasemap(type) {
+      currentBasemapType = type;
+      document.getElementById('btnSat').classList.toggle('active', type === 'sat');
+      document.getElementById('btnTopo').classList.toggle('active', type === 'topo');
+      updateBasemapImage();
+    }
+
+    function updateBasemapImage() {
+      if (!currentBbox) return;
+      const baseService = currentBasemapType === 'sat' ? 'World_Imagery' : 'World_Topo_Map';
+      document.getElementById('map-img-base').src = `https://services.arcgisonline.com/arcgis/rest/services/${baseService}/MapServer/export?bbox=${currentBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
+    }
+
+    function toggleWuiOverlay() {
+      const chk = document.getElementById('chkWui').checked;
+      const wuiImg = document.getElementById('map-img-wui');
+      if (chk && currentBbox) {
+        wuiImg.src = `https://imagery.geoplatform.gov/iipp/rest/services/Fire_Aviation/USFS_EDW_RMRS_WRC_HousingUnitDensity/ImageServer/exportImage?bbox=${currentBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image&format=png32&transparent=true`;
+        wuiImg.style.display = 'block';
+      } else {
+        wuiImg.style.display = 'none';
+      }
+    }
+
+    function renderMultiViewConePreview(centerLat, centerLon, coneCoords) {
       let lons = coneCoords.map(p => p[0]);
       let lats = coneCoords.map(p => p[1]);
 
@@ -419,9 +458,14 @@
 
       const lonPad = ((maxLon - minLon) || 0.02) * 0.25;
       const latPad = ((maxLat - minLat) || 0.02) * 0.25;
-      minLon -= lonPad; maxLon += lonPad; minLat -= latPad; maxLat += latPad;
+      minLon -= lonPad; maxLon += lonPad;
+      minLat -= latPad; maxLat += latPad;
 
-      // Draw SVG Cone
+      currentBbox = `${minLon.toFixed(5)},${minLat.toFixed(5)},${maxLon.toFixed(5)},${maxLat.toFixed(5)}`;
+      updateBasemapImage();
+      toggleWuiOverlay();
+
+      // SVG Cone
       let conePath = '';
       coneCoords.forEach((pt, idx) => {
         const x = (((pt[0] - minLon) / (maxLon - minLon)) * 600).toFixed(1);
@@ -431,7 +475,7 @@
       conePath += 'Z ';
       document.getElementById('svg-cone').setAttribute('d', conePath);
 
-      // Draw Unit boundary if polygon exists
+      // SVG Unit Polygon or Pin
       if (currentRings?.length) {
         let unitPath = '';
         currentRings.forEach(ring => {
@@ -453,8 +497,83 @@
         document.getElementById('svg-pin').setAttribute('cy', cy);
       }
 
-      document.getElementById('map-img').src = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${minLon.toFixed(5)},${minLat.toFixed(5)},${maxLon.toFixed(5)},${maxLat.toFixed(5)}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
       document.getElementById('map-preview').style.display = 'block';
+    }
+
+    function exportModelReport() {
+      const printWin = window.open('', '_blank');
+      if (!printWin) {
+        alert("Please allow pop-ups to open the report.");
+        return;
+      }
+
+      const title = document.getElementById('unit-title').innerText;
+      const statusText = document.getElementById('status').innerText;
+      const dateVal = document.getElementById('ignDate').value;
+      const timeVal = document.getElementById('ignHour').value;
+      const durVal = document.getElementById('burnDuration').value;
+      const typeVal = document.getElementById('burnType').selectedOptions[0].text;
+      const sizeVal = document.getElementById('burnSize').value;
+
+      const reportHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>${title} - Smoke Screening Model</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color: #333; max-width: 800px; margin: 0 auto; }
+            h2 { margin: 0 0 4px 0; color: #0078d4; }
+            .meta { font-size: 12px; color: #555; margin-bottom: 14px; border-bottom: 2px solid #0078d4; padding-bottom: 8px; }
+            .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 10px; border-radius: 4px; margin-bottom: 14px; }
+            .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-top: 6px; }
+            .data-item { background: white; padding: 6px 8px; border-radius: 4px; border: 1px solid #d0e1f9; }
+            .data-item .label { font-size: 9px; color: #555; text-transform: uppercase; font-weight: bold; }
+            .data-item .val { font-size: 13px; font-weight: bold; color: #0078d4; margin-top: 2px; }
+            .alert-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; border-radius: 4px; margin-bottom: 14px; font-size: 11px; color: #856404; }
+            .map-container { position: relative; width: 100%; max-width: 600px; margin: 16px auto; text-align: center; }
+            .map-container img.base-layer { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; display: block; }
+            .map-container img.overlay-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 6px; opacity: 0.55; }
+            .map-container svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+            @media print { body { padding: 0; } }
+          </style>
+        </head>
+        <body>
+          <h2>${title}</h2>
+          <div class="meta">${statusText} | Generated: ${new Date().toLocaleString()}</div>
+
+          <div class="data-box">
+            <strong style="color:#0078d4; font-size:11px; text-transform:uppercase;">Prescription & Ignition Parameters</strong>
+            <div class="data-grid">
+              <div class="data-item"><div class="label">Date / Time</div><div class="val">${dateVal} @ ${timeVal}</div></div>
+              <div class="data-item"><div class="label">Planned Duration</div><div class="val">${durVal} Hours</div></div>
+              <div class="data-item"><div class="label">Treatment Category</div><div class="val">${typeVal}</div></div>
+              <div class="data-item"><div class="label">Target Units / Acres</div><div class="val">${sizeVal}</div></div>
+            </div>
+          </div>
+
+          ${document.getElementById('results-box').outerHTML}
+          ${document.getElementById('drainage-alert').style.display !== 'none' ? document.getElementById('drainage-alert').outerHTML : ''}
+
+          <h3 style="font-size:13px; margin:14px 0 6px 0; color:#333;">Downwind Smoke Screening Footprint</h3>
+          <div class="map-container">
+            <img class="base-layer" src="${document.getElementById('map-img-base').src}">
+            ${document.getElementById('chkWui').checked ? `<img class="overlay-layer" src="${document.getElementById('map-img-wui').src}">` : ''}
+            ${document.getElementById('map-svg').outerHTML}
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.focus();
+              setTimeout(function() { window.print(); }, 400);
+            };
+          <\/script>
+        </body>
+        </html>
+      `;
+
+      printWin.document.open();
+      printWin.document.write(reportHtml);
+      printWin.document.close();
     }
 
     function downloadConeGeoJSON() {
