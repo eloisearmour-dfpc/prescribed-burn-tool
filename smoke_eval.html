@@ -86,7 +86,14 @@
     .map-container img.overlay-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; border-radius: 6px; }
     .map-container svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 
-    .disclaimer-text { font-size: 10px; color: #666; line-height: 1.4; margin-top: 10px; font-style: italic; text-align: center; }
+    .disclaimer-text {
+  font-size: 11px;
+  color: #444;
+  line-height: 1.4;
+  margin-top: 10px;
+  font-style: normal;
+  text-align: left;
+}
 
     /* Export Modal */
     .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.55); display: none; justify-content: center; align-items: center; z-index: 9999; }
@@ -196,15 +203,15 @@
     <div class="map-controls-row">
       <div class="map-btn-group">
         <button class="map-toggle-btn active" id="btnSat" onclick="setBasemap('sat')">Satellite</button>
-        <button class="map-toggle-btn" id="btnTopo" onclick="setBasemap('topo')">Modern Topo</button>
+        <button class="map-toggle-btn" id="btnTopo" onclick="setBasemap('topo')">Topo</button>
         <button class="map-toggle-btn" id="btnReg" onclick="setBasemap('reg')">Regional Airshed</button>
       </div>
     </div>
 
     <!-- Map Legend -->
     <div class="legend-bar">
-      <div class="legend-item"><span class="legend-color" style="background:rgba(255, 140, 0, 0.5); border:1px solid #ff8c00;"></span> Day Plume Cone</div>
-      <div class="legend-item"><span class="legend-color" style="background:rgba(40, 85, 121, 0.5); border:1px solid #1d3d57;"></span> Night Drainage Ribbon</div>
+      <div class="legend-item"><span class="legend-color" style="background:rgba(255, 140, 0, 0.5); border:1px solid #ff8c00;"></span> Daytime Plume Estimate</div>
+      <div class="legend-item"><span class="legend-color" style="background:rgba(40, 85, 121, 0.5); border:1px solid #1d3d57;"></span> Night Drainage Estimate</div>
       <div class="legend-item"><span class="legend-color" style="background:rgba(0, 255, 255, 0.5); border:1px solid #00ffff;"></span> Unit Boundary</div>
       <div class="legend-item"><span class="legend-color" style="background:#8fa9c4; border-radius:50%;"></span> WUI Clusters</div>
     </div>
@@ -212,7 +219,7 @@
     <div class="layer-toggles-row">
       <label><input type="checkbox" id="chkDay" onchange="renderSvgOverlays()" checked> <span style="color:#e65100;">■ Daytime Plume</span></label>
       <label><input type="checkbox" id="chkNight" onchange="renderSvgOverlays()" checked> <span style="color:#285579;">■ Night Drainage</span></label>
-      <label><input type="checkbox" id="chkWui" onchange="toggleWuiOverlay()" checked> + WUI Density</label>
+      <label><input type="checkbox" id="chkWui" onchange="toggleWuiOverlay()" checked>WUI Density</label>
     </div>
 
     <div style="position:relative; display:inline-block; width:100%;">
@@ -228,28 +235,28 @@
     </div>
 
     <div class="disclaimer-text">
-      * Screening-level estimate based on NWS transport forecasts and USGS flowlines. Does not replace on-site fire weather observations or local smoke management requirements.
+      Smoke plume and drainage models based on NWS transport forecasts and USGS flowlines. Does not replace on-site fire weather observations or local smoke management requirements.
     </div>
 
-    <button id="exportReportBtn" class="export-btn" onclick="openExportModal()">📄 Export Smoke Model Summary (PDF)</button>
+    <button id="exportReportBtn" class="export-btn" onclick="openExportModal()">Export (PDF)</button>
   </div>
 
   <!-- PDF Configuration Modal -->
   <div id="exportModal" class="modal-backdrop">
     <div class="modal-box">
-      <div class="modal-title">Customize Smoke Model PDF Export</div>
+      <div class="modal-title">Smoke Model Export</div>
       
       <div class="modal-section">
         <div class="modal-section-title">Include Map Views</div>
-        <label><input type="checkbox" id="pdfIncSat" checked> Local Satellite View</label>
+        <label><input type="checkbox" id="pdfIncSat" checked> Satellite View</label>
         <label><input type="checkbox" id="pdfIncTopo" checked> Topographic View</label>
         <label><input type="checkbox" id="pdfIncReg" checked> Regional Airshed Overview (30–50 mi)</label>
       </div>
 
       <div class="modal-section">
-        <div class="modal-section-title">Include Assessment Sections</div>
-        <label><input type="checkbox" id="pdfIncParams" checked> Prescription Summary Table</label>
-        <label><input type="checkbox" id="pdfIncDay" checked> NWCG Daytime Plume Metrics</label>
+        <div class="modal-section-title">Include Summaries</div>
+        <label><input type="checkbox" id="pdfIncParams" checked> Prescription Summary</label>
+        <label><input type="checkbox" id="pdfIncDay" checked> Daytime Plume Metrics</label>
         <label><input type="checkbox" id="pdfIncNight" checked> Overnight Smoke</label>
       </div>
 
@@ -802,7 +809,15 @@
             .map-wrapper { position: relative; width: 100%; max-width: 600px; margin: 0 auto; }
             .map-wrapper img.base { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px; display: block; }
             .map-wrapper img.wui { position: absolute; top:0; left:0; width: 100%; height: 100%; }
-            .disclaimer-report { font-size: 10px; color: #666; line-height: 1.4; border-top: 1px solid #ddd; padding-top: 8px; margin-top: 14px; font-style: italic; }
+           .disclaimer-report {
+  font-size: 11px;
+  color: #333;
+  line-height: 1.4;
+  border-top: 1px solid #ddd;
+  padding-top: 8px;
+  margin-top: 14px;
+  font-style: normal;
+}
             @media print { body { padding: 0; } .map-card { page-break-inside: avoid; } }
           </style>
         </head>
