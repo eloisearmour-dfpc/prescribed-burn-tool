@@ -27,8 +27,23 @@
     .coord-box { background: #f0f4f8; padding: 8px 10px; border-radius: 6px; margin-bottom: 10px; }
     .coord-box input { width: 100%; padding: 6px; font-size: 12px; border: 1px solid #0078d4; border-radius: 4px; box-sizing: border-box; margin-top: 4px; }
 
-    button { background: #0078d4; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; margin-top: 10px; width: 100%; }
+    /* Notice Banner for Execution Time */
+    .time-warning-banner {
+      background: #e8f4fd;
+      border: 1px solid #b6dcfb;
+      border-left: 4px solid #0078d4;
+      color: #004578;
+      padding: 8px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      line-height: 1.4;
+      margin-top: 10px;
+    }
+
+    button { background: #0078d4; color: white; border: none; padding: 11px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; margin-top: 8px; width: 100%; transition: background 0.2s; }
     button:hover { background: #005a9e; }
+    button:disabled { background: #8a8886; cursor: not-allowed; }
+    button.running { background: #d83b01; }
     button.export-btn { background: #28a745; margin-top: 10px; }
     button.export-btn:hover { background: #218838; }
 
@@ -127,6 +142,11 @@
       </div>
     </div>
 
+    <!-- Processing Time Notice -->
+    <div class="time-warning-banner">
+      ⏱️ <strong>Processing Note:</strong> Querying multi-agency NWS weather grids and USGS downstream watershed flowlines takes <strong>1 to 2 minutes</strong>. Please do not refresh.
+    </div>
+
     <button id="calcBtn" onclick="runSmokeScreening()">Generate Downwind Smoke Cone</button>
   </div>
 
@@ -145,7 +165,7 @@
 
   <!-- Overnight Drainage Notice -->
   <div id="drainage-alert" class="alert-box" style="display:none;">
-    <strong>⚠️ Nocturnal Smolder Alert:</strong> Piles retain intense smolder heat after sunset. Katabatic cold air will drain smoke down the <strong><span id="drainage-name">local drainage corridor</span></strong>. Verify downstream receptors along the blue corridor ribbon.
+    <strong>⚠️ Overnight Smoke:</strong> Cold air can drain smoke down the <strong><span id="drainage-name">local drainage corridor</span></strong>. Inspect downstream valley bottoms along the blue corridor ribbon.
   </div>
 
   <!-- Multi-View Preview Map -->
@@ -153,7 +173,7 @@
     <div class="map-controls-row">
       <div class="map-btn-group">
         <button class="map-toggle-btn active" id="btnSat" onclick="setBasemap('sat')">Satellite</button>
-        <button class="map-toggle-btn" id="btnTopo" onclick="setBasemap('topo')">USFS Topo</button>
+        <button class="map-toggle-btn" id="btnTopo" onclick="setBasemap('topo')">Modern Topo</button>
         <button class="map-toggle-btn" id="btnReg" onclick="setBasemap('reg')">Regional Airshed</button>
       </div>
     </div>
@@ -186,8 +206,8 @@
       
       <div class="modal-section">
         <div class="modal-section-title">Include Map Views</div>
-        <label><input type="checkbox" id="pdfIncSat" checked> Local Satellite View (Vegetation & Canopy)</label>
-        <label><input type="checkbox" id="pdfIncTopo" checked> Local USFS Topographic View (Contours & Drainages)</label>
+        <label><input type="checkbox" id="pdfIncSat" checked> Local Satellite View</label>
+        <label><input type="checkbox" id="pdfIncTopo" checked> Topographic View</label>
         <label><input type="checkbox" id="pdfIncReg" checked> Regional Airshed Overview (30–50 mi Receptors)</label>
       </div>
 
@@ -195,7 +215,7 @@
         <div class="modal-section-title">Include Assessment Sections</div>
         <label><input type="checkbox" id="pdfIncParams" checked> Prescription & Weather Summary Table</label>
         <label><input type="checkbox" id="pdfIncDay" checked> NWCG Daytime Plume Screening Metrics</label>
-        <label><input type="checkbox" id="pdfIncNight" checked> Nocturnal Katabatic Smolder Assessment</label>
+        <label><input type="checkbox" id="pdfIncNight" checked> Overnight Smoke</label>
       </div>
 
       <div class="modal-btn-row">
@@ -209,14 +229,12 @@
     const urlParams = new URLSearchParams(window.location.search);
     const rawUnit = urlParams.get('unit') || urlParams.get('Name') || urlParams.get('name');
     const rawId = urlParams.get('id') || urlParams.get('OBJECTID') || urlParams.get('objectid') || '';
-    const rawGeometry = urlParams.get('rings') || urlParams.get('geometry') || urlParams.get('geojson');
     const cleanUnitId = rawId.replace(/[^0-9]/g, '');
 
     const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
 
     let cachedCoords = null;
     let currentRings = null;
-    let isUploadedUnit = false;
     let unitDataInitialLoaded = false;
     let activeUnitLabel = sanitizeUnitName(rawUnit ? decodeURIComponent(rawUnit) : null) || 'Smoke Screening Evaluator';
     document.getElementById('unit-title').innerText = activeUnitLabel;
@@ -243,7 +261,6 @@
     function toggleSizeLabel() {
       const type = document.getElementById('burnType').value;
       const label = document.getElementById('sizeLabel');
-      const input = document.getElementById('burnSize');
       if (type === 'broadcast') {
         label.innerText = 'Treated Acres';
       } else {
@@ -333,13 +350,9 @@
       const lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brng));
       const lon2 = lon1 + Math.atan2(Math.sin(brng) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
 
-      return {
-        lat: (lat2 * 180) / Math.PI,
-        lon: (lon2 * 180) / Math.PI
-      };
+      return { lat: (lat2 * 180) / Math.PI, lon: (lon2 * 180) / Math.PI };
     }
 
-    // NWCG 40° Angular Wedge
     function generateSmokeConePolygon(centerLat, centerLon, distanceMiles, downwindBearing) {
       const spreadAngle = 40;
       const startAngle = (downwindBearing - (spreadAngle / 2) + 360) % 360;
@@ -354,7 +367,6 @@
       return coords;
     }
 
-    // NWCG Down-Valley Katabatic Ribbon Corridor
     function generateDrainageRibbon(centerLat, centerLon, distanceMiles, drainageBearing, widthMiles = 0.6) {
       const halfW = widthMiles / 2;
       const leftAngle = (drainageBearing - 90 + 360) % 360;
@@ -379,7 +391,6 @@
       return [[startLeft.lon, startLeft.lat], [startRight.lon, startRight.lat], ...rightSide, ...leftSide, [startLeft.lon, startLeft.lat]];
     }
 
-    // Automated Downstream Flowline Query using USGS NHD
     async function fetchDownstreamDrainageVector(lat, lon) {
       try {
         const url = `https://hydro.nationalmap.gov/arcgis/rest/services/nhd/MapServer/6/query?geometry=${lon-0.02},${lat-0.02},${lon+0.02},${lat+0.02}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=GNIS_Name,FlowDir,LengthKM&returnGeometry=true&outSR=4326&f=json`;
@@ -389,13 +400,12 @@
         
         if (json.features?.length) {
           const feat = json.features[0];
-          const name = feat.attributes?.GNIS_Name || "Local Unnamed Creek";
+          const name = feat.attributes?.GNIS_Name || "Local Creek Channel";
           const paths = feat.geometry?.paths || [];
           if (paths.length && paths[0].length >= 2) {
             const path = paths[0];
             const pFirst = path[0];
             const pLast = path[path.length - 1];
-            // Flow direction is digitized from start to end vertex
             const dLon = pLast[0] - pFirst[0];
             const dLat = pLast[1] - pFirst[1];
             let bearing = Math.round((Math.atan2(dLon, dLat) * 180 / Math.PI + 360) % 360);
@@ -405,16 +415,22 @@
       } catch (e) {
         console.warn("NHD automated trace fallback:", e);
       }
-      return { name: "Valley Thalweg Drainage", bearing: 165 };
+      return { name: "Valley Thalweg Corridor", bearing: 165 };
     }
 
     async function runSmokeScreening() {
+      const calcBtn = document.getElementById('calcBtn');
       let coords = cachedCoords || parseSmartCoordinates(document.getElementById('coordInput').value);
 
       if (!coords) {
         document.getElementById('status').innerText = "Please provide valid coordinates or select a unit.";
         return;
       }
+
+      // Enter Loading State
+      calcBtn.disabled = true;
+      calcBtn.classList.add('running');
+      calcBtn.innerText = "⏳ Processing (1/3: Querying NWS Winds)...";
 
       const { lat, lon } = coords;
       const dateStr = document.getElementById('ignDate').value;
@@ -424,20 +440,18 @@
       const sizeVal = parseFloat(document.getElementById('burnSize').value) || 50;
       const targetStart = new Date(`${dateStr}T${timeStr}:00`);
 
-      document.getElementById('status').innerText = `Analyzing atmospheric wind fields & downstream NHD flowlines...`;
-
       try {
-        const [pointRes, drainageInfo] = await Promise.all([
-          fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`),
+        const pointRes = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`);
+        if (!pointRes.ok) throw new Error("Could not reach NWS point endpoint.");
+        const pointData = await pointRes.json();
+
+        calcBtn.innerText = "⏳ Processing (2/3: Tracing Hydrography)...";
+        const [gridRes, drainageInfo] = await Promise.all([
+          fetch(pointData.properties.forecastGridData),
           fetchDownstreamDrainageVector(lat, lon)
         ]);
 
-        if (!pointRes.ok) throw new Error("Could not reach NWS endpoint.");
-        const pointData = await pointRes.json();
-
-        const gridRes = await fetch(pointData.properties.forecastGridData);
         const gridData = await gridRes.json();
-
         const twSpeedVals = gridData.properties?.transportWindSpeed?.values || [];
         const twDirVals = gridData.properties?.transportWindDirection?.values || [];
         const mixVals = gridData.properties?.mixingHeight?.values || [];
@@ -481,6 +495,8 @@
         latestConeCoords = generateSmokeConePolygon(lat, lon, screeningDistanceMiles, downwindBearing);
         latestNightCorridorCoords = generateDrainageRibbon(lat, lon, latestNightDist, latestDrainageBearing, 0.6);
 
+        calcBtn.innerText = "⏳ Processing (3/3: Rendering Maps)...";
+
         document.getElementById('res-twind').innerText = `${twSpeedMph} mph @ ${twDirDeg}°`;
         document.getElementById('res-heading').innerText = `${downwindBearing}° (${getCompass(downwindBearing)})`;
         document.getElementById('res-dist').innerText = `${screeningDistanceMiles} miles`;
@@ -498,10 +514,14 @@
         updateBasemapImage();
         renderSvgOverlays();
 
-        document.getElementById('status').innerText = `Screening Complete: Day plume ${screeningDistanceMiles} mi ${getCompass(downwindBearing)}; Night drainage down ${latestDrainageName}.`;
+        document.getElementById('status').innerText = `Screening Complete: Day plume carries ${screeningDistanceMiles} mi toward ${getCompass(downwindBearing)}.`;
 
       } catch (err) {
         document.getElementById('status').innerText = "Screening Error: " + err.message;
+      } finally {
+        calcBtn.disabled = false;
+        calcBtn.classList.remove('running');
+        calcBtn.innerText = "Generate Downwind Smoke Cone";
       }
     }
 
@@ -544,7 +564,7 @@
 
       currentLocalBbox = `${minLon.toFixed(5)},${minLat.toFixed(5)},${maxLon.toFixed(5)},${maxLat.toFixed(5)}`;
 
-      // Regional bounding box (4.5x expansion)
+      // Regional overview (4.5x zoom expansion)
       const regRadiusLon = ((maxLon - minLon) || 0.1) * 2.25;
       const regRadiusLat = ((maxLat - minLat) || 0.1) * 2.25;
       currentRegionalBbox = `${(centerLon - regRadiusLon).toFixed(5)},${(centerLat - regRadiusLat).toFixed(5)},${(centerLon + regRadiusLon).toFixed(5)},${(centerLat + regRadiusLat).toFixed(5)}`;
@@ -570,8 +590,8 @@
       if (currentBasemapType === 'sat') {
         serviceUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
       } else {
-        // High-contrast USFS / USA Topo map
-        serviceUrl = `https://services.arcgisonline.com/arcgis/rest/services/USA_Topo_Maps/MapServer/export?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
+        // Modern, high-contrast Esri World Topographic service (no scale errors)
+        serviceUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
       }
 
       baseImg.src = serviceUrl;
@@ -588,14 +608,14 @@
       if (chk && bbox) {
         wuiImg.src = `https://imagery.geoplatform.gov/iipp/rest/services/Fire_Aviation/USFS_EDW_RMRS_WRC_HousingUnitDensity/ImageServer/exportImage?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image&format=png32&transparent=true`;
         
-        // Dynamic contrast filter for light Topo backgrounds
         if (currentBasemapType === 'sat') {
           wuiImg.style.mixBlendMode = 'normal';
           wuiImg.style.filter = 'none';
           wuiImg.style.opacity = '0.55';
         } else {
+          // Sharp navy clusters on modern light topo
           wuiImg.style.mixBlendMode = 'multiply';
-          wuiImg.style.filter = 'contrast(240%) brightness(0.65)';
+          wuiImg.style.filter = 'contrast(220%) brightness(0.7)';
           wuiImg.style.opacity = '0.75';
         }
         wuiImg.style.display = 'block';
@@ -613,7 +633,6 @@
       const showDay = document.getElementById('chkDay').checked;
       const showNight = document.getElementById('chkNight').checked;
 
-      // Draw Daytime Plume Cone
       if (showDay && latestConeCoords.length) {
         let conePath = '';
         latestConeCoords.forEach((pt, idx) => {
@@ -627,7 +646,6 @@
         document.getElementById('svg-cone').setAttribute('d', '');
       }
 
-      // Draw Nighttime Katabatic Ribbon
       if (showNight && latestNightCorridorCoords.length) {
         let nightPath = '';
         latestNightCorridorCoords.forEach((pt, idx) => {
@@ -641,7 +659,6 @@
         document.getElementById('svg-night-corridor').setAttribute('d', '');
       }
 
-      // Draw Unit boundary
       if (currentRings?.length) {
         let unitPath = '';
         currentRings.forEach(ring => {
@@ -664,7 +681,6 @@
       }
     }
 
-    // Modal Export Functions
     function openExportModal() {
       document.getElementById('exportModal').style.display = 'flex';
     }
@@ -697,11 +713,11 @@
       const typeVal = document.getElementById('burnType').selectedOptions[0].text;
       const sizeVal = document.getElementById('burnSize').value;
 
+      // Reliable multi-scale endpoints
       const satUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${currentLocalBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
-      const topoUrl = `https://services.arcgisonline.com/arcgis/rest/services/USA_Topo_Maps/MapServer/export?bbox=${currentLocalBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
-      const regUrl = `https://services.arcgisonline.com/arcgis/rest/services/USA_Topo_Maps/MapServer/export?bbox=${currentRegionalBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
+      const topoUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentLocalBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
+      const regUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentRegionalBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
       const wuiLocalUrl = `https://imagery.geoplatform.gov/iipp/rest/services/Fire_Aviation/USFS_EDW_RMRS_WRC_HousingUnitDensity/ImageServer/exportImage?bbox=${currentLocalBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image&format=png32&transparent=true`;
-      const wuiRegUrl = `https://imagery.geoplatform.gov/iipp/rest/services/Fire_Aviation/USFS_EDW_RMRS_WRC_HousingUnitDensity/ImageServer/exportImage?bbox=${currentRegionalBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image&format=png32&transparent=true`;
 
       const reportHtml = `
         <!DOCTYPE html>
@@ -759,10 +775,10 @@
 
           ${incTopo ? `
             <div class="map-card">
-              <div class="map-card-title">2. Local USFS Topographic & Drainage Corridor Footprint</div>
+              <div class="map-card-title">2. Local Topographic & Drainage Corridor Footprint</div>
               <div class="map-wrapper">
                 <img class="base" src="${topoUrl}">
-                <img class="wui" src="${wuiLocalUrl}" style="mix-blend-mode:multiply; filter:contrast(240%) brightness(0.65); opacity:0.75;">
+                <img class="wui" src="${wuiLocalUrl}" style="mix-blend-mode:multiply; filter:contrast(220%) brightness(0.7); opacity:0.75;">
                 ${document.getElementById('map-svg').outerHTML}
               </div>
             </div>
@@ -773,7 +789,6 @@
               <div class="map-card-title">3. Regional Airshed Context (30–50 Mile Overview)</div>
               <div class="map-wrapper">
                 <img class="base" src="${regUrl}">
-                <img class="wui" src="${wuiRegUrl}" style="mix-blend-mode:multiply; filter:contrast(240%) brightness(0.65); opacity:0.75;">
               </div>
             </div>
           ` : ''}
@@ -798,7 +813,6 @@
       try {
         const payload = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
         if (payload.rings || payload.geometry?.rings || payload.geojson) {
-          isUploadedUnit = false;
           const geom = payload.rings || payload.geometry?.rings || payload.geojson;
           currentRings = Array.isArray(geom[0]?.[0]) ? geom : [geom];
           activeUnitLabel = sanitizeUnitName(payload.unit || payload.name) || 'Smoke Screening Evaluator';
