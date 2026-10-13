@@ -263,4 +263,649 @@
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const rawUnit = urlParams.get('unit') || urlParams.get('Name') || urlParams.get('name');
-    const rawId = urlParams.get('id') ||
+    const rawId = urlParams.get('id') || urlParams.get('OBJECTID') || urlParams.get('objectid') || '';
+    const cleanUnitId = rawId.replace(/[^0-9]/g, '');
+
+    const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
+
+    let cachedCoords = null;
+    let currentRings = null;
+    let unitDataInitialLoaded = false;
+    let activeUnitLabel = sanitizeUnitName(rawUnit ? decodeURIComponent(rawUnit) : null) || 'Smoke Screening Evaluator';
+    document.getElementById('unit-title').innerText = activeUnitLabel;
+
+    let currentLocalBbox = null;
+    let currentRegionalBbox = null;
+    let currentBasemapType = 'sat';
+
+    let latestConeCoords = [];
+    let latestNightCorridorCoords = [];
+    let latestDrainageName = "Primary Downstream Drainage";
+    let latestDrainageBearing = 180;
+    let latestScreeningDist = 5;
+    let latestNightDist = 4.5;
+    let latestConfidenceInfo = { text: "Good", color: "#28a745" };
+
+    document.getElementById('ignDate').value = new Date().toISOString().split('T')[0];
+
+    function sanitizeUnitName(name) {
+      if (!name) return null;
+      const s = String(name).trim();
+      return (s === '' || s === '{Name}' || s.toLowerCase() === 'none' || s.toLowerCase() === 'null') ? null : s;
+    }
+
+    function toggleSizeLabel() {
+      const type = document.getElementById('burnType').value;
+      const label = document.getElementById('sizeLabel');
+      if (type === 'broadcast') {
+        label.innerText = 'Treated Acres';
+      } else {
+        label.innerText = 'Number of Piles';
+      }
+    }
+
+    function normalizePoint(n1, n2) {
+      let lat, lon;
+      if (Math.abs(n1) > 50 && Math.abs(n2) <= 50) { lon = n1; lat = n2; }
+      else if (Math.abs(n2) > 50 && Math.abs(n1) <= 50) { lat = n1; lon = n2; }
+      else { lon = n1; lat = n2; }
+      if (lon > 0 && lon < 180) lon = -lon;
+      return { lat, lon };
+    }
+
+    function calculateRingsCentroid(rings) {
+      if (!rings?.length) return null;
+      let sumLat = 0, sumLon = 0, count = 0;
+      rings.forEach(ring => ring.forEach(pt => {
+        const norm = normalizePoint(pt[0], pt[1]);
+        sumLat += norm.lat; sumLon += norm.lon; count++;
+      }));
+      return count ? { lat: sumLat / count, lon: sumLon / count } : null;
+    }
+
+    function parseSmartCoordinates(rawText) {
+      if (!rawText) return null;
+      const nums = rawText.match(/[-+]?\d*\.?\d+/g);
+      if (!nums || nums.length < 2) return null;
+      const norm = normalizePoint(parseFloat(nums[0]), parseFloat(nums[1]));
+      return (norm.lat >= 24 && norm.lat <= 50 && norm.lon <= -65 && norm.lon >= -130) ? norm : null;
+    }
+
+    function queryArcGISJsonp(id) {
+      return new Promise((resolve, reject) => {
+        const cbName = 'arcgis_cb_' + Math.floor(Math.random() * 10000000);
+        const script = document.createElement('script');
+        script.src = `${FEATURE_SERVICE_URL}?where=OBJECTID%3D${id}&outFields=*&returnGeometry=true&outSR=4326&f=json&callback=${cbName}`;
+        window[cbName] = data => { delete window[cbName]; script.remove(); data.error ? reject(new Error(data.error.message)) : resolve(data); };
+        script.onerror = () => { delete window[cbName]; script.remove(); reject(new Error("ArcGIS service failed.")); };
+        document.head.appendChild(script);
+      });
+    }
+
+    async function initializeUnitFromService(id) {
+      if (unitDataInitialLoaded) return;
+      try {
+        const data = await queryArcGISJsonp(id);
+        if (!data.features?.length) return;
+        const feat = data.features[0];
+        const attrs = feat.attributes || {};
+        
+        const fName = sanitizeUnitName(attrs.Name || attrs.name || attrs.NAME || attrs.unit_name || attrs.UnitName);
+        if (fName) {
+          activeUnitLabel = fName;
+          document.getElementById('unit-title').innerText = activeUnitLabel;
+        }
+
+        if (attrs.GIS_ACRES || attrs.TREATMENT_ACRES || attrs.acres) {
+          document.getElementById('burnSize').value = Math.round(attrs.GIS_ACRES || attrs.TREATMENT_ACRES || attrs.acres);
+        }
+
+        currentRings = feat.geometry?.rings || null;
+        if (currentRings) {
+          cachedCoords = calculateRingsCentroid(currentRings);
+        } else if (feat.geometry?.x && feat.geometry?.y) {
+          cachedCoords = normalizePoint(feat.geometry.x, feat.geometry.y);
+        }
+
+        if (cachedCoords) {
+          document.getElementById('coordInput').value = `${cachedCoords.lat.toFixed(4)}, ${cachedCoords.lon.toFixed(4)}`;
+        }
+        unitDataInitialLoaded = true;
+      } catch (e) {
+        console.warn("Could not seed unit attributes:", e);
+      }
+    }
+
+    function getDestinationPoint(lat, lon, distanceMiles, bearingDeg) {
+      const R = 3958.8;
+      const d = distanceMiles / R;
+      const brng = (bearingDeg * Math.PI) / 180;
+      const lat1 = (lat * Math.PI) / 180;
+      const lon1 = (lon * Math.PI) / 180;
+
+      const lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brng));
+      const lon2 = lon1 + Math.atan2(Math.sin(brng) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
+
+      return { lat: (lat2 * 180) / Math.PI, lon: (lon2 * 180) / Math.PI };
+    }
+
+    function generateSmokeConePolygon(centerLat, centerLon, distanceMiles, downwindBearing) {
+      const spreadAngle = 40;
+      const startAngle = (downwindBearing - (spreadAngle / 2) + 360) % 360;
+      const coords = [[centerLon, centerLat]];
+      const steps = 16;
+      for (let i = 0; i <= steps; i++) {
+        const angle = startAngle + (i / steps) * spreadAngle;
+        const pt = getDestinationPoint(centerLat, centerLon, distanceMiles, angle);
+        coords.push([pt.lon, pt.lat]);
+      }
+      coords.push([centerLon, centerLat]);
+      return coords;
+    }
+
+    function generateDrainageRibbon(centerLat, centerLon, distanceMiles, drainageBearing, widthMiles = 0.6) {
+      const halfW = widthMiles / 2;
+      const leftAngle = (drainageBearing - 90 + 360) % 360;
+      const rightAngle = (drainageBearing + 90 + 360) % 360;
+
+      const startLeft = getDestinationPoint(centerLat, centerLon, halfW, leftAngle);
+      const startRight = getDestinationPoint(centerLat, centerLon, halfW, rightAngle);
+
+      const steps = 8;
+      const rightSide = [];
+      const leftSide = [];
+
+      for (let i = 1; i <= steps; i++) {
+        const d = (distanceMiles * i) / steps;
+        const centerStep = getDestinationPoint(centerLat, centerLon, d, drainageBearing);
+        const rPt = getDestinationPoint(centerStep.lat, centerStep.lon, halfW, rightAngle);
+        const lPt = getDestinationPoint(centerStep.lat, centerStep.lon, halfW, leftAngle);
+        rightSide.push([rPt.lon, rPt.lat]);
+        leftSide.unshift([lPt.lon, lPt.lat]);
+      }
+
+      return [[startLeft.lon, startLeft.lat], [startRight.lon, startRight.lat], ...rightSide, ...leftSide, [startLeft.lon, startLeft.lat]];
+    }
+
+    async function fetchDownstreamDrainageVector(lat, lon) {
+      try {
+        const url = `https://hydro.nationalmap.gov/arcgis/rest/services/nhd/MapServer/6/query?geometry=${lon-0.02},${lat-0.02},${lon+0.02},${lat+0.02}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=GNIS_Name,FlowDir,LengthKM&returnGeometry=true&outSR=4326&f=json`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("NHD endpoint unreachable");
+        const json = await res.json();
+        
+        if (json.features?.length) {
+          const feat = json.features[0];
+          const name = feat.attributes?.GNIS_Name || "Local Creek Channel";
+          const paths = feat.geometry?.paths || [];
+          if (paths.length && paths[0].length >= 2) {
+            const path = paths[0];
+            const pFirst = path[0];
+            const pLast = path[path.length - 1];
+            const dLon = pLast[0] - pFirst[0];
+            const dLat = pLast[1] - pFirst[1];
+            let bearing = Math.round((Math.atan2(dLon, dLat) * 180 / Math.PI + 360) % 360);
+            return { name, bearing };
+          }
+        }
+      } catch (e) {
+        console.warn("NHD automated trace fallback:", e);
+      }
+      return { name: "Valley Thalweg Corridor", bearing: 165 };
+    }
+
+    async function runSmokeScreening() {
+      const calcBtn = document.getElementById('calcBtn');
+      let coords = cachedCoords || parseSmartCoordinates(document.getElementById('coordInput').value);
+
+      if (!coords) {
+        document.getElementById('status').innerText = "Please provide valid coordinates or select a unit.";
+        return;
+      }
+
+      calcBtn.disabled = true;
+      calcBtn.classList.add('running');
+      calcBtn.innerText = "⏳ Processing (1/3: Query NWS Winds)...";
+
+      const { lat, lon } = coords;
+      const dateStr = document.getElementById('ignDate').value;
+      const timeStr = document.getElementById('ignHour').value;
+      const durationHours = parseInt(document.getElementById('burnDuration').value);
+      const burnType = document.getElementById('burnType').value;
+      const sizeVal = parseFloat(document.getElementById('burnSize').value) || 50;
+      const targetStart = new Date(`${dateStr}T${timeStr}:00`);
+
+      try {
+        const pointRes = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`);
+        if (!pointRes.ok) throw new Error("Could not reach NWS point endpoint.");
+        const pointData = await pointRes.json();
+
+        calcBtn.innerText = "⏳ Processing (2/3: Query Hydrography)...";
+        const [gridRes, drainageInfo] = await Promise.all([
+          fetch(pointData.properties.forecastGridData),
+          fetchDownstreamDrainageVector(lat, lon)
+        ]);
+
+        const gridData = await gridRes.json();
+        const twSpeedVals = gridData.properties?.transportWindSpeed?.values || [];
+        const twDirVals = gridData.properties?.transportWindDirection?.values || [];
+        const mixVals = gridData.properties?.mixingHeight?.values || [];
+
+        let sumDir = 0, sumSpeed = 0, sumMix = 0, count = 0;
+        for (let h = 0; h < durationHours; h++) {
+          const t = new Date(targetStart.getTime() + (h * 3600000));
+          const spdKmh = getValueForTime(twSpeedVals, t);
+          const dirDeg = getValueForTime(twDirVals, t);
+          const mixM = getValueForTime(mixVals, t);
+
+          if (dirDeg !== null && spdKmh !== null) {
+            sumDir += dirDeg;
+            sumSpeed += (spdKmh * 0.621371);
+            if (mixM !== null) sumMix += (mixM * 3.28084);
+            count++;
+          }
+        }
+
+        let twSpeedMph = count ? Math.round(sumSpeed / count) : 12;
+        let twDirDeg = count ? Math.round(sumDir / count) : 250;
+        let mixHeightFt = count ? Math.round(sumMix / count) : 4500;
+        const downwindBearing = (twDirDeg + 180) % 360;
+
+        let screeningDistanceMiles = 5;
+        if (burnType === 'broadcast') {
+          if (sizeVal < 50) screeningDistanceMiles = 3.5;
+          else if (sizeVal <= 250) screeningDistanceMiles = 6.5;
+          else screeningDistanceMiles = 10.0;
+        } else if (burnType === 'hand') {
+          screeningDistanceMiles = (sizeVal > 150) ? 4.0 : 2.5;
+        } else {
+          screeningDistanceMiles = 4.5;
+        }
+
+        latestScreeningDist = screeningDistanceMiles;
+        latestNightDist = (burnType === 'machine' || (burnType === 'hand' && sizeVal > 100)) ? 4.5 : 2.5;
+        latestDrainageName = drainageInfo.name;
+        latestDrainageBearing = drainageInfo.bearing;
+
+        latestConeCoords = generateSmokeConePolygon(lat, lon, screeningDistanceMiles, downwindBearing);
+        latestNightCorridorCoords = generateDrainageRibbon(lat, lon, latestNightDist, latestDrainageBearing, 0.6);
+
+        // Confidence Logic (NWCG PMS 420-3 criteria)
+        if (twSpeedMph < 9) {
+          latestConfidenceInfo = { text: "Low (Light & Variable Winds — High Plume Uncertainty)", color: "#d97706" };
+        } else if (twSpeedMph > 25) {
+          latestConfidenceInfo = { text: "Moderate (High Transport Winds — Rapid Reach)", color: "#2563eb" };
+        } else {
+          latestConfidenceInfo = { text: "Good (Consistent Transport Winds)", color: "#28a745" };
+        }
+
+        calcBtn.innerText = "⏳ Processing (3/3: Rendering Maps)...";
+
+        document.getElementById('res-twind').innerText = `${twSpeedMph} mph @ ${twDirDeg}°`;
+        document.getElementById('res-heading').innerText = `${downwindBearing}° (${getCompass(downwindBearing)})`;
+        document.getElementById('res-dist').innerText = `${screeningDistanceMiles} miles`;
+        document.getElementById('res-mix').innerText = `${mixHeightFt.toLocaleString()} ft`;
+        document.getElementById('res-drainage').innerText = `${latestDrainageBearing}° (${getCompass(latestDrainageBearing)})`;
+        document.getElementById('res-drainage-dist').innerText = `${latestNightDist} mi down ${latestDrainageName}`;
+
+        const confBadge = document.getElementById('res-confidence');
+        confBadge.innerText = latestConfidenceInfo.text;
+        confBadge.style.backgroundColor = latestConfidenceInfo.color;
+
+        document.getElementById('results-box').style.display = 'block';
+
+        const showDrainageAlert = (burnType === 'machine' || (burnType === 'hand' && sizeVal > 100));
+        document.getElementById('drainage-alert').style.display = showDrainageAlert ? 'block' : 'none';
+        document.getElementById('drainage-name').innerText = latestDrainageName;
+
+        calculateBoundingBoxes(lat, lon);
+        updateBasemapImage();
+        renderSvgOverlays();
+
+        document.getElementById('status').innerText = `Screening Complete: Day plume carries ${screeningDistanceMiles} mi toward ${getCompass(downwindBearing)}.`;
+
+      } catch (err) {
+        document.getElementById('status').innerText = "Screening Error: " + err.message;
+      } finally {
+        calcBtn.disabled = false;
+        calcBtn.classList.remove('running');
+        calcBtn.innerText = "Generate Downwind Smoke Cone";
+      }
+    }
+
+    function getValueForTime(valuesArray, targetTime) {
+      if (!valuesArray?.length) return null;
+      const targetMs = targetTime.getTime();
+      for (const item of valuesArray) {
+        const [timeStr, durationStr] = item.validTime.split('/');
+        const startMs = new Date(timeStr).getTime();
+        const durationMs = durationStr?.startsWith('PT') ? (parseInt(durationStr.replace('PT', '').replace('H', '')) || 1) * 3600000 : 3600000;
+        if (targetMs >= startMs && targetMs < (startMs + durationMs)) return item.value;
+      }
+      return null;
+    }
+
+    function getCompass(degrees) {
+      const val = Math.floor((degrees / 22.5) + 0.5);
+      const arr = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+      return arr[(val % 16)];
+    }
+
+    function calculateBoundingBoxes(centerLat, centerLon) {
+      let lons = [...latestConeCoords.map(p => p[0]), ...latestNightCorridorCoords.map(p => p[0])];
+      let lats = [...latestConeCoords.map(p => p[1]), ...latestNightCorridorCoords.map(p => p[1])];
+
+      if (currentRings?.length) {
+        currentRings.forEach(ring => ring.forEach(pt => {
+          const norm = normalizePoint(pt[0], pt[1]);
+          lons.push(norm.lon); lats.push(norm.lat);
+        }));
+      }
+
+      let minLon = Math.min(...lons), maxLon = Math.max(...lons);
+      let minLat = Math.min(...lats), maxLat = Math.max(...lats);
+
+      const lonPad = ((maxLon - minLon) || 0.02) * 0.25;
+      const latPad = ((maxLat - minLat) || 0.02) * 0.25;
+      minLon -= lonPad; maxLon += lonPad;
+      minLat -= latPad; maxLat += latPad;
+
+      currentLocalBbox = `${minLon.toFixed(5)},${minLat.toFixed(5)},${maxLon.toFixed(5)},${maxLat.toFixed(5)}`;
+
+      const regRadiusLon = ((maxLon - minLon) || 0.1) * 2.25;
+      const regRadiusLat = ((maxLat - minLat) || 0.1) * 2.25;
+      currentRegionalBbox = `${(centerLon - regRadiusLon).toFixed(5)},${(centerLat - regRadiusLat).toFixed(5)},${(centerLon + regRadiusLon).toFixed(5)},${(centerLat + regRadiusLat).toFixed(5)}`;
+    }
+
+    function setBasemap(type) {
+      currentBasemapType = type;
+      document.getElementById('btnSat').classList.toggle('active', type === 'sat');
+      document.getElementById('btnTopo').classList.toggle('active', type === 'topo');
+      document.getElementById('btnReg').classList.toggle('active', type === 'reg');
+      updateBasemapImage();
+      renderSvgOverlays();
+    }
+
+    function updateBasemapImage() {
+      const isRegional = currentBasemapType === 'reg';
+      const bbox = isRegional ? currentRegionalBbox : currentLocalBbox;
+      if (!bbox) return;
+
+      const baseImg = document.getElementById('map-img-base');
+      let serviceUrl = '';
+
+      if (currentBasemapType === 'sat') {
+        serviceUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
+      } else {
+        serviceUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
+      }
+
+      baseImg.src = serviceUrl;
+      toggleWuiOverlay();
+      document.getElementById('map-preview').style.display = 'block';
+    }
+
+    function toggleWuiOverlay() {
+      const chk = document.getElementById('chkWui').checked;
+      const wuiImg = document.getElementById('map-img-wui');
+      const isRegional = currentBasemapType === 'reg';
+      const bbox = isRegional ? currentRegionalBbox : currentLocalBbox;
+
+      if (chk && bbox) {
+        wuiImg.src = `https://imagery.geoplatform.gov/iipp/rest/services/Fire_Aviation/USFS_EDW_RMRS_WRC_HousingUnitDensity/ImageServer/exportImage?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image&format=png32&transparent=true`;
+        
+        if (currentBasemapType === 'sat') {
+          wuiImg.style.mixBlendMode = 'normal';
+          wuiImg.style.filter = 'none';
+          wuiImg.style.opacity = '0.55';
+        } else {
+          wuiImg.style.mixBlendMode = 'multiply';
+          wuiImg.style.filter = 'contrast(220%) brightness(0.7)';
+          wuiImg.style.opacity = '0.75';
+        }
+        wuiImg.style.display = 'block';
+      } else {
+        wuiImg.style.display = 'none';
+      }
+    }
+
+    // Dynamic SVG Generator for Local & Regional Map Projections
+    function getSvgStringForBbox(bboxStr, showDay = true, showNight = true) {
+      if (!bboxStr) return '';
+      const [minLon, minLat, maxLon, maxLat] = bboxStr.split(',').map(parseFloat);
+
+      let conePath = '';
+      if (showDay && latestConeCoords.length) {
+        latestConeCoords.forEach((pt, idx) => {
+          const x = (((pt[0] - minLon) / (maxLon - minLon)) * 600).toFixed(1);
+          const y = ((1 - (pt[1] - minLat) / (maxLat - minLat)) * 400).toFixed(1);
+          conePath += (idx === 0 ? `M ${x} ${y} ` : `L ${x} ${y} `);
+        });
+        conePath += 'Z';
+      }
+
+      let nightPath = '';
+      if (showNight && latestNightCorridorCoords.length) {
+        latestNightCorridorCoords.forEach((pt, idx) => {
+          const x = (((pt[0] - minLon) / (maxLon - minLon)) * 600).toFixed(1);
+          const y = ((1 - (pt[1] - minLat) / (maxLat - minLat)) * 400).toFixed(1);
+          nightPath += (idx === 0 ? `M ${x} ${y} ` : `L ${x} ${y} `);
+        });
+        nightPath += 'Z';
+      }
+
+      let unitPath = '';
+      if (currentRings?.length) {
+        currentRings.forEach(ring => {
+          ring.forEach((pt, idx) => {
+            const norm = normalizePoint(pt[0], pt[1]);
+            const x = (((norm.lon - minLon) / (maxLon - minLon)) * 600).toFixed(1);
+            const y = ((1 - (norm.lat - minLat) / (maxLat - minLat)) * 400).toFixed(1);
+            unitPath += (idx === 0 ? `M ${x} ${y} ` : `L ${x} ${y} `);
+          });
+          unitPath += 'Z ';
+        });
+      }
+
+      let pinHtml = '';
+      if (!currentRings?.length && cachedCoords) {
+        const cx = (((cachedCoords.lon - minLon) / (maxLon - minLon)) * 600).toFixed(1);
+        const cy = ((1 - (cachedCoords.lat - minLat) / (maxLat - minLat)) * 400).toFixed(1);
+        pinHtml = `<circle cx="${cx}" cy="${cy}" r="6" fill="#ff0000" stroke="#ffffff" stroke-width="2" />`;
+      }
+
+      return `
+        <svg viewBox="0 0 600 400" preserveAspectRatio="none" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;">
+          ${nightPath ? `<path d="${nightPath}" fill="rgba(40, 85, 121, 0.45)" stroke="#1d3d57" stroke-width="2" stroke-dasharray="4,3" />` : ''}
+          ${conePath ? `<path d="${conePath}" fill="rgba(255, 140, 0, 0.4)" stroke="#ff8c00" stroke-width="2.5" stroke-dasharray="5,3" />` : ''}
+          ${unitPath ? `<path d="${unitPath}" fill="rgba(0, 255, 255, 0.5)" stroke="#00ffff" stroke-width="2" />` : ''}
+          ${pinHtml}
+        </svg>
+      `;
+    }
+
+    function renderSvgOverlays() {
+      const isRegional = currentBasemapType === 'reg';
+      const bboxStr = isRegional ? currentRegionalBbox : currentLocalBbox;
+      if (!bboxStr) return;
+
+      const showDay = document.getElementById('chkDay').checked;
+      const showNight = document.getElementById('chkNight').checked;
+
+      const dynamicSvg = getSvgStringForBbox(bboxStr, showDay, showNight);
+      const containerSvg = document.getElementById('map-svg');
+      containerSvg.outerHTML = dynamicSvg;
+      document.querySelector('.map-container svg').id = 'map-svg';
+    }
+
+    function openExportModal() {
+      document.getElementById('exportModal').style.display = 'flex';
+    }
+
+    function closeExportModal() {
+      document.getElementById('exportModal').style.display = 'none';
+    }
+
+    function executePdfGeneration() {
+      const incSat = document.getElementById('pdfIncSat').checked;
+      const incTopo = document.getElementById('pdfIncTopo').checked;
+      const incReg = document.getElementById('pdfIncReg').checked;
+      const incParams = document.getElementById('pdfIncParams').checked;
+      const incDay = document.getElementById('pdfIncDay').checked;
+      const incNight = document.getElementById('pdfIncNight').checked;
+
+      closeExportModal();
+
+      const printWin = window.open('', '_blank');
+      if (!printWin) {
+        alert("Please allow pop-ups to open the PDF report.");
+        return;
+      }
+
+      const title = document.getElementById('unit-title').innerText;
+      const statusText = document.getElementById('status').innerText;
+      const dateVal = document.getElementById('ignDate').value;
+      const timeVal = document.getElementById('ignHour').value;
+      const durVal = document.getElementById('burnDuration').value;
+      const typeVal = document.getElementById('burnType').selectedOptions[0].text;
+      const sizeVal = document.getElementById('burnSize').value;
+
+      const satUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${currentLocalBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
+      const topoUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentLocalBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
+      const regUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentRegionalBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
+      const wuiLocalUrl = `https://imagery.geoplatform.gov/iipp/rest/services/Fire_Aviation/USFS_EDW_RMRS_WRC_HousingUnitDensity/ImageServer/exportImage?bbox=${currentLocalBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image&format=png32&transparent=true`;
+
+      const localSvgHtml = getSvgStringForBbox(currentLocalBbox, incDay, incNight);
+      const regionalSvgHtml = getSvgStringForBbox(currentRegionalBbox, incDay, incNight);
+
+      const reportHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>${title} - Smoke Screening Model Summary</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color: #333; max-width: 800px; margin: 0 auto; }
+            h2 { margin: 0 0 4px 0; color: #0078d4; }
+            .meta { font-size: 11px; color: #555; margin-bottom: 12px; border-bottom: 2px solid #0078d4; padding-bottom: 6px; }
+            .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 10px; border-radius: 4px; margin-bottom: 12px; }
+            .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-top: 6px; }
+            .data-item { background: white; padding: 6px 8px; border-radius: 4px; border: 1px solid #d0e1f9; }
+            .data-item .label { font-size: 9px; color: #555; text-transform: uppercase; font-weight: bold; }
+            .data-item .val { font-size: 13px; font-weight: bold; color: #0078d4; margin-top: 2px; }
+            .confidence-tag { display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 11px; font-weight: bold; color: white; margin-top: 2px; }
+            .alert-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; border-radius: 4px; margin-bottom: 12px; font-size: 11px; color: #856404; }
+            .legend-bar { display: flex; flex-wrap: wrap; gap: 12px; background: #f8fafc; padding: 6px 10px; border-radius: 4px; font-size: 10px; font-weight: 600; color: #444; margin-bottom: 12px; border: 1px solid #e2e8f0; }
+            .legend-item { display: flex; align-items: center; gap: 5px; }
+            .legend-color { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+            .map-card { page-break-inside: avoid; margin-bottom: 18px; text-align: center; }
+            .map-card-title { font-size: 12px; font-weight: bold; text-align: left; text-transform: uppercase; color: #444; margin-bottom: 4px; }
+            .map-wrapper { position: relative; width: 100%; max-width: 600px; margin: 0 auto; }
+            .map-wrapper img.base { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px; display: block; }
+            .map-wrapper img.wui { position: absolute; top:0; left:0; width: 100%; height: 100%; }
+            .disclaimer-report { font-size: 10px; color: #666; line-height: 1.4; border-top: 1px solid #ddd; padding-top: 8px; margin-top: 14px; font-style: italic; }
+            @media print { body { padding: 0; } .map-card { page-break-inside: avoid; } }
+          </style>
+        </head>
+        <body>
+          <h2>${title}</h2>
+          <div class="meta">${statusText} | Generated: ${new Date().toLocaleString()}</div>
+
+          ${incParams ? `
+            <div class="data-box">
+              <strong style="color:#0078d4; font-size:11px; text-transform:uppercase;">Prescription & Ignition Parameters</strong>
+              <div class="data-grid">
+                <div class="data-item"><div class="label">Date / Time</div><div class="val">${dateVal} @${timeVal}</div></div>
+                <div class="data-item"><div class="label">Planned Duration</div><div class="val">${durVal} Hours</div></div>
+                <div class="data-item"><div class="label">Treatment Category</div><div class="val">${typeVal}</div></div>
+                <div class="data-item"><div class="label">Treatment Size</div><div class="val">${sizeVal}${typeVal.includes('Piles') ? 'Piles' : 'Acres'}</div></div>
+              </div>
+            </div>
+          ` : ''}
+
+          ${(incDay || incNight) ? document.getElementById('results-box').outerHTML : ''}
+          ${incNight && document.getElementById('drainage-alert').style.display !== 'none' ? document.getElementById('drainage-alert').outerHTML : ''}
+
+          <div class="legend-bar">
+            <div class="legend-item"><span class="legend-color" style="background:rgba(255, 140, 0, 0.5); border:1px solid #ff8c00;"></span> Day Plume Cone</div>
+            <div class="legend-item"><span class="legend-color" style="background:rgba(40, 85, 121, 0.5); border:1px solid #1d3d57;"></span> Night Drainage Ribbon</div>
+            <div class="legend-item"><span class="legend-color" style="background:rgba(0, 255, 255, 0.5); border:1px solid #00ffff;"></span> Unit Boundary</div>
+            <div class="legend-item"><span class="legend-color" style="background:#8fa9c4; border-radius:50%;"></span> WUI Clusters</div>
+          </div>
+
+          ${incSat ? `
+            <div class="map-card">
+              <div class="map-card-title">1. Local Satellite Screening Footprint</div>
+              <div class="map-wrapper">
+                <img class="base" src="${satUrl}">
+                <img class="wui" src="${wuiLocalUrl}" style="opacity:0.55;">
+                ${localSvgHtml}
+              </div>
+            </div>
+          ` : ''}
+
+          ${incTopo ? `
+            <div class="map-card">
+              <div class="map-card-title">2. Local Topographic & Drainage Corridor Footprint</div>
+              <div class="map-wrapper">
+                <img class="base" src="${topoUrl}">
+                <img class="wui" src="${wuiLocalUrl}" style="mix-blend-mode:multiply; filter:contrast(220%) brightness(0.7); opacity:0.75;">
+                ${localSvgHtml}
+              </div>
+            </div>
+          ` : ''}
+
+          ${incReg ? `
+            <div class="map-card">
+              <div class="map-card-title">3. Regional Airshed Context (30–50 Mile Overview)</div>
+              <div class="map-wrapper">
+                <img class="base" src="${regUrl}">
+                ${regionalSvgHtml}
+              </div>
+            </div>
+          ` : ''}
+
+          <div class="disclaimer-report">
+            Advisory Notice: This screening-level assessment is generated using NWS gridded transport wind forecasts and USGS NHD flowlines. It does not replace on-site fire behavior/smoke observations, microclimate adjustments, or agency burn permit compliance.
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.focus();
+              setTimeout(function() { window.print(); }, 500);
+            };
+          <\/script>
+        </body>
+        </html>
+      `;
+
+      printWin.document.open();
+      printWin.document.write(reportHtml);
+      printWin.document.close();
+    }
+
+    window.addEventListener('message', function(event) {
+      if (!event.data) return;
+      try {
+        const payload = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (payload.rings || payload.geometry?.rings || payload.geojson) {
+          const geom = payload.rings || payload.geometry?.rings || payload.geojson;
+          currentRings = Array.isArray(geom[0]?.[0]) ? geom : [geom];
+          activeUnitLabel = sanitizeUnitName(payload.unit || payload.name) || 'Smoke Screening Evaluator';
+          document.getElementById('unit-title').innerText = activeUnitLabel;
+          cachedCoords = calculateRingsCentroid(currentRings);
+          if (cachedCoords) {
+            document.getElementById('coordInput').value = `${cachedCoords.lat.toFixed(4)}, ${cachedCoords.lon.toFixed(4)}`;
+          }
+          runSmokeScreening();
+        }
+      } catch(e) {}
+    });
+
+    if (cleanUnitId) {
+      initializeUnitFromService(cleanUnitId).then(() => {
+        runSmokeScreening();
+      });
+    }
+  </script>
+</body>
+</html>
