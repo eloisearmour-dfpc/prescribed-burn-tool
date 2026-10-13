@@ -2,104 +2,105 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Rx Smoke Screening</title>
+  <title>Rx Smoke Model</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 12px; background: #f8f9fa; color: #333; margin: 0; }
-    .card { background: white; padding: 14px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 12px; }
-    .input-header { font-size: 11px; font-weight: bold; color: #0078d4; text-transform: uppercase; letter-spacing: 0.5px; margin: 10px 0 6px 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 14px; background: #f8f9fa; color: #333; margin: 0; font-size: 13px; }
+    .card { background: white; padding: 16px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 12px; }
+    .input-header { font-size: 12px; font-weight: bold; color: #0078d4; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 8px 0; }
     
-    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
-    .form-field { display: flex; flex-direction: column; font-size: 11px; font-weight: bold; color: #444; }
-    .form-field input, .form-field select { padding: 6px; font-size: 12px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 3px; background: #fff; }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+    .form-field { display: flex; flex-direction: column; font-size: 12px; font-weight: bold; color: #444; }
+    .form-field input, .form-field select { padding: 7px; font-size: 13px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 4px; background: #fff; }
 
     .drop-zone {
       border: 2px dashed #0078d4;
       border-radius: 6px;
-      padding: 10px;
+      padding: 12px;
       text-align: center;
       background: #f0f7fc;
       cursor: pointer;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
     .drop-zone:hover { background: #e1f0fa; }
-    .drop-zone-text { font-size: 11px; color: #0078d4; font-weight: bold; }
+    .drop-zone-text { font-size: 12px; color: #0078d4; font-weight: bold; }
 
-    .coord-box { background: #f0f4f8; padding: 8px 10px; border-radius: 6px; margin-bottom: 10px; }
-    .coord-box input { width: 100%; padding: 6px; font-size: 12px; border: 1px solid #0078d4; border-radius: 4px; box-sizing: border-box; margin-top: 4px; }
+    .coord-box { background: #f0f4f8; padding: 10px 12px; border-radius: 6px; margin-bottom: 12px; }
+    .coord-box input { width: 100%; padding: 7px; font-size: 13px; border: 1px solid #0078d4; border-radius: 4px; box-sizing: border-box; margin-top: 5px; }
 
     .time-warning-banner {
       background: #e8f4fd;
       border: 1px solid #b6dcfb;
       border-left: 4px solid #0078d4;
       color: #004578;
-      padding: 8px 10px;
+      padding: 9px 12px;
       border-radius: 4px;
-      font-size: 11px;
+      font-size: 12px;
       line-height: 1.4;
       margin-top: 10px;
     }
 
-    button { background: #0078d4; color: white; border: none; padding: 11px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; margin-top: 8px; width: 100%; transition: background 0.2s; }
+    button { background: #0078d4; color: white; border: none; padding: 12px; border-radius: 4px; font-weight: bold; font-size: 14px; cursor: pointer; margin-top: 8px; width: 100%; transition: background 0.2s; }
     button:hover { background: #005a9e; }
     button:disabled { cursor: not-allowed; }
     button.running { background: #5c2d91; }
-    button.export-btn { background: #28a745; margin-top: 10px; }
+    button.export-btn { background: #28a745; margin-top: 12px; }
     button.export-btn:hover { background: #218838; }
 
-    .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 12px; }
-    .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-top: 6px; }
-    .data-item { background: white; padding: 6px 8px; border-radius: 4px; border: 1px solid #d0e1f9; }
-    .data-item .label { font-size: 10px; color: #555; text-transform: uppercase; font-weight: bold; }
-    .data-item .val { font-size: 13px; font-weight: bold; color: #0078d4; margin-top: 2px; }
+    .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 12px; border-radius: 4px; margin-top: 12px; font-size: 13px; }
+    .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 8px; }
+    .data-item { background: white; padding: 8px 10px; border-radius: 4px; border: 1px solid #d0e1f9; }
+    .data-item .label { font-size: 11px; color: #555; text-transform: uppercase; font-weight: bold; }
+    .data-item .val { font-size: 14px; font-weight: bold; color: #0078d4; margin-top: 3px; }
 
-    .confidence-tag { display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 11px; font-weight: bold; color: white; margin-top: 2px; }
+    .confidence-tag { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 12px; font-weight: bold; color: white; margin-top: 2px; }
 
-    .alert-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 12px; color: #856404; }
+    .alert-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; border-radius: 4px; margin-top: 12px; font-size: 13px; color: #856404; }
 
-    .map-controls-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 11px; font-weight: bold; }
-    .map-btn-group { display: flex; gap: 4px; }
-    .map-toggle-btn { padding: 4px 8px; font-size: 11px; border: 1px solid #0078d4; background: #fff; color: #0078d4; border-radius: 4px; cursor: pointer; width: auto; margin: 0; }
+    /* Enlarged Map Controls */
+    .map-controls-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; font-weight: bold; }
+    .map-btn-group { display: flex; gap: 6px; }
+    .map-toggle-btn { padding: 6px 12px; font-size: 13px; font-weight: 600; border: 1.5px solid #0078d4; background: #fff; color: #0078d4; border-radius: 4px; cursor: pointer; width: auto; margin: 0; }
     .map-toggle-btn.active { background: #0078d4; color: #fff; }
 
-    .layer-toggles-row { display: flex; gap: 12px; margin-bottom: 6px; font-size: 11px; font-weight: bold; flex-wrap: wrap; }
-    .layer-toggles-row label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+    .layer-toggles-row { display: flex; gap: 14px; margin-bottom: 8px; font-size: 12px; font-weight: bold; flex-wrap: wrap; }
+    .layer-toggles-row label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
 
     .legend-bar {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 12px;
       background: #f1f3f5;
-      padding: 6px 8px;
+      padding: 8px 10px;
       border-radius: 4px;
-      font-size: 10px;
+      font-size: 12px;
       font-weight: 600;
-      color: #444;
-      margin-bottom: 6px;
+      color: #333;
+      margin-bottom: 8px;
       border: 1px solid #e2e8f0;
     }
-    .legend-item { display: flex; align-items: center; gap: 4px; }
-    .legend-color { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+    .legend-item { display: flex; align-items: center; gap: 5px; }
+    .legend-color { width: 14px; height: 14px; border-radius: 2px; display: inline-block; }
 
-    .map-container { position: relative; width: 100%; max-width: 600px; margin: 12px auto; display: none; text-align: center; }
+    .map-container { position: relative; width: 100%; max-width: 600px; margin: 14px auto; display: none; text-align: center; }
     .map-container img.base-layer { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; display: block; }
     .map-container img.overlay-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; border-radius: 6px; }
     .map-container svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 
     .disclaimer-text {
-      font-size: 11px;
+      font-size: 12px;
       color: #444;
-      line-height: 1.4;
-      margin-top: 10px;
+      line-height: 1.5;
+      margin-top: 12px;
       font-style: normal;
       text-align: left;
     }
 
     .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.55); display: none; justify-content: center; align-items: center; z-index: 9999; }
-    .modal-box { background: white; border-radius: 8px; padding: 18px; width: 90%; max-width: 440px; box-shadow: 0 4px 16px rgba(0,0,0,0.25); text-align: left; }
-    .modal-title { font-size: 15px; font-weight: bold; color: #0078d4; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
-    .modal-section { margin-bottom: 12px; font-size: 12px; }
-    .modal-section-title { font-size: 11px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 6px; }
-    .modal-section label { display: block; margin: 4px 0; cursor: pointer; font-weight: 500; }
+    .modal-box { background: white; border-radius: 8px; padding: 20px; width: 90%; max-width: 440px; box-shadow: 0 4px 16px rgba(0,0,0,0.25); text-align: left; }
+    .modal-title { font-size: 16px; font-weight: bold; color: #0078d4; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+    .modal-section { margin-bottom: 14px; font-size: 13px; }
+    .modal-section-title { font-size: 12px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 6px; }
+    .modal-section label { display: block; margin: 5px 0; cursor: pointer; font-weight: 500; }
     .modal-btn-row { display: flex; gap: 8px; margin-top: 14px; }
     .modal-btn-row button { margin: 0; }
     button.modal-cancel-btn { background: #6c757d; }
@@ -109,8 +110,8 @@
 <body>
 
   <div class="card">
-    <h3 id="unit-title" style="margin:0 0 2px 0; font-size:16px;">Smoke Screening</h3>
-    <div id="status" style="font-size: 11px; color: #0078d4; font-weight: 500; margin-bottom: 8px;">
+    <h3 id="unit-title" style="margin:0 0 4px 0; font-size:17px;">Smoke Model</h3>
+    <div id="status" style="font-size: 12px; color: #0078d4; font-weight: 500; margin-bottom: 10px;">
       Click a unit on the map or enter coordinates.
     </div>
 
@@ -120,7 +121,7 @@
     </div>
 
     <div class="coord-box">
-      <div style="font-size: 10px; font-weight: bold; color: #555;">Coordinates:</div>
+      <div style="font-size: 11px; font-weight: bold; color: #555;">Coordinates:</div>
       <input type="text" id="coordInput" placeholder="Coordinates (e.g. 39.59, -106.43)">
     </div>
 
@@ -167,15 +168,15 @@
     </div>
 
     <button id="calcBtn" onclick="runSmokeScreening()">Run Smoke Model</button>
-  </div>
 
-      <div class="time-warning-banner">
+    <div class="time-warning-banner">
       ⏱️ <strong>Processing takes 1–3 minutes. Please wait.</strong>
     </div>
+  </div>
 
   <!-- Screening Metrics -->
   <div id="results-box" class="data-box" style="display:none;">
-    <div style="font-weight:bold; color:#0078d4; margin-bottom:4px;" id="results-header">NWCG Smoke Screening Summary (PMS 420-3)</div>
+    <div style="font-weight:bold; color:#0078d4; margin-bottom:6px; font-size:14px;" id="results-header">Smoke Model Summary (PMS 420-3)</div>
     <div class="data-grid">
       <div class="data-item"><div class="label">Transport Wind</div><div class="val" id="res-twind">--</div></div>
       <div class="data-item"><div class="label">Day Drift Direction</div><div class="val" id="res-heading">--</div></div>
@@ -185,8 +186,8 @@
       <div class="data-item"><div class="label">Night Reach</div><div class="val" id="res-drainage-dist">--</div></div>
     </div>
     
-    <div style="margin-top:8px; display:flex; align-items:center; gap:8px;">
-      <span style="font-size:10px; font-weight:bold; text-transform:uppercase; color:#555;">Model Confidence:</span>
+    <div style="margin-top:10px; display:flex; align-items:center; gap:8px;">
+      <span style="font-size:11px; font-weight:bold; text-transform:uppercase; color:#555;">Model Confidence:</span>
       <span id="res-confidence" class="confidence-tag">--</span>
     </div>
   </div>
@@ -277,7 +278,7 @@
     let currentRings = null;
     let isUploadedUnit = false;
     let unitDataInitialLoaded = false;
-    let activeUnitLabel = sanitizeUnitName(rawUnit ? decodeURIComponent(rawUnit) : null) || 'Smoke Screening';
+    let activeUnitLabel = sanitizeUnitName(rawUnit ? decodeURIComponent(rawUnit) : null) || 'Smoke Model';
     document.getElementById('unit-title').innerText = activeUnitLabel;
 
     let currentLocalBbox = null;
@@ -506,7 +507,7 @@
 
       calcBtn.disabled = true;
       calcBtn.classList.add('running');
-      calcBtn.innerText = "1/3 Fetching NWS Winds...";
+      calcBtn.innerText = "⏳ 1/3 Fetching NWS Winds...";
 
       const { lat, lon } = coords;
       const dateStr = document.getElementById('ignDate').value;
@@ -521,7 +522,7 @@
         if (!pointRes.ok) throw new Error("Could not reach NWS point endpoint.");
         const pointData = await pointRes.json();
 
-        calcBtn.innerText = "2/3 Tracing Drainages...";
+        calcBtn.innerText = "⏳ 2/3 Tracing Drainages...";
         const [gridRes, drainageInfo] = await Promise.all([
           fetch(pointData.properties.forecastGridData),
           fetchDownstreamDrainageVector(lat, lon)
@@ -579,7 +580,7 @@
           latestConfidenceInfo = { text: "High (Consistent Winds)", color: "#28a745" };
         }
 
-        calcBtn.innerText = "3/3 Building Maps...";
+        calcBtn.innerText = "⏳ 3/3 Building Maps...";
 
         document.getElementById('res-twind').innerText = `${twSpeedMph} mph @ ${twDirDeg}°`;
         document.getElementById('res-heading').innerText = `${downwindBearing}° (${getCompass(downwindBearing)})`;
@@ -609,7 +610,7 @@
       } finally {
         calcBtn.disabled = false;
         calcBtn.classList.remove('running');
-        calcBtn.innerText = "Run Smoke Screening";
+        calcBtn.innerText = "Run Smoke Model";
       }
     }
 
@@ -821,27 +822,27 @@
         <!DOCTYPE html>
         <html>
         <head>
-          <title>${title} - Smoke Screening Model Summary</title>
+          <title>${title} - Smoke Model Summary</title>
           <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color: #333; max-width: 800px; margin: 0 auto; }
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color: #333; max-width: 800px; margin: 0 auto; font-size: 13px; }
             h2 { margin: 0 0 4px 0; color: #0078d4; }
-            .meta { font-size: 11px; color: #555; margin-bottom: 12px; border-bottom: 2px solid #0078d4; padding-bottom: 6px; }
-            .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 10px; border-radius: 4px; margin-bottom: 12px; }
-            .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-top: 6px; }
-            .data-item { background: white; padding: 6px 8px; border-radius: 4px; border: 1px solid #d0e1f9; }
-            .data-item .label { font-size: 9px; color: #555; text-transform: uppercase; font-weight: bold; }
-            .data-item .val { font-size: 13px; font-weight: bold; color: #0078d4; margin-top: 2px; }
-            .confidence-tag { display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 11px; font-weight: bold; color: white; margin-top: 2px; }
-            .alert-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; border-radius: 4px; margin-bottom: 12px; font-size: 11px; color: #856404; }
-            .legend-bar { display: flex; flex-wrap: wrap; gap: 12px; background: #f8fafc; padding: 6px 10px; border-radius: 4px; font-size: 10px; font-weight: 600; color: #444; margin-bottom: 12px; border: 1px solid #e2e8f0; }
-            .legend-item { display: flex; align-items: center; gap: 5px; }
-            .legend-color { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+            .meta { font-size: 12px; color: #555; margin-bottom: 12px; border-bottom: 2px solid #0078d4; padding-bottom: 6px; }
+            .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 12px; border-radius: 4px; margin-bottom: 12px; }
+            .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-top: 8px; }
+            .data-item { background: white; padding: 8px 10px; border-radius: 4px; border: 1px solid #d0e1f9; }
+            .data-item .label { font-size: 10px; color: #555; text-transform: uppercase; font-weight: bold; }
+            .data-item .val { font-size: 14px; font-weight: bold; color: #0078d4; margin-top: 3px; }
+            .confidence-tag { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 12px; font-weight: bold; color: white; margin-top: 2px; }
+            .alert-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; border-radius: 4px; margin-bottom: 12px; font-size: 13px; color: #856404; }
+            .legend-bar { display: flex; flex-wrap: wrap; gap: 12px; background: #f8fafc; padding: 8px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; color: #444; margin-bottom: 12px; border: 1px solid #e2e8f0; }
+            .legend-item { display: flex; align-items: center; gap: 6px; }
+            .legend-color { width: 14px; height: 14px; border-radius: 2px; display: inline-block; }
             .map-card { page-break-inside: avoid; margin-bottom: 18px; text-align: center; }
-            .map-card-title { font-size: 12px; font-weight: bold; text-align: left; text-transform: uppercase; color: #444; margin-bottom: 4px; }
+            .map-card-title { font-size: 13px; font-weight: bold; text-align: left; text-transform: uppercase; color: #444; margin-bottom: 6px; }
             .map-wrapper { position: relative; width: 100%; max-width: 600px; margin: 0 auto; }
             .map-wrapper img.base { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px; display: block; }
             .map-wrapper img.wui { position: absolute; top:0; left:0; width: 100%; height: 100%; }
-            .disclaimer-report { font-size: 11px; color: #333; line-height: 1.4; border-top: 1px solid #ddd; padding-top: 8px; margin-top: 14px; font-style: normal; }
+            .disclaimer-report { font-size: 12px; color: #333; line-height: 1.5; border-top: 1px solid #ddd; padding-top: 8px; margin-top: 14px; font-style: normal; }
             @media print { body { padding: 0; } .map-card { page-break-inside: avoid; } }
           </style>
         </head>
@@ -851,7 +852,7 @@
 
           ${incParams ? `
             <div class="data-box">
-              <strong style="color:#0078d4; font-size:11px; text-transform:uppercase;">Prescription Parameters</strong>
+              <strong style="color:#0078d4; font-size:12px; text-transform:uppercase;">Prescription Parameters</strong>
               <div class="data-grid">
                 <div class="data-item"><div class="label">Date / Time</div><div class="val">${dateVal} @${timeVal}</div></div>
                 <div class="data-item"><div class="label">Duration</div><div class="val">${durVal} Hours</div></div>
@@ -930,7 +931,7 @@
           isUploadedUnit = false;
           const geom = payload.rings || payload.geometry?.rings || payload.geojson;
           currentRings = Array.isArray(geom[0]?.[0]) ? geom : [geom];
-          activeUnitLabel = sanitizeUnitName(payload.unit || payload.name) || 'Smoke Screening';
+          activeUnitLabel = sanitizeUnitName(payload.unit || payload.name) || 'Smoke Model';
           document.getElementById('unit-title').innerText = activeUnitLabel;
           cachedCoords = calculateRingsCentroid(currentRings);
           if (cachedCoords) {
