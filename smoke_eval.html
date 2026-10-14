@@ -198,7 +198,7 @@
 
   <!-- Model Results Card -->
   <div id="results-box" class="data-box" style="display:none;">
-    <!-- Single Top Smoke Summary -->
+    <!-- Single Top Smoke Summary in App -->
     <div class="summary-card">
       <div class="summary-title">Smoke Summary</div>
       <div id="smoke-summary-text">--</div>
@@ -967,6 +967,19 @@
       const typeVal = document.getElementById('burnType').selectedOptions[0].text;
       const sizeVal = document.getElementById('burnSize').value;
 
+      const twindVal = document.getElementById('res-twind').innerText;
+      const headingVal = document.getElementById('res-heading').innerText;
+      const distVal = document.getElementById('res-dist').innerText;
+      const mixVal = document.getElementById('res-mix').innerText;
+      const viVal = document.getElementById('res-vi').innerText;
+      const drainageVal = document.getElementById('res-drainage').innerText;
+      const drainageDistVal = document.getElementById('res-drainage-dist').innerText;
+      const confVal = document.getElementById('res-confidence').innerText;
+
+      const showInversion = document.getElementById('inversion-alert').style.display !== 'none';
+      const invMixVal = document.getElementById('inv-mix-val').innerText;
+      const showDrainage = document.getElementById('drainage-alert').style.display !== 'none';
+
       const satUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${currentLocalBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
       const topoUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentLocalBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
       const regUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentRegionalBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
@@ -982,29 +995,82 @@
         <head>
           <title>${title} - Smoke Model Summary</title>
           <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color: #333; max-width: 800px; margin: 0 auto; font-size: 13px; }
-            h2 { margin: 0 0 4px 0; color: #0078d4; }
-            .meta { font-size: 12px; color: #555; margin-bottom: 12px; border-bottom: 2px solid #0078d4; padding-bottom: 6px; }
-            .summary-box { background: #f0f7fc; border-left: 4px solid #0078d4; padding: 12px 14px; border-radius: 4px; margin-bottom: 14px; font-size: 13px; line-height: 1.5; }
-            .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 12px; border-radius: 4px; margin-bottom: 12px; }
-            .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 10px; margin-top: 8px; }
-            .data-item { background: white; padding: 8px 10px; border-radius: 4px; border: 1px solid #d0e1f9; }
-            .data-item .label { font-size: 10px; color: #555; text-transform: uppercase; font-weight: bold; }
-            .data-item .val { font-size: 14px; font-weight: bold; color: #0078d4; margin-top: 3px; }
-            .confidence-tag { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 12px; font-weight: bold; color: white; margin-top: 2px; }
-            .alert-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; border-radius: 4px; margin-bottom: 12px; font-size: 13px; color: #856404; }
-            .legend-bar { display: flex; flex-wrap: wrap; gap: 12px; background: #f8fafc; padding: 8px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; color: #444; margin-bottom: 12px; border: 1px solid #e2e8f0; }
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color: #222; max-width: 800px; margin: 0 auto; font-size: 13px; }
+            h2 { margin: 0 0 4px 0; color: #111; font-size: 20px; }
+            .meta { font-size: 12px; color: #555; margin-bottom: 14px; border-bottom: 2px solid #222; padding-bottom: 6px; }
+            
+            .report-section-title {
+              font-size: 11px;
+              font-weight: bold;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              color: #111;
+              border-bottom: 1px solid #444;
+              padding-bottom: 3px;
+              margin-top: 14px;
+              margin-bottom: 8px;
+            }
+
+            .summary-text {
+              font-size: 13px;
+              line-height: 1.5;
+              color: #222;
+              margin-bottom: 14px;
+            }
+
+            .classic-text-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+              gap: 12px;
+              margin-bottom: 14px;
+            }
+            .classic-text-item .lbl {
+              font-size: 10px;
+              color: #666;
+              text-transform: uppercase;
+              font-weight: 600;
+              display: block;
+            }
+            .classic-text-item .val {
+              font-size: 13px;
+              font-weight: bold;
+              color: #111;
+              margin-top: 2px;
+            }
+
+            .notice-note {
+              border-left: 3px solid #666;
+              padding: 6px 10px;
+              margin: 10px 0;
+              font-size: 12px;
+              background: #fafafa;
+              color: #333;
+            }
+
+            .legend-bar {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 12px;
+              background: #fafafa;
+              border: 1px solid #ccc;
+              padding: 8px 12px;
+              font-size: 11px;
+              font-weight: 600;
+              color: #333;
+              margin-bottom: 16px;
+            }
             .legend-item { display: flex; align-items: center; gap: 6px; }
             .legend-color { width: 14px; height: 14px; border-radius: 2px; display: inline-block; }
             .legend-line { width: 18px; height: 0px; border-top: 2px dashed #b34700; display: inline-block; }
+
             .map-card { page-break-inside: avoid; margin-bottom: 18px; text-align: center; }
-            .map-card-title { font-size: 13px; font-weight: bold; text-align: left; text-transform: uppercase; color: #444; margin-bottom: 6px; }
+            .map-card-title { font-size: 12px; font-weight: bold; text-align: left; text-transform: uppercase; color: #111; margin-bottom: 6px; }
             .map-wrapper { position: relative; width: 100%; max-width: 600px; margin: 0 auto; }
             .map-wrapper img.base { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px; display: block; }
             .map-wrapper img.wui { position: absolute; top:0; left:0; width: 100%; height: 100%; }
             .map-wrapper img.class1 { position: absolute; top:0; left:0; width: 100%; height: 100%; pointer-events: none; }
-            .disclaimer-report { font-size: 12px; color: #333; line-height: 1.5; border-top: 1px solid #ddd; padding-top: 8px; margin-top: 14px; font-style: normal; }
-            @media print { body { padding: 0; } .map-card { page-break-inside: avoid; } }
+            .disclaimer-report { font-size: 11px; color: #555; line-height: 1.5; border-top: 1px solid #ccc; padding-top: 8px; margin-top: 14px; }
+            @media print { body { padding: 0; } }
           </style>
         </head>
         <body>
@@ -1012,26 +1078,44 @@
           <div class="meta">${statusText} | Generated: ${new Date().toLocaleString()}</div>
 
           <!-- Single Top Smoke Summary -->
-          <div class="summary-box">
-            <strong style="color:#0078d4; text-transform:uppercase; font-size:12px; display:block; margin-bottom:4px;">Smoke Summary</strong>
-            ${latestUnifiedSmokeSummary}
-          </div>
+          <div class="report-section-title">Smoke Summary</div>
+          <div class="summary-text">${latestUnifiedSmokeSummary}</div>
 
           ${incParams ? `
-            <div class="data-box">
-              <strong style="color:#0078d4; font-size:12px; text-transform:uppercase;">Prescription Parameters</strong>
-              <div class="data-grid">
-                <div class="data-item"><div class="label">Date / Time</div><div class="val">${dateVal} @${timeVal}</div></div>
-                <div class="data-item"><div class="label">Duration</div><div class="val">${durVal} Hours</div></div>
-                <div class="data-item"><div class="label">Burn Type</div><div class="val">${typeVal}</div></div>
-                <div class="data-item"><div class="label">Size</div><div class="val">${sizeVal}${typeVal.includes('Piles') ? 'Piles' : 'Acres'}</div></div>
-              </div>
+            <div class="report-section-title">Prescription Parameters</div>
+            <div class="classic-text-grid">
+              <div class="classic-text-item"><span class="lbl">Date / Time</span><span class="val">${dateVal} @${timeVal}</span></div>
+              <div class="classic-text-item"><span class="lbl">Duration</span><span class="val">${durVal} Hours</span></div>
+              <div class="classic-text-item"><span class="lbl">Burn Type</span><span class="val">${typeVal}</span></div>
+              <div class="classic-text-item"><span class="lbl">Size</span><span class="val">${sizeVal}${typeVal.includes('Piles') ? 'Piles' : 'Acres'}</span></div>
             </div>
           ` : ''}
 
-          ${(incDay || incNight) ? document.getElementById('results-box').outerHTML : ''}
-          ${document.getElementById('inversion-alert').style.display !== 'none' ? document.getElementById('inversion-alert').outerHTML : ''}
-          ${incNight && document.getElementById('drainage-alert').style.display !== 'none' ? document.getElementById('drainage-alert').outerHTML : ''}
+          ${(incDay || incNight) ? `
+            <div class="report-section-title">Smoke Model Metrics</div>
+            <div class="classic-text-grid">
+              ${incDay ? `<div class="classic-text-item"><span class="lbl">Transport Wind</span><span class="val">${twindVal}</span></div>` : ''}
+              ${incDay ? `<div class="classic-text-item"><span class="lbl">Daytime Plume Direction</span><span class="val">${headingVal}</span></div>` : ''}
+              ${incDay ? `<div class="classic-text-item"><span class="lbl">Daytime Plume Distance</span><span class="val">${distVal}</span></div>` : ''}
+              ${incDay ? `<div class="classic-text-item"><span class="lbl">Mixing Height</span><span class="val">${mixVal}</span></div>` : ''}
+              ${incDay ? `<div class="classic-text-item"><span class="lbl">Ventilation Index</span><span class="val">${viVal}</span></div>` : ''}
+              ${incNight ? `<div class="classic-text-item"><span class="lbl">Night Drainage Direction</span><span class="val">${drainageVal}</span></div>` : ''}
+              ${incNight ? `<div class="classic-text-item"><span class="lbl">Night Drainage Distance</span><span class="val">${drainageDistVal}</span></div>` : ''}
+              <div class="classic-text-item"><span class="lbl">Model Confidence</span><span class="val">${confVal}</span></div>
+            </div>
+          ` : ''}
+
+          ${showInversion ? `
+            <div class="notice-note">
+              <strong>Morning Inversion Advisory:</strong> Mixing height may start low (${invMixVal} ft). Smoke may stay near the ground until surface heating breaks the inversion.
+            </div>
+          ` : ''}
+
+          ${(incNight && showDrainage) ? `
+            <div class="notice-note">
+              <strong>Overnight Smoke Advisory:</strong> Smoke may drain down <strong>${latestDrainageName}</strong>. Check downstream valley bottoms for potential pooling.
+            </div>
+          ` : ''}
 
           <div class="legend-bar">
             <div class="legend-item"><span class="legend-color" style="background:rgba(255, 140, 0, 0.5); border:1px solid #ff8c00;"></span> Daytime Plume Wedge</div>
