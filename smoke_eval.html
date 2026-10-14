@@ -47,21 +47,30 @@
     button.export-btn:hover { background: #218838; }
 
     .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 12px; border-radius: 4px; margin-top: 12px; font-size: 13px; }
+    
+    .summary-card {
+      background: white;
+      border: 1px solid #b6dcfb;
+      border-radius: 4px;
+      padding: 12px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #222;
+    }
+    .summary-title {
+      font-size: 12px;
+      font-weight: bold;
+      color: #0078d4;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
     .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 10px; margin-top: 8px; }
     .data-item { background: white; padding: 8px 10px; border-radius: 4px; border: 1px solid #d0e1f9; }
     .data-item .label { font-size: 11px; color: #555; text-transform: uppercase; font-weight: bold; }
     .data-item .val { font-size: 14px; font-weight: bold; color: #0078d4; margin-top: 3px; }
-
-    .sweep-notes-box {
-      background: white;
-      border: 1px solid #b6dcfb;
-      border-radius: 4px;
-      padding: 10px 12px;
-      margin-top: 10px;
-      font-size: 12px;
-      line-height: 1.5;
-      color: #333;
-    }
 
     .confidence-tag { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 12px; font-weight: bold; color: white; margin-top: 2px; }
 
@@ -187,10 +196,14 @@
     </div>
   </div>
 
-  <!-- Model Metrics & Operational Notes -->
+  <!-- Model Results Card -->
   <div id="results-box" class="data-box" style="display:none;">
-    <div style="font-weight:bold; color:#0078d4; margin-bottom:6px; font-size:14px;" id="results-header">NWCG Smoke Model Summary (PMS 420-3)</div>
-    
+    <!-- Single Top Smoke Summary -->
+    <div class="summary-card">
+      <div class="summary-title">Smoke Summary</div>
+      <div id="smoke-summary-text">--</div>
+    </div>
+
     <div class="data-grid">
       <div class="data-item"><div class="label">Transport Wind</div><div class="val" id="res-twind">--</div></div>
       <div class="data-item"><div class="label">Daytime Plume Direction</div><div class="val" id="res-heading">--</div></div>
@@ -199,12 +212,6 @@
       <div class="data-item"><div class="label">Ventilation Index</div><div class="val" id="res-vi">--</div></div>
       <div class="data-item"><div class="label">Night Drainage Direction</div><div class="val" id="res-drainage">--</div></div>
       <div class="data-item"><div class="label">Night Drainage Distance</div><div class="val" id="res-drainage-dist">--</div></div>
-    </div>
-
-    <!-- Structured Operational Sweep Breakdown -->
-    <div class="sweep-notes-box" id="sweep-notes-box">
-      <strong>Plume Progression & Wind Sweep:</strong>
-      <div id="sweep-notes-text" style="margin-top:4px;">--</div>
     </div>
     
     <div style="margin-top:10px; display:flex; align-items:center; gap:8px;">
@@ -240,17 +247,20 @@
       <div class="legend-item"><span class="legend-color" style="background:rgba(40, 85, 121, 0.5); border:1px solid #1d3d57;"></span> Night Drainage Corridor</div>
       <div class="legend-item"><span class="legend-color" style="background:rgba(0, 255, 255, 0.5); border:1px solid #00ffff;"></span> Unit Boundary</div>
       <div class="legend-item"><span class="legend-color" style="background:#8fa9c4; border-radius:50%;"></span> WUI Density</div>
+      <div class="legend-item" id="legClass1" style="display:none;"><span class="legend-color" style="background:rgba(46, 117, 89, 0.45); border:1px solid #1e523e;"></span> Class I Areas</div>
     </div>
 
     <div class="layer-toggles-row">
       <label><input type="checkbox" id="chkDay" onchange="renderSvgOverlays()" checked> Daytime Plume</label>
       <label><input type="checkbox" id="chkNight" onchange="renderSvgOverlays()" checked> Night Drainage</label>
       <label><input type="checkbox" id="chkWui" onchange="toggleWuiOverlay()" checked> WUI Density</label>
+      <label id="lblClass1" style="display:none;"><input type="checkbox" id="chkClass1" onchange="toggleClass1Overlay()" checked> Class I Air Areas</label>
     </div>
 
     <div style="position:relative; display:inline-block; width:100%;">
       <img id="map-img-base" class="base-layer" src="" alt="Base Map Imagery">
       <img id="map-img-wui" class="overlay-layer" src="" alt="WUI Overlay" style="display:none;">
+      <img id="map-img-class1" class="overlay-layer" src="" alt="Class I Areas Overlay" style="display:none;">
       
       <svg id="map-svg" viewBox="0 0 600 400" preserveAspectRatio="none">
         <path id="svg-night-corridor" d="" fill="rgba(40, 85, 121, 0.4)" stroke="#1d3d57" stroke-width="2" stroke-dasharray="4,3" />
@@ -277,7 +287,7 @@
         <div class="modal-section-title">Include Map Views</div>
         <label><input type="checkbox" id="pdfIncSat" checked> Satellite View</label>
         <label><input type="checkbox" id="pdfIncTopo" checked> Topographic View</label>
-        <label><input type="checkbox" id="pdfIncReg" checked> Regional Airshed Overview (30–50 mi)</label>
+        <label><input type="checkbox" id="pdfIncReg" checked> Regional Airshed Overview (30 to 50 mi with Class I Areas)</label>
       </div>
 
       <div class="modal-section">
@@ -321,7 +331,7 @@
     let latestScreeningDist = 5;
     let latestNightDist = 4.5;
     let latestConfidenceInfo = { text: "High (Consistent winds)", color: "#28a745" };
-    let latestOperationalSummary = "";
+    let latestUnifiedSmokeSummary = "";
 
     document.getElementById('ignDate').value = new Date().toISOString().split('T')[0];
 
@@ -653,29 +663,29 @@
         if (windShiftSpread > 30) {
           latestConfidenceInfo = { text: `Low (Winds shift ${windShiftSpread}° over window)`, color: "#d97706" };
         } else if (twSpeedMph < 9) {
-          latestConfidenceInfo = { text: "Low (Light & variable winds < 9 mph)", color: "#d97706" };
+          latestConfidenceInfo = { text: "Low (Light and variable winds < 9 mph)", color: "#d97706" };
         } else if (twSpeedMph > 25) {
           latestConfidenceInfo = { text: "Moderate (High winds > 25 mph)", color: "#2563eb" };
         } else if (viCategory === "Poor") {
           latestConfidenceInfo = { text: "Moderate (Poor air clearing)", color: "#2563eb" };
         } else {
-          latestConfidenceInfo = { text: "High (Consistent winds & good lift)", color: "#28a745" };
+          latestConfidenceInfo = { text: "High (Consistent winds and good lift)", color: "#28a745" };
         }
 
-        // Detailed Sweep Breakdown Note
+        // Build Single Unified Smoke Summary
         const firstRec = hourlyRecords[0];
         const lastRec = hourlyRecords[hourlyRecords.length - 1];
-        let sweepText = "";
+        let windShiftText = "";
 
         if (windShiftSpread <= 15) {
-          sweepText = `Winds remain steady across the ${durationHours}-hour window. Plume carries toward ${firstRec.downwind}° (${getCompass(firstRec.downwind)}) at ${firstRec.speedMph} mph. The standard 40° NWCG dispersion cone remains centered along this corridor out to ${screeningDistanceMiles} miles.`;
+          windShiftText = `Winds remain steady across the ${durationHours}-hour window, carrying toward ${firstRec.downwind}° (${getCompass(firstRec.downwind)}) at ${firstRec.speedMph} mph. The 40° dispersion cone extends along this heading to ${screeningDistanceMiles} miles.`;
         } else {
-          sweepText = `Plume initiates toward ${firstRec.downwind}° (${getCompass(firstRec.downwind)}) at ${firstRec.timeLabel} (${firstRec.speedMph} mph) and shifts to ${lastRec.downwind}° (${getCompass(lastRec.downwind)}) by ${lastRec.timeLabel} (${lastRec.speedMph} mph)—a total shift of ${windShiftSpread}°. The standard 40° NWCG cone is expanded to an ${coneSpread}° cumulative screening envelope to identify all potentially impacted receptors across the duration.`;
+          windShiftText = `Plume initiates toward ${firstRec.downwind}° (${getCompass(firstRec.downwind)}) at ${firstRec.timeLabel} (${firstRec.speedMph} mph) and shifts to ${lastRec.downwind}° (${getCompass(lastRec.downwind)}) by ${lastRec.timeLabel} (${lastRec.speedMph} mph), a shift of ${windShiftSpread}°. The cone expands to an ${coneSpread}° cumulative sweep to cover all potential downwind receptors.`;
         }
-        document.getElementById('sweep-notes-text').innerText = sweepText;
 
-        // Executive Operational Summary for PDF
-        latestOperationalSummary = `During the planned ${durationHours}-hour ignition on ${dateStr} (starting ${timeStr}), transport winds average ${twSpeedMph} mph from ${twDirDeg}° (${getCompass(twDirDeg)}) with mixing heights of ${mixHeightFt.toLocaleString()} ft (Ventilation: ${viCategory}). ${sweepText} Nocturnal settling may carry residual smoke up to ${latestNightDist} miles down ${latestDrainageName}.`;
+        latestUnifiedSmokeSummary = `Planned ${durationHours}-hour ignition on ${dateStr} starting at ${timeStr}. Transport winds average ${twSpeedMph} mph from ${twDirDeg}° (${getCompass(twDirDeg)}) with mixing heights of ${mixHeightFt.toLocaleString()} ft (Ventilation: ${viCategory}). ${windShiftText} Nocturnal settling may carry residual smoke up to ${latestNightDist} miles down ${latestDrainageName}.`;
+
+        document.getElementById('smoke-summary-text').innerText = latestUnifiedSmokeSummary;
 
         calcBtn.innerText = "Processing (3/3: Building Maps)...";
 
@@ -771,6 +781,11 @@
       document.getElementById('btnSat').classList.toggle('active', type === 'sat');
       document.getElementById('btnTopo').classList.toggle('active', type === 'topo');
       document.getElementById('btnReg').classList.toggle('active', type === 'reg');
+      
+      const isRegional = type === 'reg';
+      document.getElementById('lblClass1').style.display = isRegional ? 'flex' : 'none';
+      document.getElementById('legClass1').style.display = isRegional ? 'flex' : 'none';
+
       updateBasemapImage();
       renderSvgOverlays();
     }
@@ -791,6 +806,7 @@
 
       baseImg.src = serviceUrl;
       toggleWuiOverlay();
+      toggleClass1Overlay();
       document.getElementById('map-preview').style.display = 'block';
     }
 
@@ -815,6 +831,21 @@
         wuiImg.style.display = 'block';
       } else {
         wuiImg.style.display = 'none';
+      }
+    }
+
+    function toggleClass1Overlay() {
+      const class1Img = document.getElementById('map-img-class1');
+      const isRegional = currentBasemapType === 'reg';
+      const chk = document.getElementById('chkClass1').checked;
+
+      if (isRegional && chk && currentRegionalBbox) {
+        class1Img.src = `https://apps.fs.usda.gov/ArcX/rest/services/EDW/EDW_WildernessStatus_01/MapServer/export?bbox=${currentRegionalBbox}&bboxSR=4326&imageSR=4326&size=600,400&layers=show:0&f=image&format=png32&transparent=true`;
+        class1Img.style.opacity = '0.45';
+        class1Img.style.display = 'block';
+        class1Img.onerror = function() { class1Img.style.display = 'none'; };
+      } else {
+        class1Img.style.display = 'none';
       }
     }
 
@@ -940,6 +971,7 @@
       const topoUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentLocalBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
       const regUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentRegionalBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
       const wuiLocalUrl = `https://imagery.geoplatform.gov/iipp/rest/services/Fire_Aviation/USFS_EDW_RMRS_WRC_HousingUnitDensity/ImageServer/exportImage?bbox=${currentLocalBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image&format=png32&transparent=true`;
+      const class1RegionalUrl = `https://apps.fs.usda.gov/ArcX/rest/services/EDW/EDW_WildernessStatus_01/MapServer/export?bbox=${currentRegionalBbox}&bboxSR=4326&imageSR=4326&size=600,400&layers=show:0&f=image&format=png32&transparent=true`;
 
       const localSvgHtml = getSvgStringForBbox(currentLocalBbox, incDay, incNight);
       const regionalSvgHtml = getSvgStringForBbox(currentRegionalBbox, incDay, incNight);
@@ -970,6 +1002,7 @@
             .map-wrapper { position: relative; width: 100%; max-width: 600px; margin: 0 auto; }
             .map-wrapper img.base { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px; display: block; }
             .map-wrapper img.wui { position: absolute; top:0; left:0; width: 100%; height: 100%; }
+            .map-wrapper img.class1 { position: absolute; top:0; left:0; width: 100%; height: 100%; pointer-events: none; }
             .disclaimer-report { font-size: 12px; color: #333; line-height: 1.5; border-top: 1px solid #ddd; padding-top: 8px; margin-top: 14px; font-style: normal; }
             @media print { body { padding: 0; } .map-card { page-break-inside: avoid; } }
           </style>
@@ -978,10 +1011,10 @@
           <h2>${title}</h2>
           <div class="meta">${statusText} | Generated: ${new Date().toLocaleString()}</div>
 
-          <!-- Executive Summary Section at Top -->
+          <!-- Single Top Smoke Summary -->
           <div class="summary-box">
-            <strong style="color:#0078d4; text-transform:uppercase; font-size:12px; display:block; margin-bottom:4px;">Operational Briefing Summary (Element 13)</strong>
-            ${latestOperationalSummary}
+            <strong style="color:#0078d4; text-transform:uppercase; font-size:12px; display:block; margin-bottom:4px;">Smoke Summary</strong>
+            ${latestUnifiedSmokeSummary}
           </div>
 
           ${incParams ? `
@@ -1006,6 +1039,7 @@
             <div class="legend-item"><span class="legend-color" style="background:rgba(40, 85, 121, 0.5); border:1px solid #1d3d57;"></span> Night Drainage Corridor</div>
             <div class="legend-item"><span class="legend-color" style="background:rgba(0, 255, 255, 0.5); border:1px solid #00ffff;"></span> Unit Boundary</div>
             <div class="legend-item"><span class="legend-color" style="background:#8fa9c4; border-radius:50%;"></span> WUI Density</div>
+            <div class="legend-item"><span class="legend-color" style="background:rgba(46, 117, 89, 0.45); border:1px solid #1e523e;"></span> Class I Areas</div>
           </div>
 
           ${incSat ? `
@@ -1032,9 +1066,10 @@
 
           ${incReg ? `
             <div class="map-card">
-              <div class="map-card-title">3. Regional Overview (30–50 mi)</div>
+              <div class="map-card-title">3. Regional Airshed Overview (30 to 50 mi with Class I Areas)</div>
               <div class="map-wrapper">
                 <img class="base" src="${regUrl}">
+                <img class="class1" src="${class1RegionalUrl}" style="opacity:0.45;" onerror="this.style.display='none';">
                 ${regionalSvgHtml}
               </div>
             </div>
