@@ -52,6 +52,17 @@
     .data-item .label { font-size: 11px; color: #555; text-transform: uppercase; font-weight: bold; }
     .data-item .val { font-size: 14px; font-weight: bold; color: #0078d4; margin-top: 3px; }
 
+    .sweep-notes-box {
+      background: white;
+      border: 1px solid #b6dcfb;
+      border-radius: 4px;
+      padding: 10px 12px;
+      margin-top: 10px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #333;
+    }
+
     .confidence-tag { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 12px; font-weight: bold; color: white; margin-top: 2px; }
 
     .alert-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; border-radius: 4px; margin-top: 10px; font-size: 13px; color: #856404; }
@@ -80,6 +91,7 @@
     }
     .legend-item { display: flex; align-items: center; gap: 5px; }
     .legend-color { width: 14px; height: 14px; border-radius: 2px; display: inline-block; }
+    .legend-line { width: 18px; height: 0px; border-top: 2px dashed #b34700; display: inline-block; }
 
     .map-container { position: relative; width: 100%; max-width: 600px; margin: 14px auto; display: none; text-align: center; }
     .map-container img.base-layer { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; display: block; }
@@ -175,9 +187,10 @@
     </div>
   </div>
 
-  <!-- Model Metrics -->
+  <!-- Model Metrics & Operational Notes -->
   <div id="results-box" class="data-box" style="display:none;">
     <div style="font-weight:bold; color:#0078d4; margin-bottom:6px; font-size:14px;" id="results-header">NWCG Smoke Model Summary (PMS 420-3)</div>
+    
     <div class="data-grid">
       <div class="data-item"><div class="label">Transport Wind</div><div class="val" id="res-twind">--</div></div>
       <div class="data-item"><div class="label">Daytime Plume Direction</div><div class="val" id="res-heading">--</div></div>
@@ -186,6 +199,12 @@
       <div class="data-item"><div class="label">Ventilation Index</div><div class="val" id="res-vi">--</div></div>
       <div class="data-item"><div class="label">Night Drainage Direction</div><div class="val" id="res-drainage">--</div></div>
       <div class="data-item"><div class="label">Night Drainage Distance</div><div class="val" id="res-drainage-dist">--</div></div>
+    </div>
+
+    <!-- Structured Operational Sweep Breakdown -->
+    <div class="sweep-notes-box" id="sweep-notes-box">
+      <strong>Plume Progression & Wind Sweep:</strong>
+      <div id="sweep-notes-text" style="margin-top:4px;">--</div>
     </div>
     
     <div style="margin-top:10px; display:flex; align-items:center; gap:8px;">
@@ -216,8 +235,9 @@
 
     <!-- Map Legend -->
     <div class="legend-bar">
-      <div class="legend-item"><span class="legend-color" style="background:rgba(255, 140, 0, 0.5); border:1px solid #ff8c00;"></span> Daytime Plume</div>
-      <div class="legend-item"><span class="legend-color" style="background:rgba(40, 85, 121, 0.5); border:1px solid #1d3d57;"></span> Night Drainage</div>
+      <div class="legend-item"><span class="legend-color" style="background:rgba(255, 140, 0, 0.5); border:1px solid #ff8c00;"></span> Daytime Plume Wedge</div>
+      <div class="legend-item"><span class="legend-line"></span> Hourly Trajectory</div>
+      <div class="legend-item"><span class="legend-color" style="background:rgba(40, 85, 121, 0.5); border:1px solid #1d3d57;"></span> Night Drainage Corridor</div>
       <div class="legend-item"><span class="legend-color" style="background:rgba(0, 255, 255, 0.5); border:1px solid #00ffff;"></span> Unit Boundary</div>
       <div class="legend-item"><span class="legend-color" style="background:#8fa9c4; border-radius:50%;"></span> WUI Density</div>
     </div>
@@ -235,6 +255,7 @@
       <svg id="map-svg" viewBox="0 0 600 400" preserveAspectRatio="none">
         <path id="svg-night-corridor" d="" fill="rgba(40, 85, 121, 0.4)" stroke="#1d3d57" stroke-width="2" stroke-dasharray="4,3" />
         <path id="svg-cone" d="" fill="rgba(255, 140, 0, 0.35)" stroke="#ff8c00" stroke-width="2.5" stroke-dasharray="5,3" />
+        <g id="svg-hourly-lines"></g>
         <path id="svg-polygon" d="" fill="rgba(0, 255, 255, 0.4)" stroke="#00ffff" stroke-width="2" />
         <circle id="svg-pin" cx="-50" cy="-50" r="7" fill="#ff0000" stroke="#ffffff" stroke-width="2" />
       </svg>
@@ -293,12 +314,14 @@
     let currentBasemapType = 'sat';
 
     let latestConeCoords = [];
+    let latestHourlyVectors = [];
     let latestNightCorridorCoords = [];
     let latestDrainageName = "Primary Downstream Drainage";
     let latestDrainageBearing = 180;
     let latestScreeningDist = 5;
     let latestNightDist = 4.5;
     let latestConfidenceInfo = { text: "High (Consistent winds)", color: "#28a745" };
+    let latestOperationalSummary = "";
 
     document.getElementById('ignDate').value = new Date().toISOString().split('T')[0];
 
@@ -538,7 +561,7 @@
         const twDirVals = gridData.properties?.transportWindDirection?.values || [];
         const mixVals = gridData.properties?.mixingHeight?.values || [];
 
-        let hourlyBearings = [];
+        let hourlyRecords = [];
         let sumSpeed = 0, sumMix = 0, count = 0;
         let firstHourMixFt = null;
 
@@ -550,8 +573,18 @@
 
           if (dirDeg !== null && spdKmh !== null) {
             const downwind = (dirDeg + 180) % 360;
-            hourlyBearings.push(downwind);
-            sumSpeed += (spdKmh * 0.621371);
+            const spdMph = Math.round(spdKmh * 0.621371);
+            const timeLabel = t.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            
+            hourlyRecords.push({
+              time: t,
+              timeLabel: timeLabel,
+              downwind: downwind,
+              inDirection: dirDeg,
+              speedMph: spdMph
+            });
+
+            sumSpeed += spdMph;
             if (mixM !== null) {
               const ft = mixM * 3.28084;
               sumMix += ft;
@@ -565,26 +598,7 @@
         let mixHeightFt = count ? Math.round(sumMix / count) : 4500;
         if (firstHourMixFt === null) firstHourMixFt = mixHeightFt;
 
-        // Calculate Wind Shift & Dynamic Plume Sweep
-        let refBearing = hourlyBearings[0] || 0;
-        let relativeAngles = hourlyBearings.map(b => ((b - refBearing + 540) % 360) - 180);
-        let minRel = Math.min(...relativeAngles);
-        let maxRel = Math.max(...relativeAngles);
-        let windShiftSpread = Math.round(maxRel - minRel);
-
-        let coneSpread = Math.max(40, windShiftSpread + 40);
-        let coneStartAngle = (refBearing + minRel - 20 + 360) % 360;
-        let meanBearing = Math.round((refBearing + (minRel + maxRel) / 2 + 360) % 360);
-        let twDirDeg = (meanBearing + 180) % 360;
-
-        // Ventilation Index: (Transport Wind in Knots) * (Mixing Height in Feet)
-        let twSpeedKts = twSpeedMph * 0.868976;
-        let vi = Math.round(twSpeedKts * mixHeightFt);
-        let viCategory = "Poor";
-        if (vi > 40000) viCategory = "Good";
-        else if (vi >= 20000) viCategory = "Fair";
-
-        // Model Distance
+        // Model Screening Distance
         let screeningDistanceMiles = 5;
         if (burnType === 'broadcast') {
           if (sizeVal < 50) screeningDistanceMiles = 3.5;
@@ -601,6 +615,37 @@
         latestDrainageName = drainageInfo.name;
         latestDrainageBearing = drainageInfo.bearing;
 
+        // Calculate Wind Shift & Dynamic Plume Sweep
+        let refBearing = hourlyRecords[0]?.downwind || 0;
+        let relativeAngles = hourlyRecords.map(r => ((r.downwind - refBearing + 540) % 360) - 180);
+        let minRel = Math.min(...relativeAngles);
+        let maxRel = Math.max(...relativeAngles);
+        let windShiftSpread = Math.round(maxRel - minRel);
+
+        let coneSpread = Math.max(40, windShiftSpread + 40);
+        let coneStartAngle = (refBearing + minRel - 20 + 360) % 360;
+        let meanBearing = Math.round((refBearing + (minRel + maxRel) / 2 + 360) % 360);
+        let twDirDeg = (meanBearing + 180) % 360;
+
+        // Build Hourly Centerline Trajectory Endpoints
+        latestHourlyVectors = hourlyRecords.map(r => {
+          const endPt = getDestinationPoint(lat, lon, screeningDistanceMiles, r.downwind);
+          return {
+            timeLabel: r.timeLabel,
+            downwind: r.downwind,
+            speedMph: r.speedMph,
+            lat: endPt.lat,
+            lon: endPt.lon
+          };
+        });
+
+        // Ventilation Index
+        let twSpeedKts = twSpeedMph * 0.868976;
+        let vi = Math.round(twSpeedKts * mixHeightFt);
+        let viCategory = "Poor";
+        if (vi > 40000) viCategory = "Good";
+        else if (vi >= 20000) viCategory = "Fair";
+
         latestConeCoords = generateDynamicSmokeCone(lat, lon, screeningDistanceMiles, coneStartAngle, coneSpread);
         latestNightCorridorCoords = generateDrainageRibbon(lat, lon, latestNightDist, latestDrainageBearing, 0.6);
 
@@ -616,6 +661,21 @@
         } else {
           latestConfidenceInfo = { text: "High (Consistent winds & good lift)", color: "#28a745" };
         }
+
+        // Detailed Sweep Breakdown Note
+        const firstRec = hourlyRecords[0];
+        const lastRec = hourlyRecords[hourlyRecords.length - 1];
+        let sweepText = "";
+
+        if (windShiftSpread <= 15) {
+          sweepText = `Winds remain steady across the ${durationHours}-hour window. Plume carries toward ${firstRec.downwind}° (${getCompass(firstRec.downwind)}) at ${firstRec.speedMph} mph. The standard 40° NWCG dispersion cone remains centered along this corridor out to ${screeningDistanceMiles} miles.`;
+        } else {
+          sweepText = `Plume initiates toward ${firstRec.downwind}° (${getCompass(firstRec.downwind)}) at ${firstRec.timeLabel} (${firstRec.speedMph} mph) and shifts to ${lastRec.downwind}° (${getCompass(lastRec.downwind)}) by ${lastRec.timeLabel} (${lastRec.speedMph} mph)—a total shift of ${windShiftSpread}°. The standard 40° NWCG cone is expanded to an ${coneSpread}° cumulative screening envelope to identify all potentially impacted receptors across the duration.`;
+        }
+        document.getElementById('sweep-notes-text').innerText = sweepText;
+
+        // Executive Operational Summary for PDF
+        latestOperationalSummary = `During the planned ${durationHours}-hour ignition on ${dateStr} (starting ${timeStr}), transport winds average ${twSpeedMph} mph from ${twDirDeg}° (${getCompass(twDirDeg)}) with mixing heights of ${mixHeightFt.toLocaleString()} ft (Ventilation: ${viCategory}). ${sweepText} Nocturnal settling may carry residual smoke up to ${latestNightDist} miles down ${latestDrainageName}.`;
 
         calcBtn.innerText = "Processing (3/3: Building Maps)...";
 
@@ -772,6 +832,23 @@
         conePath += 'Z';
       }
 
+      let hourlyLinesHtml = '';
+      if (showDay && latestHourlyVectors.length && cachedCoords) {
+        const x1 = (((cachedCoords.lon - minLon) / (maxLon - minLon)) * 600).toFixed(1);
+        const y1 = ((1 - (cachedCoords.lat - minLat) / (maxLat - minLat)) * 400).toFixed(1);
+
+        latestHourlyVectors.forEach(v => {
+          const x2 = (((v.lon - minLon) / (maxLon - minLon)) * 600).toFixed(1);
+          const y2 = ((1 - (v.lat - minLat) / (maxLat - minLat)) * 400).toFixed(1);
+          
+          hourlyLinesHtml += `
+            <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#b34700" stroke-width="1.8" stroke-dasharray="4,4" opacity="0.85" />
+            <circle cx="${x2}" cy="${y2}" r="3" fill="#b34700" />
+            <text x="${x2}" y="${parseFloat(y2) - 4}" fill="#7a3000" font-size="10" font-weight="bold" text-anchor="middle">${v.timeLabel}</text>
+          `;
+        });
+      }
+
       let nightPath = '';
       if (showNight && latestNightCorridorCoords.length) {
         latestNightCorridorCoords.forEach((pt, idx) => {
@@ -805,7 +882,8 @@
       return `
         <svg viewBox="0 0 600 400" preserveAspectRatio="none" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;">
           ${nightPath ? `<path d="${nightPath}" fill="rgba(40, 85, 121, 0.45)" stroke="#1d3d57" stroke-width="2" stroke-dasharray="4,3" />` : ''}
-          ${conePath ? `<path d="${conePath}" fill="rgba(255, 140, 0, 0.4)" stroke="#ff8c00" stroke-width="2.5" stroke-dasharray="5,3" />` : ''}
+          ${conePath ? `<path d="${conePath}" fill="rgba(255, 140, 0, 0.35)" stroke="#ff8c00" stroke-width="2.5" stroke-dasharray="5,3" />` : ''}
+          ${hourlyLinesHtml}
           ${unitPath ? `<path d="${unitPath}" fill="rgba(0, 255, 255, 0.5)" stroke="#00ffff" stroke-width="2" />` : ''}
           ${pinHtml}
         </svg>
@@ -875,6 +953,7 @@
             body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color: #333; max-width: 800px; margin: 0 auto; font-size: 13px; }
             h2 { margin: 0 0 4px 0; color: #0078d4; }
             .meta { font-size: 12px; color: #555; margin-bottom: 12px; border-bottom: 2px solid #0078d4; padding-bottom: 6px; }
+            .summary-box { background: #f0f7fc; border-left: 4px solid #0078d4; padding: 12px 14px; border-radius: 4px; margin-bottom: 14px; font-size: 13px; line-height: 1.5; }
             .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 12px; border-radius: 4px; margin-bottom: 12px; }
             .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 10px; margin-top: 8px; }
             .data-item { background: white; padding: 8px 10px; border-radius: 4px; border: 1px solid #d0e1f9; }
@@ -885,6 +964,7 @@
             .legend-bar { display: flex; flex-wrap: wrap; gap: 12px; background: #f8fafc; padding: 8px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; color: #444; margin-bottom: 12px; border: 1px solid #e2e8f0; }
             .legend-item { display: flex; align-items: center; gap: 6px; }
             .legend-color { width: 14px; height: 14px; border-radius: 2px; display: inline-block; }
+            .legend-line { width: 18px; height: 0px; border-top: 2px dashed #b34700; display: inline-block; }
             .map-card { page-break-inside: avoid; margin-bottom: 18px; text-align: center; }
             .map-card-title { font-size: 13px; font-weight: bold; text-align: left; text-transform: uppercase; color: #444; margin-bottom: 6px; }
             .map-wrapper { position: relative; width: 100%; max-width: 600px; margin: 0 auto; }
@@ -897,6 +977,12 @@
         <body>
           <h2>${title}</h2>
           <div class="meta">${statusText} | Generated: ${new Date().toLocaleString()}</div>
+
+          <!-- Executive Summary Section at Top -->
+          <div class="summary-box">
+            <strong style="color:#0078d4; text-transform:uppercase; font-size:12px; display:block; margin-bottom:4px;">Operational Briefing Summary (Element 13)</strong>
+            ${latestOperationalSummary}
+          </div>
 
           ${incParams ? `
             <div class="data-box">
@@ -915,8 +1001,9 @@
           ${incNight && document.getElementById('drainage-alert').style.display !== 'none' ? document.getElementById('drainage-alert').outerHTML : ''}
 
           <div class="legend-bar">
-            <div class="legend-item"><span class="legend-color" style="background:rgba(255, 140, 0, 0.5); border:1px solid #ff8c00;"></span> Daytime Plume</div>
-            <div class="legend-item"><span class="legend-color" style="background:rgba(40, 85, 121, 0.5); border:1px solid #1d3d57;"></span> Night Drainage</div>
+            <div class="legend-item"><span class="legend-color" style="background:rgba(255, 140, 0, 0.5); border:1px solid #ff8c00;"></span> Daytime Plume Wedge</div>
+            <div class="legend-item"><span class="legend-line"></span> Hourly Trajectory</div>
+            <div class="legend-item"><span class="legend-color" style="background:rgba(40, 85, 121, 0.5); border:1px solid #1d3d57;"></span> Night Drainage Corridor</div>
             <div class="legend-item"><span class="legend-color" style="background:rgba(0, 255, 255, 0.5); border:1px solid #00ffff;"></span> Unit Boundary</div>
             <div class="legend-item"><span class="legend-color" style="background:#8fa9c4; border-radius:50%;"></span> WUI Density</div>
           </div>
