@@ -42,7 +42,7 @@
     button.export-btn { background: #28a745; margin-top: 14px; margin-bottom: 14px; font-size: 14px; }
     button.export-btn:hover { background: #218838; }
 
-    /* Neutral matrix table rows with cell-level highlights */
+    /* Matrix Table */
     table { width: 100%; border-collapse: collapse; background: white; margin-top: 12px; font-size: 13px; }
     th, td { border: 1px solid #dee2e6; padding: 8px 6px; text-align: center; }
     th { background: #e9ecef; font-weight: bold; }
@@ -53,14 +53,23 @@
     .cell-fail { background-color: #f8d7da !important; color: #721c24 !important; font-weight: 600; }
     .cell-warn { background-color: #fff3cd !important; color: #856404 !important; font-weight: 600; }
 
+    /* Map Controls & Preview */
+    .map-controls-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; font-weight: bold; }
+    .map-btn-group { display: flex; gap: 6px; }
+    .map-toggle-btn { padding: 6px 12px; font-size: 13px; font-weight: 600; border: 1.5px solid #0078d4; background: #fff; color: #0078d4; border-radius: 4px; cursor: pointer; width: auto; margin: 0; }
+    .map-toggle-btn.active { background: #0078d4; color: #fff; }
+
     .map-container { position: relative; width: 100%; max-width: 600px; margin: 14px auto; display: none; text-align: center; }
     .map-container img { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; display: block; }
     .map-container svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
-    .modal { background: white; padding: 20px; border-radius: 8px; max-width: 400px; width: 90%; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    /* Export Modal */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.55); z-index: 1000; align-items: center; justify-content: center; }
+    .modal { background: white; padding: 20px; border-radius: 8px; max-width: 440px; width: 90%; box-shadow: 0 4px 16px rgba(0,0,0,0.25); text-align: left; }
     .modal h4 { margin: 0 0 10px 0; font-size: 16px; color: #0078d4; }
     .modal-option { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: 13px; font-weight: 500; cursor: pointer; }
+    .modal-btn-row { display: flex; gap: 8px; margin-top: 14px; }
+    .modal-btn-row button { margin: 0; }
   </style>
 </head>
 <body>
@@ -125,10 +134,17 @@
     </div>
   </div>
 
+  <!-- Map Preview with Satellite & Topo Toggles -->
   <div id="map-preview" class="map-container">
-    <div style="font-size:12px; font-weight:bold; margin-bottom:6px; text-transform:uppercase;">Unit Location Satellite Preview</div>
+    <div class="map-controls-row">
+      <span style="text-transform:uppercase; font-size:11px;">Unit Location Preview</span>
+      <div class="map-btn-group">
+        <button class="map-toggle-btn active" id="btnSat" onclick="setBasemap('sat')">Satellite</button>
+        <button class="map-toggle-btn" id="btnTopo" onclick="setBasemap('topo')">Topo</button>
+      </div>
+    </div>
     <div style="position:relative; display:inline-block; width:100%;">
-      <img id="map-img" src="" alt="Unit Location Satellite Image">
+      <img id="map-img" src="" alt="Unit Location Preview">
       <svg id="map-svg" viewBox="0 0 600 350" preserveAspectRatio="none">
         <path id="svg-polygon" d="" fill="rgba(0, 255, 255, 0.25)" stroke="#00ffff" stroke-width="3" />
         <circle id="svg-pin" cx="-50" cy="-50" r="8" fill="#ff0000" stroke="#ffffff" stroke-width="2" />
@@ -138,17 +154,25 @@
 
   <button id="exportMenuBtn" class="export-btn" style="display:none;" onclick="openExportModal()">Export Data Summary / PDF</button>
 
+  <!-- PDF Configuration Modal -->
   <div id="exportModal" class="modal-overlay">
     <div class="modal">
       <h4>Export Report Options</h4>
-      <p style="font-size:13px; color:#666; margin-bottom:14px;">Select data sections to include in your printed PDF report:</p>
+      <p style="font-size:13px; color:#666; margin-bottom:12px;">Select data sections to include in your printed PDF report:</p>
       
+      <label class="modal-option">
+        <input type="checkbox" id="chkOnlyInRx">
+        <strong>Only export burn windows</strong> (filter out hours that are out of prescription)
+      </label>
       <label class="modal-option"><input type="checkbox" id="chkMatrix" checked> 72-Hour Forecast Matrix</label>
       <label class="modal-option"><input type="checkbox" id="chkRaws" checked> Live RAWS Station & Fuel Moisture</label>
-      <label class="modal-option"><input type="checkbox" id="chkMap" checked> Unit Satellite Map Preview</label>
+      <label class="modal-option"><input type="checkbox" id="chkSatMap" checked> Satellite Map Preview</label>
+      <label class="modal-option"><input type="checkbox" id="chkTopoMap" checked> Topographic Map Preview</label>
 
-      <button onclick="generatePDF()">Print / Save as PDF</button>
-      <button onclick="closeExportModal()" style="background:#6c757d; margin-top:8px;">Cancel</button>
+      <div class="modal-btn-row">
+        <button onclick="generatePDF()">Print / Save as PDF</button>
+        <button onclick="closeExportModal()" style="background:#6c757d;">Cancel</button>
+      </div>
     </div>
   </div>
 
@@ -158,46 +182,23 @@
     const rawId = urlParams.get('id') || urlParams.get('OBJECTID') || urlParams.get('objectid') || '';
     const rawGeometry = urlParams.get('rings') || urlParams.get('geometry') || urlParams.get('geojson');
     
-    // State ventilation rule profiles
     const STATE_VENT_RULES = {
-      CO: {
-        name: 'Colorado (CDPHE Standards)',
-        defaultMinVent: 40,
-        poorLimit: 40,
-        fairLimit: 60,
-        goodLimit: 100
-      },
-      MT: {
-        name: 'Montana (Daily Call)',
-        defaultMinVent: 25,
-        poorLimit: 25,
-        fairLimit: 45,
-        goodLimit: 75
-      },
-      ID: {
-        name: 'Idaho (Daily Call)',
-        defaultMinVent: 25,
-        poorLimit: 25,
-        fairLimit: 45,
-        goodLimit: 75
-      }
+      CO: { name: 'Colorado (CDPHE Standards)', defaultMinVent: 40, poorLimit: 40, fairLimit: 60, goodLimit: 100 },
+      MT: { name: 'Montana (Daily Call)', defaultMinVent: 25, poorLimit: 25, fairLimit: 45, goodLimit: 75 },
+      ID: { name: 'Idaho (Daily Call)', defaultMinVent: 25, poorLimit: 25, fairLimit: 45, goodLimit: 75 }
     };
 
     const explicitState = (urlParams.get('state') || '').toUpperCase();
     let activeStateCode = STATE_VENT_RULES[explicitState] ? explicitState : 'CO';
     let userModifiedMinVent = false;
 
-    // Set initial default Min Vent based on active state
     document.getElementById('minVent').value = STATE_VENT_RULES[activeStateCode].defaultMinVent;
     document.getElementById('minVent').addEventListener('change', () => { userModifiedMinVent = true; });
 
     function sanitizeUnitName(name) {
       if (!name) return null;
       const s = String(name).trim();
-      if (s === '' || s === '{Name}' || s.toLowerCase() === 'none' || s.toLowerCase() === 'null') {
-        return null;
-      }
-      return s;
+      return (s === '' || s === '{Name}' || s.toLowerCase() === 'none' || s.toLowerCase() === 'null') ? null : s;
     }
 
     const cleanUnitId = rawId.replace(/[^0-9]/g, '');
@@ -206,6 +207,8 @@
     const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
     let currentRings = null;
     let isUploadedUnit = false;
+    let currentBasemap = 'sat';
+    let currentBboxStr = '';
     
     let activeUnitLabel = unitName || 'Unit Weather Forecast';
     document.getElementById('unit-title').innerText = activeUnitLabel;
@@ -297,7 +300,6 @@
           if (rings && rings.length > 0) {
             currentRings = rings;
             isUploadedUnit = true;
-            
             window.history.replaceState({}, document.title, window.location.pathname);
 
             activeUnitLabel = `${name} (Custom Upload)`;
@@ -370,30 +372,28 @@
       }
 
       const norm = normalizePoint(parseFloat(nums[0]), parseFloat(nums[1]));
-      
       if (isNaN(norm.lat) || isNaN(norm.lon) || norm.lat < 24 || norm.lat > 50 || norm.lon > -65 || norm.lon < -130) {
         return null;
       }
-
       return norm;
     }
 
-function calculateFuelMoisture(tempF, rh) {
-  if (isNaN(tempF) || isNaN(rh)) return { fm10: 'N/A', fm1: 'N/A' };
-  let emc = 0;
-  if (rh < 10) {
-    emc = 0.03229 + (0.281073 * rh) - (0.000578 * rh * tempF);
-  } else if (rh <= 50) {
-    emc = 2.22749 + (0.160107 * rh) - (0.01478 * tempF);
-  } else {
-    // Corrected: square rh, not tempF
-    emc = 21.0606 + (0.005565 * Math.pow(rh, 2)) - (0.00035 * tempF * rh) - (0.483199 * rh);
-  }
-  emc = Math.max(1, Math.min(emc, 35));
-  const fm1 = emc.toFixed(1) + '%';
-  const fm10 = (emc * 1.28).toFixed(1) + '%';
-  return { fm10, fm1 };
-}
+    // Verified Equilibrium Moisture Content (Simard 1968)
+    function calculateFuelMoisture(tempF, rh) {
+      if (isNaN(tempF) || isNaN(rh)) return { fm10: 'N/A', fm1: 'N/A' };
+      let emc = 0;
+      if (rh < 10) {
+        emc = 0.03229 + (0.281073 * rh) - (0.000578 * rh * tempF);
+      } else if (rh <= 50) {
+        emc = 2.22749 + (0.160107 * rh) - (0.01478 * tempF);
+      } else {
+        emc = 21.0606 + (0.005565 * Math.pow(rh, 2)) - (0.00035 * tempF * rh) - (0.483199 * rh);
+      }
+      emc = Math.max(1, Math.min(emc, 35));
+      const fm1 = emc.toFixed(1) + '%';
+      const fm10 = (emc * 1.28).toFixed(1) + '%';
+      return { fm10, fm1 };
+    }
 
     async function fetchRawsData(lat, lon) {
       try {
@@ -498,11 +498,7 @@ function calculateFuelMoisture(tempF, rh) {
       document.getElementById('unit-title').innerText = activeUnitLabel;
 
       const geom = feat.geometry;
-      if (geom.rings) {
-        currentRings = geom.rings;
-      } else {
-        currentRings = null;
-      }
+      currentRings = geom.rings || null;
 
       if (geom.rings) {
         const centroid = calculateRingsCentroid(geom.rings);
@@ -515,7 +511,24 @@ function calculateFuelMoisture(tempF, rh) {
       throw new Error("No usable geometry found in unit record.");
     }
 
-    function updateSatelliteMapPreview(lat, lon) {
+    function setBasemap(type) {
+      currentBasemap = type;
+      document.getElementById('btnSat').classList.toggle('active', type === 'sat');
+      document.getElementById('btnTopo').classList.toggle('active', type === 'topo');
+      updateMapImage();
+    }
+
+    function updateMapImage() {
+      if (!currentBboxStr) return;
+      const baseImg = document.getElementById('map-img');
+      const url = currentBasemap === 'sat'
+        ? `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,350&f=image`
+        : `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
+      baseImg.src = url;
+      document.getElementById('map-preview').style.display = 'block';
+    }
+
+    function updateMapPreview(lat, lon) {
       let minLon, maxLon, minLat, maxLat;
 
       if (currentRings && currentRings.length > 0) {
@@ -559,9 +572,8 @@ function calculateFuelMoisture(tempF, rh) {
         document.getElementById('svg-pin').setAttribute('cy', '175');
       }
 
-      const bbox = `${minLon.toFixed(5)},${minLat.toFixed(5)},${maxLon.toFixed(5)},${maxLat.toFixed(5)}`;
-      document.getElementById('map-img').src = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
-      document.getElementById('map-preview').style.display = 'block';
+      currentBboxStr = `${minLon.toFixed(5)},${minLat.toFixed(5)},${maxLon.toFixed(5)},${maxLat.toFixed(5)}`;
+      updateMapImage();
     }
 
     function getVentCategory(rate, stateCode) {
@@ -612,7 +624,7 @@ function calculateFuelMoisture(tempF, rh) {
         return;
       }
 
-      updateSatelliteMapPreview(lat, lon);
+      updateMapPreview(lat, lon);
       fetchRawsData(lat, lon);
 
       const minTemp = parseFloat(document.getElementById('minTemp').value);
@@ -754,9 +766,11 @@ function calculateFuelMoisture(tempF, rh) {
     function closeExportModal() { document.getElementById('exportModal').style.display = 'none'; }
 
     function generatePDF() {
+      const onlyInRx   = document.getElementById('chkOnlyInRx').checked;
       const showMatrix = document.getElementById('chkMatrix').checked;
       const showRaws   = document.getElementById('chkRaws').checked;
-      const showMap    = document.getElementById('chkMap').checked;
+      const showSatMap = document.getElementById('chkSatMap').checked;
+      const showTopoMap = document.getElementById('chkTopoMap').checked;
 
       closeExportModal();
 
@@ -769,6 +783,46 @@ function calculateFuelMoisture(tempF, rh) {
       const currentTitle = document.getElementById('unit-title').innerText;
       const currentStatus = document.getElementById('status').innerText;
 
+      const minTemp = document.getElementById('minTemp').value;
+      const maxTemp = document.getElementById('maxTemp').value;
+      const minRH = document.getElementById('minRH').value;
+      const maxRH = document.getElementById('maxRH').value;
+      const maxWind = document.getElementById('maxWind').value;
+      const maxGust = document.getElementById('maxGust').value;
+      const minVent = document.getElementById('minVent').value;
+
+      const satUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
+      const topoUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
+      const svgOverlayHtml = document.getElementById('map-svg').outerHTML;
+
+      let matrixHtml = '';
+      if (showMatrix) {
+        const matrixClone = document.getElementById('matrix').cloneNode(true);
+        if (onlyInRx) {
+          const rows = matrixClone.querySelectorAll('tbody tr');
+          let keptCount = 0;
+          rows.forEach(row => {
+            const statusCell = row.cells[row.cells.length - 1];
+            if (statusCell && (statusCell.classList.contains('cell-fail') || statusCell.innerText.includes('OUT-OF-RX'))) {
+              row.remove();
+            } else {
+              keptCount++;
+            }
+          });
+          if (keptCount === 0) {
+            const emptyTr = document.createElement('tr');
+            emptyTr.innerHTML = '<td colspan="7" style="padding:14px; color:#666; font-style:italic;">No forecast hours met all prescription criteria during this 72-hour period.</td>';
+            matrixClone.querySelector('tbody').appendChild(emptyTr);
+          }
+        }
+        matrixHtml = `
+          <h3 style="font-size:15px; margin:16px 0 8px 0; color:#333;">
+            ${onlyInRx ? 'Identified Prescription Burn Windows (In-Prescription Hours Only)' : '72-Hour NWS Forecast Evaluation Matrix'}
+          </h3>
+          ${matrixClone.outerHTML}
+        `;
+      }
+
       let reportHtml = `
         <!DOCTYPE html>
         <html>
@@ -777,24 +831,24 @@ function calculateFuelMoisture(tempF, rh) {
           <style>
             body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color: #333; max-width: 800px; margin: 0 auto; font-size: 13px; }
             h2 { margin: 0 0 4px 0; color: #0078d4; font-size: 20px; }
-            .meta { font-size: 12px; color: #555; margin-bottom: 16px; border-bottom: 2px solid #0078d4; padding-bottom: 8px; }
-            .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 12px; border-radius: 4px; margin-bottom: 16px; }
-            .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 10px; margin-top: 8px; }
+            .meta { font-size: 12px; color: #555; margin-bottom: 14px; border-bottom: 2px solid #0078d4; padding-bottom: 6px; }
+            .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 12px; border-radius: 4px; margin-bottom: 14px; }
+            .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-top: 6px; }
             .data-item { background: white; padding: 8px 10px; border-radius: 4px; border: 1px solid #d0e1f9; }
             .data-item .label { font-size: 10px; color: #555; text-transform: uppercase; font-weight: bold; }
-            .data-item .val { font-size: 14px; font-weight: bold; color: #0078d4; margin-top: 3px; }
+            .data-item .val { font-size: 14px; font-weight: bold; color: #0078d4; margin-top: 2px; }
             table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 16px; }
             th, td { border: 1px solid #dee2e6; padding: 6px; text-align: center; }
             th { background: #e9ecef; }
             .cell-pass { background-color: #d4edda !important; color: #155724 !important; font-weight: bold; }
             .cell-fail { background-color: #f8d7da !important; color: #721c24 !important; font-weight: bold; }
             .cell-warn { background-color: #fff3cd !important; color: #856404 !important; font-weight: bold; }
-            .map-container { position: relative; width: 100%; max-width: 600px; margin: 14px auto; text-align: center; }
-            .map-container img { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; display: block; }
-            .map-container svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-            @media print {
-              body { padding: 0; }
-            }
+            .map-card { page-break-inside: avoid; margin-bottom: 18px; text-align: center; }
+            .map-card-title { font-size: 13px; font-weight: bold; text-align: left; text-transform: uppercase; color: #444; margin-bottom: 6px; }
+            .map-wrapper { position: relative; width: 100%; max-width: 600px; margin: 0 auto; }
+            .map-wrapper img { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px; display: block; }
+            .map-wrapper svg { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
+            @media print { body { padding: 0; } }
           </style>
         </head>
         <body>
@@ -803,23 +857,47 @@ function calculateFuelMoisture(tempF, rh) {
             <strong>Forecast Zone / Coords:</strong> ${currentStatus} &nbsp;|&nbsp; 
             <strong>Report Generated:</strong> ${new Date().toLocaleString()}
           </div>
+
+          <!-- Prescription Limits Card at Top -->
+          <div class="data-box">
+            <strong style="color:#0078d4; font-size:12px; text-transform:uppercase;">Prescription Limits</strong>
+            <div class="data-grid">
+              <div class="data-item"><div class="label">Temperature</div><div class="val">${minTemp}°F to ${maxTemp}°F</div></div>
+              <div class="data-item"><div class="label">Relative Humidity</div><div class="val">${minRH}% to ${maxRH}%</div></div>
+              <div class="data-item"><div class="label">Max 20ft Wind</div><div class="val">${maxWind} mph</div></div>
+              <div class="data-item"><div class="label">Max Wind Gust</div><div class="val">${maxGust} mph</div></div>
+              <div class="data-item"><div class="label">Min Ventilation</div><div class="val">${minVent ? minVent + ' kt-ft' : 'None'}</div></div>
+            </div>
+          </div>
       `;
 
       if (showRaws && document.getElementById('raws-box').style.display !== 'none') {
         reportHtml += document.getElementById('raws-box').outerHTML;
       }
 
-      if (showMatrix) {
+      reportHtml += matrixHtml;
+
+      if (showSatMap) {
         reportHtml += `
-          <h3 style="font-size:15px; margin:16px 0 8px 0; color:#333;">72-Hour NWS Forecast Evaluation Matrix</h3>
-          ${document.getElementById('matrix').outerHTML}
+          <div class="map-card">
+            <div class="map-card-title">1. Satellite Location Preview</div>
+            <div class="map-wrapper">
+              <img src="${satUrl}">
+              ${svgOverlayHtml}
+            </div>
+          </div>
         `;
       }
 
-      if (showMap) {
+      if (showTopoMap) {
         reportHtml += `
-          <h3 style="font-size:15px; margin:16px 0 8px 0; color:#333;">Unit Boundary Satellite Location Preview</h3>
-          ${document.getElementById('map-preview').outerHTML}
+          <div class="map-card">
+            <div class="map-card-title">2. Topographic Location Preview</div>
+            <div class="map-wrapper">
+              <img src="${topoUrl}">
+              ${svgOverlayHtml}
+            </div>
+          </div>
         `;
       }
 
