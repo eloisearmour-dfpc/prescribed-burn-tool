@@ -816,9 +816,9 @@
           }
         }
         matrixHtml = `
-          <h3 style="font-size:15px; margin:16px 0 8px 0; color:#333;">
+          <div class="report-section-title">
             ${onlyInRx ? 'Identified Prescription Burn Windows (In-Prescription Hours Only)' : '72-Hour NWS Forecast Evaluation Matrix'}
-          </h3>
+          </div>
           ${matrixClone.outerHTML}
         `;
       }
@@ -829,22 +829,94 @@
         <head>
           <title>Prescription Weather Evaluation - ${currentTitle}</title>
           <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color: #333; max-width: 800px; margin: 0 auto; font-size: 13px; }
-            h2 { margin: 0 0 4px 0; color: #0078d4; font-size: 20px; }
-            .meta { font-size: 12px; color: #555; margin-bottom: 14px; border-bottom: 2px solid #0078d4; padding-bottom: 6px; }
-            .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 12px; border-radius: 4px; margin-bottom: 14px; }
-            .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-top: 6px; }
-            .data-item { background: white; padding: 8px 10px; border-radius: 4px; border: 1px solid #d0e1f9; }
-            .data-item .label { font-size: 10px; color: #555; text-transform: uppercase; font-weight: bold; }
-            .data-item .val { font-size: 14px; font-weight: bold; color: #0078d4; margin-top: 2px; }
-            table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 16px; }
-            th, td { border: 1px solid #dee2e6; padding: 6px; text-align: center; }
-            th { background: #e9ecef; }
-            .cell-pass { background-color: #d4edda !important; color: #155724 !important; font-weight: bold; }
-            .cell-fail { background-color: #f8d7da !important; color: #721c24 !important; font-weight: bold; }
-            .cell-warn { background-color: #fff3cd !important; color: #856404 !important; font-weight: bold; }
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color: #222; max-width: 800px; margin: 0 auto; font-size: 13px; }
+            h2 { margin: 0 0 4px 0; color: #111; font-size: 20px; }
+            .meta { font-size: 12px; color: #555; margin-bottom: 14px; border-bottom: 2px solid #222; padding-bottom: 6px; }
+            
+            /* Clean classic text sections */
+            .report-section-title {
+              font-size: 11px;
+              font-weight: bold;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              color: #111;
+              border-bottom: 1px solid #444;
+              padding-bottom: 3px;
+              margin-top: 14px;
+              margin-bottom: 8px;
+            }
+
+            .classic-text-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+              gap: 12px;
+              margin-bottom: 14px;
+            }
+            .classic-text-item .lbl {
+              font-size: 10px;
+              color: #666;
+              text-transform: uppercase;
+              font-weight: 600;
+              display: block;
+            }
+            .classic-text-item .val {
+              font-size: 13px;
+              font-weight: bold;
+              color: #111;
+              margin-top: 2px;
+            }
+
+            /* Strip box styles from RAWS container in print */
+            #raws-box.data-box {
+              background: transparent !important;
+              border: none !important;
+              padding: 0 !important;
+              margin-bottom: 14px !important;
+            }
+            #raws-header {
+              font-size: 11px !important;
+              font-weight: bold !important;
+              text-transform: uppercase !important;
+              letter-spacing: 0.5px !important;
+              color: #111 !important;
+              border-bottom: 1px solid #444 !important;
+              padding-bottom: 3px !important;
+              margin-bottom: 8px !important;
+            }
+            .data-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+              gap: 12px;
+              margin-top: 4px;
+            }
+            .data-item {
+              background: transparent !important;
+              border: none !important;
+              padding: 0 !important;
+            }
+            .data-item .label {
+              font-size: 10px !important;
+              color: #666 !important;
+              text-transform: uppercase !important;
+              font-weight: 600 !important;
+              display: block;
+            }
+            .data-item .val {
+              font-size: 13px !important;
+              font-weight: bold !important;
+              color: #111 !important;
+              margin-top: 2px !important;
+            }
+
+            table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 16px; margin-top: 6px; }
+            th, td { border: 1px solid #ccc; padding: 5px 6px; text-align: center; }
+            th { background: #f2f2f2; color: #111; font-weight: bold; }
+            .cell-pass { background-color: #e2f4e6 !important; color: #155724 !important; font-weight: bold; }
+            .cell-fail { background-color: #fce8e8 !important; color: #721c24 !important; font-weight: bold; }
+            .cell-warn { background-color: #fff9e6 !important; color: #856404 !important; font-weight: bold; }
+            
             .map-card { page-break-inside: avoid; margin-bottom: 18px; text-align: center; }
-            .map-card-title { font-size: 13px; font-weight: bold; text-align: left; text-transform: uppercase; color: #444; margin-bottom: 6px; }
+            .map-card-title { font-size: 12px; font-weight: bold; text-align: left; text-transform: uppercase; color: #111; margin-bottom: 6px; }
             .map-wrapper { position: relative; width: 100%; max-width: 600px; margin: 0 auto; }
             .map-wrapper img { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px; display: block; }
             .map-wrapper svg { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
@@ -858,16 +930,14 @@
             <strong>Report Generated:</strong> ${new Date().toLocaleString()}
           </div>
 
-          <!-- Prescription Limits Card at Top -->
-          <div class="data-box">
-            <strong style="color:#0078d4; font-size:12px; text-transform:uppercase;">Prescription Limits</strong>
-            <div class="data-grid">
-              <div class="data-item"><div class="label">Temperature</div><div class="val">${minTemp}°F to ${maxTemp}°F</div></div>
-              <div class="data-item"><div class="label">Relative Humidity</div><div class="val">${minRH}% to ${maxRH}%</div></div>
-              <div class="data-item"><div class="label">Max 20ft Wind</div><div class="val">${maxWind} mph</div></div>
-              <div class="data-item"><div class="label">Max Wind Gust</div><div class="val">${maxGust} mph</div></div>
-              <div class="data-item"><div class="label">Min Ventilation</div><div class="val">${minVent ? minVent + ' kt-ft' : 'None'}</div></div>
-            </div>
+          <!-- Classic Text Prescription Limits -->
+          <div class="report-section-title">Prescription Limits</div>
+          <div class="classic-text-grid">
+            <div class="classic-text-item"><span class="lbl">Temperature</span><span class="val">${minTemp}°F to ${maxTemp}°F</span></div>
+            <div class="classic-text-item"><span class="lbl">Relative Humidity</span><span class="val">${minRH}% to ${maxRH}%</span></div>
+            <div class="classic-text-item"><span class="lbl">Max 20ft Wind</span><span class="val">${maxWind} mph</span></div>
+            <div class="classic-text-item"><span class="lbl">Max Wind Gust</span><span class="val">${maxGust} mph</span></div>
+            <div class="classic-text-item"><span class="lbl">Min Ventilation</span><span class="val">${minVent ? minVent + ' kt-ft' : 'None'}</span></div>
           </div>
       `;
 
