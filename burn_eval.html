@@ -1040,26 +1040,9 @@
     /* =========================================================
        9. EVALUATION & DATA ENGINE (Soft Constraints / Empty = None)
        ========================================================= */
-    function handleEvaluateClick() {
-      const evalBtn = document.getElementById('evalBtn');
-      const origText = "Evaluate 7-Day Forecast";
-      
+   function handleEvaluateClick() {
       if (cachedHourlyRecords && cachedHourlyRecords.length > 0) {
-        evalBtn.innerText = "Recalculated";
-        evalBtn.style.background = "#28a745";
-        
-        const container = document.getElementById('day-overview-container');
-        if (container) container.style.opacity = '0.5';
-        
-        setTimeout(() => {
-          reEvaluateAllData();
-          if (container) container.style.opacity = '1';
-        }, 120);
-
-        setTimeout(() => {
-          evalBtn.innerText = origText;
-          evalBtn.style.background = "#0078d4";
-        }, 600);
+        reEvaluateAllData(); 
       } else {
         runEvaluation(true);
       }
@@ -1230,7 +1213,7 @@
       if (breadcrumb) {
         breadcrumb.innerText = hasAnyConstraint 
           ? `Active Constraints: ${activeRulesList.join(' | ')}`
-          : `No constraints set — enter thresholds above to filter burn windows.`;
+          : `No constraints set: enter thresholds to filter burn windows.`;
       }
 
       const dayGroups = {};
