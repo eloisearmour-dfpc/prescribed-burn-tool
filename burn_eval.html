@@ -11,6 +11,11 @@
     .rx-field { display: flex; flex-direction: column; font-size: 12px; font-weight: bold; color: #444; }
     .rx-field input { padding: 7px; font-size: 13px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 4px; background: #fff; }
     
+    /* Wind Direction Selector */
+    .wind-dir-group { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .dir-toggle { padding: 5px 10px; font-size: 12px; font-weight: bold; border: 1px solid #0078d4; background: #fff; color: #0078d4; border-radius: 4px; cursor: pointer; transition: 0.15s; }
+    .dir-toggle.active { background: #0078d4; color: #fff; }
+
     /* Drag and Drop Zone UI */
     .drop-zone {
       border: 2px dashed #0078d4;
@@ -39,12 +44,35 @@
 
     button { background: #0078d4; color: white; border: none; padding: 12px; border-radius: 4px; font-weight: bold; font-size: 14px; cursor: pointer; margin-top: 10px; width: 100%; transition: background 0.2s; }
     button:hover { background: #005a9e; }
+    button.secondary-btn { background: #fff; color: #0078d4; border: 1.5px solid #0078d4; padding: 8px 12px; width: auto; font-size: 12px; margin-top: 0; }
+    button.secondary-btn.active { background: #0078d4; color: #fff; }
     button.export-btn { background: #28a745; margin-top: 14px; margin-bottom: 14px; font-size: 14px; }
     button.export-btn:hover { background: #218838; }
 
+    /* 7-Day Overview Cards */
+    .day-cards-header { display: flex; justify-content: space-between; align-items: center; margin: 16px 0 8px 0; }
+    .day-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap: 8px; margin-bottom: 12px; }
+    .day-card {
+      background: #f1f3f5;
+      border: 1.5px solid #ced4da;
+      border-radius: 6px;
+      padding: 10px 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+    .day-card:hover { transform: translateY(-2px); border-color: #0078d4; }
+    .day-card.selected { border-color: #0078d4; box-shadow: 0 0 0 2px #0078d4; }
+    .day-card.card-pass { background: #e8f5e9; border-color: #28a745; }
+    .day-card.card-pass .status-pill { background: #28a745; color: white; }
+    .day-card .day-title { font-size: 12px; font-weight: bold; text-transform: uppercase; color: #222; }
+    .day-card .day-date { font-size: 11px; color: #666; margin-bottom: 6px; }
+    .day-card .status-pill { font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 10px; background: #6c757d; color: white; display: inline-block; margin-bottom: 6px; }
+    .day-card .day-stats { font-size: 11px; color: #444; line-height: 1.3; }
+
     /* Matrix Table */
-    table { width: 100%; border-collapse: collapse; background: white; margin-top: 12px; font-size: 13px; }
-    th, td { border: 1px solid #dee2e6; padding: 8px 6px; text-align: center; }
+    table { width: 100%; border-collapse: collapse; background: white; margin-top: 10px; font-size: 12px; }
+    th, td { border: 1px solid #dee2e6; padding: 7px 6px; text-align: center; }
     th { background: #e9ecef; font-weight: bold; }
     tr.matrix-row { background-color: #ffffff; }
     tr.matrix-row:nth-child(even) { background-color: #fbfcfd; }
@@ -103,24 +131,58 @@
       <div class="rx-field">Max Gust (mph)<input type="number" id="maxGust" value="20"></div>
       <div class="rx-field">Min Vent (kt-ft)<input type="number" id="minVent" value="40"></div>
     </div>
+
+    <!-- Wind Direction Limits -->
+    <div style="margin-top: 12px;">
+      <span style="font-size: 11px; font-weight: bold; color: #444; text-transform: uppercase;">
+        Permitted Wind Directions (Optional - click to toggle):
+      </span>
+      <div class="wind-dir-group" id="windDirGroup">
+        <button type="button" class="dir-toggle" onclick="toggleWindDir('N')">N</button>
+        <button type="button" class="dir-toggle" onclick="toggleWindDir('NE')">NE</button>
+        <button type="button" class="dir-toggle" onclick="toggleWindDir('E')">E</button>
+        <button type="button" class="dir-toggle" onclick="toggleWindDir('SE')">SE</button>
+        <button type="button" class="dir-toggle" onclick="toggleWindDir('S')">S</button>
+        <button type="button" class="dir-toggle" onclick="toggleWindDir('SW')">SW</button>
+        <button type="button" class="dir-toggle" onclick="toggleWindDir('W')">W</button>
+        <button type="button" class="dir-toggle" onclick="toggleWindDir('NW')">NW</button>
+      </div>
+    </div>
     
-    <button id="evalBtn" onclick="runEvaluation(true)">Evaluate 72-Hour Burn Window</button>
+    <button id="evalBtn" onclick="runEvaluation(true)">Evaluate 7-Day Forecast</button>
   </div>
 
-  <table id="matrix" style="display:none;">
-    <thead>
-      <tr>
-        <th>Date / Time</th>
-        <th>Temp</th>
-        <th>RH</th>
-        <th>20ft Wind</th>
-        <th>Transport Wind</th>
-        <th>Vent Rate</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody id="matrix-body"></tbody>
-  </table>
+  <!-- 7-Day Outlook Cards -->
+  <div id="day-overview-container" style="display:none;">
+    <div class="day-cards-header">
+      <strong style="color:#0078d4; text-transform:uppercase; font-size:12px;">7-Day Outlook (Click day to expand hourly):</strong>
+      <button class="secondary-btn" id="btnToggleMoisture" onclick="toggleMoistureView()">Show Moisture Forecast</button>
+    </div>
+    <div class="day-cards-grid" id="day-cards-grid"></div>
+  </div>
+
+  <!-- Hourly Matrix -->
+  <div id="matrix-container" style="display:none;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+      <span id="active-day-heading" style="font-size:13px; font-weight:bold; color:#333;">Hourly Breakdown</span>
+      <button class="secondary-btn" onclick="showAllHours()" style="font-size:11px; padding:4px 8px;">View All 7 Days</button>
+    </div>
+    <table id="matrix">
+      <thead>
+        <tr>
+          <th>Date / Time</th>
+          <th>Temp</th>
+          <th>RH</th>
+          <th>20ft Wind</th>
+          <th id="th-moisture" style="display:none;">Precip / Snow</th>
+          <th>Transport Wind</th>
+          <th>Vent Rate</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="matrix-body"></tbody>
+    </table>
+  </div>
 
   <div id="raws-box" class="data-box" style="display:none;">
     <div style="font-weight:bold; color:#0078d4; margin-bottom:6px; font-size:14px;" id="raws-header">Nearest RAWS Observation & Fuel Moisture</div>
@@ -164,7 +226,8 @@
         <input type="checkbox" id="chkOnlyInRx">
         <strong>Only export burn windows</strong> (filter out hours that are out of prescription)
       </label>
-      <label class="modal-option"><input type="checkbox" id="chkMatrix" checked> 72-Hour Forecast Matrix</label>
+      <label class="modal-option"><input type="checkbox" id="chk7DaySummary" checked> 7-Day Outlook Cards Summary</label>
+      <label class="modal-option"><input type="checkbox" id="chkMatrix" checked> Hourly Forecast Matrix</label>
       <label class="modal-option"><input type="checkbox" id="chkRaws" checked> Live RAWS Station & Fuel Moisture</label>
       <label class="modal-option"><input type="checkbox" id="chkSatMap" checked> Satellite Map Preview</label>
       <label class="modal-option"><input type="checkbox" id="chkTopoMap" checked> Topographic Map Preview</label>
@@ -192,8 +255,106 @@
     let activeStateCode = STATE_VENT_RULES[explicitState] ? explicitState : 'CO';
     let userModifiedMinVent = false;
 
-    document.getElementById('minVent').value = STATE_VENT_RULES[activeStateCode].defaultMinVent;
-    document.getElementById('minVent').addEventListener('change', () => { userModifiedMinVent = true; });
+    // Selected Wind Directions (Set)
+    let permittedWindDirs = new Set();
+    let showMoistureForecast = false;
+    let cachedHourlyRecords = [];
+    let activeDayFilter = null; // null = show all, or 'YYYY-MM-DD'
+
+    // Seed inputs from URL parameters if present
+    if (urlParams.get('minTemp')) document.getElementById('minTemp').value = urlParams.get('minTemp');
+    if (urlParams.get('maxTemp')) document.getElementById('maxTemp').value = urlParams.get('maxTemp');
+    if (urlParams.get('minRH')) document.getElementById('minRH').value = urlParams.get('minRH');
+    if (urlParams.get('maxRH')) document.getElementById('maxRH').value = urlParams.get('maxRH');
+    if (urlParams.get('maxWind')) document.getElementById('maxWind').value = urlParams.get('maxWind');
+    if (urlParams.get('maxGust')) document.getElementById('maxGust').value = urlParams.get('maxGust');
+    if (urlParams.get('minVent')) {
+      document.getElementById('minVent').value = urlParams.get('minVent');
+      userModifiedMinVent = true;
+    } else {
+      document.getElementById('minVent').value = STATE_VENT_RULES[activeStateCode].defaultMinVent;
+    }
+
+    if (urlParams.get('windDirs')) {
+      const dirs = urlParams.get('windDirs').split(',');
+      dirs.forEach(d => permittedWindDirs.add(d.trim().toUpperCase()));
+    }
+
+    if (urlParams.get('moist') === '1') {
+      showMoistureForecast = true;
+    }
+
+    document.getElementById('minVent').addEventListener('change', () => { 
+      userModifiedMinVent = true; 
+      syncParamsToUrl();
+    });
+
+    ['minTemp', 'maxTemp', 'minRH', 'maxRH', 'maxWind', 'maxGust', 'coordInput'].forEach(id => {
+      document.getElementById(id).addEventListener('input', syncParamsToUrl);
+    });
+
+    function syncParamsToUrl() {
+      const p = new URLSearchParams(window.location.search);
+      p.set('minTemp', document.getElementById('minTemp').value);
+      p.set('maxTemp', document.getElementById('maxTemp').value);
+      p.set('minRH', document.getElementById('minRH').value);
+      p.set('maxRH', document.getElementById('maxRH').value);
+      p.set('maxWind', document.getElementById('maxWind').value);
+      p.set('maxGust', document.getElementById('maxGust').value);
+      p.set('minVent', document.getElementById('minVent').value);
+
+      if (permittedWindDirs.size > 0) {
+        p.set('windDirs', Array.from(permittedWindDirs).join(','));
+      } else {
+        p.delete('windDirs');
+      }
+
+      if (showMoistureForecast) {
+        p.set('moist', '1');
+      } else {
+        p.delete('moist');
+      }
+
+      const coordVal = document.getElementById('coordInput').value;
+      if (coordVal) p.set('coords', coordVal);
+
+      window.history.replaceState(null, '', `${window.location.pathname}?${p.toString()}`);
+    }
+
+    function toggleWindDir(dir) {
+      if (permittedWindDirs.has(dir)) {
+        permittedWindDirs.delete(dir);
+      } else {
+        permittedWindDirs.add(dir);
+      }
+      updateWindDirButtons();
+      syncParamsToUrl();
+      if (cachedHourlyRecords.length > 0) reEvaluateAllData();
+    }
+
+    function updateWindDirButtons() {
+      const btns = document.querySelectorAll('#windDirGroup .dir-toggle');
+      btns.forEach(b => {
+        b.classList.toggle('active', permittedWindDirs.has(b.innerText.trim()));
+      });
+    }
+    updateWindDirButtons();
+
+    function toggleMoistureView() {
+      showMoistureForecast = !showMoistureForecast;
+      const btn = document.getElementById('btnToggleMoisture');
+      btn.classList.toggle('active', showMoistureForecast);
+      btn.innerText = showMoistureForecast ? 'Hide Moisture Forecast' : 'Show Moisture Forecast';
+      document.getElementById('th-moisture').style.display = showMoistureForecast ? 'table-cell' : 'none';
+      syncParamsToUrl();
+      if (cachedHourlyRecords.length > 0) renderMatrixRows();
+    }
+    if (showMoistureForecast) {
+      const btn = document.getElementById('btnToggleMoisture');
+      btn.classList.add('active');
+      btn.innerText = 'Hide Moisture Forecast';
+      document.getElementById('th-moisture').style.display = 'table-cell';
+    }
 
     function sanitizeUnitName(name) {
       if (!name) return null;
@@ -309,6 +470,7 @@
             if (centroid) {
               document.getElementById('coordInput').value = `${centroid.lat.toFixed(4)}, ${centroid.lon.toFixed(4)}`;
               document.getElementById('status').innerText = `Active Boundary: Uploaded File "${name}" (${centroid.lat.toFixed(2)}, ${centroid.lon.toFixed(2)})`;
+              syncParamsToUrl();
               runEvaluation(true);
             }
           } else {
@@ -378,7 +540,6 @@
       return norm;
     }
 
-    // Verified Equilibrium Moisture Content (Simard 1968)
     function calculateFuelMoisture(tempF, rh) {
       if (isNaN(tempF) || isNaN(rh)) return { fm10: 'N/A', fm1: 'N/A' };
       let emc = 0;
@@ -393,6 +554,20 @@
       const fm1 = emc.toFixed(1) + '%';
       const fm10 = (emc * 1.28).toFixed(1) + '%';
       return { fm10, fm1 };
+    }
+
+    function to8PointSector(dirStr) {
+      if (!dirStr) return '';
+      const d = dirStr.toUpperCase();
+      if (['N', 'NNE', 'NNW'].includes(d)) return 'N';
+      if (['NE', 'ENE'].includes(d)) return 'NE';
+      if (['E', 'ESE'].includes(d)) return 'E';
+      if (['SE', 'SSE'].includes(d)) return 'SE';
+      if (['S', 'SSW'].includes(d)) return 'S';
+      if (['SW', 'WSW'].includes(d)) return 'SW';
+      if (['W', 'WNW'].includes(d)) return 'W';
+      if (['NW'].includes(d)) return 'NW';
+      return d;
     }
 
     async function fetchRawsData(lat, lon) {
@@ -627,19 +802,6 @@
       updateMapPreview(lat, lon);
       fetchRawsData(lat, lon);
 
-      const minTemp = parseFloat(document.getElementById('minTemp').value);
-      const maxTemp = parseFloat(document.getElementById('maxTemp').value);
-      const maxWind = parseFloat(document.getElementById('maxWind').value);
-      const minRH   = parseFloat(document.getElementById('minRH').value);
-      const maxRH   = parseFloat(document.getElementById('maxRH').value);
-      const maxGust = parseFloat(document.getElementById('maxGust').value);
-      const minVent = document.getElementById('minVent').value !== "" ? parseFloat(document.getElementById('minVent').value) : null;
-
-      if ([minTemp, maxTemp, maxWind, minRH, maxRH, maxGust].some(isNaN)) {
-        alert("Please enter valid numbers for Temperature, Wind, RH, and Gust fields.");
-        return;
-      }
-
       document.getElementById('status').innerText = `Connecting to NWS Grid (${lat.toFixed(2)}, ${lon.toFixed(2)})...`;
 
       try {
@@ -660,30 +822,31 @@
         const gridUrl   = pointData.properties.forecastGridData;
 
         const [forecastRes, gridRes] = await Promise.all([fetch(hourlyUrl), fetch(gridUrl)]);
-
         const forecastData = await forecastRes.json();
         const gridData     = await gridRes.json();
 
-        const periods = forecastData.properties.periods.slice(0, 72);
+        // 7-day hourly periods (typically up to 156-168 hours)
+        const periods = forecastData.properties.periods || [];
         const mixingHeightVals = gridData.properties?.mixingHeight?.values || [];
         const transportWindVals = gridData.properties?.transportWindSpeed?.values || [];
+        const qpfVals = gridData.properties?.quantitativePrecipitation?.values || [];
+        const snowVals = gridData.properties?.snowfallAmount?.values || [];
 
-        const tbody = document.getElementById('matrix-body');
-        tbody.innerHTML = '';
-        
-        document.getElementById('status').innerText = `Zone: ${loc.city}, ${loc.state} (${lat.toFixed(2)}, ${lon.toFixed(2)}) | Rules: ${STATE_VENT_RULES[activeStateCode].name}`;
-        
-        document.getElementById('matrix').style.display = 'table';
-        document.getElementById('exportMenuBtn').style.display = 'block';
-
-        periods.forEach(p => {
+        cachedHourlyRecords = periods.map(p => {
           const pTime = new Date(p.startTime);
           const temp = p.temperature;
           const wind = parseInt(p.windSpeed);
+          const windDirRaw = p.windDirection || '';
+          const windDirSector = to8PointSector(windDirRaw);
           const rh = p.relativeHumidity ? p.relativeHumidity.value : null;
-
           const gust = p.windGust ? parseInt(p.windGust) : wind;
-          const windDisplay = p.windGust ? `${p.windSpeed} (G${parseInt(p.windGust)} mph)` : p.windSpeed;
+          const pop = p.probabilityOfPrecipitation ? p.probabilityOfPrecipitation.value : 0;
+
+          // Liquid QPF & Snow from grid
+          const qpfMm = getValueForTime(qpfVals, pTime) || 0;
+          const snowMm = getValueForTime(snowVals, pTime) || 0;
+          const rainIn = qpfMm * 0.0393701;
+          const snowIn = snowMm * 0.0393701;
 
           let ventRate = null;
           let tWindMph = null;
@@ -700,46 +863,180 @@
             ventRate = Math.round((mHeightFt * tWindKt) / 1000);
           }
 
-          const ventCat = getVentCategory(ventRate, activeStateCode);
-
-          const tempOk = (temp >= minTemp && temp <= maxTemp);
-          const windOk = (wind <= maxWind);
-          const gustOk = (gust <= maxGust);
-          const rhOk   = (rh !== null) ? (rh >= minRH && rh <= maxRH) : true;
-          const minVentOk = (minVent === null || ventRate === null || ventRate >= minVent);
-
-          const isGo = tempOk && windOk && gustOk && rhOk && minVentOk;
-
-          let ventDisplay = 'N/A';
-          if (ventRate !== null) {
-            ventDisplay = `${ventRate} kt-ft <span style="font-size:11px; opacity:0.85;">(${ventCat.text})</span>`;
-          }
-
-          const ventCellClass = (!minVentOk) ? 'cell-fail' : ventCat.cls;
-
-          const tr = document.createElement('tr');
-          tr.className = 'matrix-row';
-
-          const weekday = pTime.toLocaleDateString([], { weekday: 'short' });
-          const month   = String(pTime.getMonth() + 1).padStart(2, '0');
-          const day     = String(pTime.getDate()).padStart(2, '0');
-          const time    = pTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-          tr.innerHTML = `
-            <td>${weekday} ${month}/${day}, ${time}</td>
-            <td class="${tempOk ? 'cell-pass' : 'cell-fail'}">${temp}°F</td>
-            <td class="${rhOk ? 'cell-pass' : 'cell-fail'}">${rh !== null ? rh + '%' : 'N/A'}</td>
-            <td class="${(windOk && gustOk) ? 'cell-pass' : 'cell-fail'}">${windDisplay}</td>
-            <td>${tWindMph !== null ? tWindMph + ' mph' : 'N/A'}</td>
-            <td class="${ventCellClass}">${ventDisplay}</td>
-            <td class="${isGo ? 'cell-pass' : 'cell-fail'}">${isGo ? 'IN-RX' : 'OUT-OF-RX'}</td>
-          `;
-          tbody.appendChild(tr);
+          return {
+            pTime,
+            temp,
+            wind,
+            windDirRaw,
+            windDirSector,
+            gust,
+            windDisplay: p.windGust ? `${p.windSpeed} ${windDirRaw} (G${parseInt(p.windGust)})` : `${p.windSpeed} ${windDirRaw}`,
+            rh,
+            pop,
+            rainIn,
+            snowIn,
+            tWindMph,
+            ventRate
+          };
         });
+
+        document.getElementById('status').innerText = `Zone: ${loc.city}, ${loc.state} (${lat.toFixed(2)}, ${lon.toFixed(2)}) | Rules: ${STATE_VENT_RULES[activeStateCode].name}`;
+        
+        reEvaluateAllData();
+        document.getElementById('day-overview-container').style.display = 'block';
+        document.getElementById('matrix-container').style.display = 'block';
+        document.getElementById('exportMenuBtn').style.display = 'block';
 
       } catch (err) {
         document.getElementById('status').innerText = 'Error: ' + err.message;
       }
+    }
+
+    function reEvaluateAllData() {
+      const minTemp = parseFloat(document.getElementById('minTemp').value);
+      const maxTemp = parseFloat(document.getElementById('maxTemp').value);
+      const maxWind = parseFloat(document.getElementById('maxWind').value);
+      const minRH   = parseFloat(document.getElementById('minRH').value);
+      const maxRH   = parseFloat(document.getElementById('maxRH').value);
+      const maxGust = parseFloat(document.getElementById('maxGust').value);
+      const minVent = document.getElementById('minVent').value !== "" ? parseFloat(document.getElementById('minVent').value) : null;
+
+      // Group records by calendar day string (YYYY-MM-DD)
+      const dayGroups = {};
+      cachedHourlyRecords.forEach(r => {
+        const dayKey = r.pTime.toISOString().split('T')[0];
+        if (!dayGroups[dayKey]) dayGroups[dayKey] = [];
+
+        const tempOk = (r.temp >= minTemp && r.temp <= maxTemp);
+        const windOk = (r.wind <= maxWind);
+        const gustOk = (r.gust <= maxGust);
+        const rhOk   = (r.rh !== null) ? (r.rh >= minRH && r.rh <= maxRH) : true;
+        const minVentOk = (minVent === null || r.ventRate === null || r.ventRate >= minVent);
+
+        // Wind Direction Check
+        let windDirOk = true;
+        if (permittedWindDirs.size > 0) {
+          windDirOk = permittedWindDirs.has(r.windDirSector);
+        }
+
+        r.isGo = tempOk && windOk && gustOk && rhOk && minVentOk && windDirOk;
+        r.tempOk = tempOk;
+        r.rhOk = rhOk;
+        r.windOk = windOk && gustOk && windDirOk;
+        r.minVentOk = minVentOk;
+        r.ventCat = getVentCategory(r.ventRate, activeStateCode);
+
+        dayGroups[dayKey].push(r);
+      });
+
+      render7DayCards(dayGroups);
+      renderMatrixRows();
+    }
+
+    function render7DayCards(dayGroups) {
+      const container = document.getElementById('day-cards-grid');
+      container.innerHTML = '';
+
+      const dayKeys = Object.keys(dayGroups).slice(0, 7);
+      dayKeys.forEach((key, idx) => {
+        const records = dayGroups[key];
+        const firstTime = records[0].pTime;
+        const dayName = idx === 0 ? 'Today' : firstTime.toLocaleDateString([], { weekday: 'short' });
+        const dateStr = firstTime.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
+
+        const inRxCount = records.filter(r => r.isGo).length;
+        const maxPoP = Math.max(...records.map(r => r.pop || 0));
+        const totalSnow = records.reduce((sum, r) => sum + (r.snowIn || 0), 0);
+        const totalRain = records.reduce((sum, r) => sum + (r.rainIn || 0), 0);
+
+        const card = document.createElement('div');
+        card.className = `day-card ${inRxCount > 0 ? 'card-pass' : ''} ${activeDayFilter === key ? 'selected' : ''}`;
+        card.onclick = () => filterByDay(key);
+
+        let moistureBadge = '';
+        if (totalSnow >= 0.1) {
+          moistureBadge = `<div style="font-size:10px; font-weight:bold; color:#005a9e; margin-top:3px;">Snow: ${totalSnow.toFixed(1)}"</div>`;
+        } else if (totalRain >= 0.05) {
+          moistureBadge = `<div style="font-size:10px; font-weight:bold; color:#0078d4; margin-top:3px;">Rain: ${totalRain.toFixed(2)}"</div>`;
+        } else if (maxPoP >= 40) {
+          moistureBadge = `<div style="font-size:10px; color:#555; margin-top:3px;">PoP: ${maxPoP}%</div>`;
+        }
+
+        card.innerHTML = `
+          <div class="day-title">${dayName}</div>
+          <div class="day-date">${dateStr}</div>
+          <div class="status-pill">${inRxCount > 0 ? inRxCount + 'h IN-RX' : 'OUT-OF-RX'}</div>
+          <div class="day-stats">
+            <div>${Math.min(...records.map(r => r.temp))}° to ${Math.max(...records.map(r => r.temp))}°F</div>
+            ${moistureBadge}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function filterByDay(dayKey) {
+      if (activeDayFilter === dayKey) {
+        activeDayFilter = null; // Toggle back to all
+      } else {
+        activeDayFilter = dayKey;
+      }
+      reEvaluateAllData();
+    }
+
+    function showAllHours() {
+      activeDayFilter = null;
+      reEvaluateAllData();
+    }
+
+    function renderMatrixRows() {
+      const tbody = document.getElementById('matrix-body');
+      tbody.innerHTML = '';
+
+      let displayedRecords = cachedHourlyRecords;
+      if (activeDayFilter) {
+        displayedRecords = cachedHourlyRecords.filter(r => r.pTime.toISOString().split('T')[0] === activeDayFilter);
+        const dateSample = new Date(activeDayFilter + 'T12:00:00');
+        document.getElementById('active-day-heading').innerText = `Hourly Breakdown: ${dateSample.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}`;
+      } else {
+        document.getElementById('active-day-heading').innerText = 'Hourly Breakdown (All 7 Days)';
+      }
+
+      displayedRecords.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.className = 'matrix-row';
+
+        const weekday = r.pTime.toLocaleDateString([], { weekday: 'short' });
+        const month   = String(r.pTime.getMonth() + 1).padStart(2, '0');
+        const day     = String(r.pTime.getDate()).padStart(2, '0');
+        const time    = r.pTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        let ventDisplay = 'N/A';
+        if (r.ventRate !== null) {
+          ventDisplay = `${r.ventRate} kt-ft <span style="font-size:10px; opacity:0.85;">(${r.ventCat.text})</span>`;
+        }
+        const ventCellClass = (!r.minVentOk) ? 'cell-fail' : r.ventCat.cls;
+
+        let moistureTd = '';
+        if (showMoistureForecast) {
+          let mText = `${r.pop}%`;
+          if (r.snowIn >= 0.05) mText += ` | ${r.snowIn.toFixed(1)}" S`;
+          else if (r.rainIn >= 0.01) mText += ` | ${r.rainIn.toFixed(2)}" R`;
+          moistureTd = `<td>${mText}</td>`;
+        }
+
+        tr.innerHTML = `
+          <td>${weekday} ${month}/${day}, ${time}</td>
+          <td class="${r.tempOk ? 'cell-pass' : 'cell-fail'}">${r.temp}°F</td>
+          <td class="${r.rhOk ? 'cell-pass' : 'cell-fail'}">${r.rh !== null ? r.rh + '%' : 'N/A'}</td>
+          <td class="${r.windOk ? 'cell-pass' : 'cell-fail'}">${r.windDisplay}</td>
+          ${moistureTd}
+          <td>${r.tWindMph !== null ? r.tWindMph + ' mph' : 'N/A'}</td>
+          <td class="${ventCellClass}">${ventDisplay}</td>
+          <td class="${r.isGo ? 'cell-pass' : 'cell-fail'}">${r.isGo ? 'IN-RX' : 'OUT-OF-RX'}</td>
+        `;
+        tbody.appendChild(tr);
+      });
     }
 
     window.addEventListener('message', function(event) {
@@ -766,11 +1063,12 @@
     function closeExportModal() { document.getElementById('exportModal').style.display = 'none'; }
 
     function generatePDF() {
-      const onlyInRx   = document.getElementById('chkOnlyInRx').checked;
-      const showMatrix = document.getElementById('chkMatrix').checked;
-      const showRaws   = document.getElementById('chkRaws').checked;
-      const showSatMap = document.getElementById('chkSatMap').checked;
-      const showTopoMap = document.getElementById('chkTopoMap').checked;
+      const onlyInRx       = document.getElementById('chkOnlyInRx').checked;
+      const show7Day       = document.getElementById('chk7DaySummary').checked;
+      const showMatrix     = document.getElementById('chkMatrix').checked;
+      const showRaws       = document.getElementById('chkRaws').checked;
+      const showSatMap     = document.getElementById('chkSatMap').checked;
+      const showTopoMap    = document.getElementById('chkTopoMap').checked;
 
       closeExportModal();
 
@@ -790,10 +1088,22 @@
       const maxWind = document.getElementById('maxWind').value;
       const maxGust = document.getElementById('maxGust').value;
       const minVent = document.getElementById('minVent').value;
+      const windDirText = permittedWindDirs.size > 0 ? Array.from(permittedWindDirs).join(', ') : 'Any Direction';
 
       const satUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
       const topoUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
       const svgOverlayHtml = document.getElementById('map-svg').outerHTML;
+
+      let sevenDaySummaryHtml = '';
+      if (show7Day) {
+        const cardsClone = document.getElementById('day-cards-grid').cloneNode(true);
+        sevenDaySummaryHtml = `
+          <div class="report-section-title">7-Day Burn Window Outlook</div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(95px, 1fr)); gap:6px; margin-bottom:12px;">
+            ${cardsClone.innerHTML}
+          </div>
+        `;
+      }
 
       let matrixHtml = '';
       if (showMatrix) {
@@ -811,13 +1121,13 @@
           });
           if (keptCount === 0) {
             const emptyTr = document.createElement('tr');
-            emptyTr.innerHTML = '<td colspan="7" style="padding:14px; color:#666; font-style:italic;">No forecast hours met all prescription criteria during this 72-hour period.</td>';
+            emptyTr.innerHTML = '<td colspan="8" style="padding:14px; color:#666; font-style:italic;">No forecast hours met all prescription criteria during this forecast period.</td>';
             matrixClone.querySelector('tbody').appendChild(emptyTr);
           }
         }
         matrixHtml = `
           <div class="report-section-title">
-            ${onlyInRx ? 'Identified Prescription Burn Windows (In-Prescription Hours Only)' : '72-Hour NWS Forecast Evaluation Matrix'}
+            ${onlyInRx ? 'Identified Prescription Burn Windows (In-Prescription Hours Only)' : 'Hourly Forecast Evaluation Matrix'}
           </div>
           ${matrixClone.outerHTML}
         `;
@@ -833,7 +1143,6 @@
             h2 { margin: 0 0 4px 0; color: #111; font-size: 20px; }
             .meta { font-size: 12px; color: #555; margin-bottom: 14px; border-bottom: 2px solid #222; padding-bottom: 6px; }
             
-            /* Clean classic text sections */
             .report-section-title {
               font-size: 11px;
               font-weight: bold;
@@ -848,7 +1157,7 @@
 
             .classic-text-grid {
               display: grid;
-              grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+              grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
               gap: 12px;
               margin-bottom: 14px;
             }
@@ -865,6 +1174,13 @@
               color: #111;
               margin-top: 2px;
             }
+
+            /* 7-Day Card Print Layout */
+            .day-card { border: 1px solid #ccc; border-radius: 4px; padding: 6px 4px; text-align: center; font-size: 10px; background: #fafafa; }
+            .day-card.card-pass { background: #eef8ee; border-color: #28a745; }
+            .day-title { font-weight: bold; }
+            .status-pill { font-weight: bold; display: inline-block; padding: 1px 4px; border-radius: 6px; font-size: 9px; margin: 3px 0; background: #6c757d; color: white; }
+            .card-pass .status-pill { background: #28a745; }
 
             /* Strip box styles from RAWS container in print */
             #raws-box.data-box {
@@ -937,9 +1253,14 @@
             <div class="classic-text-item"><span class="lbl">Relative Humidity</span><span class="val">${minRH}% to ${maxRH}%</span></div>
             <div class="classic-text-item"><span class="lbl">Max 20ft Wind</span><span class="val">${maxWind} mph</span></div>
             <div class="classic-text-item"><span class="lbl">Max Wind Gust</span><span class="val">${maxGust} mph</span></div>
+            <div class="classic-text-item"><span class="lbl">Permitted Wind Dirs</span><span class="val">${windDirText}</span></div>
             <div class="classic-text-item"><span class="lbl">Min Ventilation</span><span class="val">${minVent ? minVent + ' kt-ft' : 'None'}</span></div>
           </div>
       `;
+
+      if (show7Day) {
+        reportHtml += sevenDaySummaryHtml;
+      }
 
       if (showRaws && document.getElementById('raws-box').style.display !== 'none') {
         reportHtml += document.getElementById('raws-box').outerHTML;
