@@ -97,7 +97,6 @@
       cursor: pointer;
       outline: none;
     }
-    details.setup-details summary::-webkit-details-marker { display: none; }
     
     .setup-content {
       margin-top: 10px;
@@ -115,7 +114,6 @@
       border-radius: 4px;
       cursor: pointer;
       margin-bottom: 8px;
-      transition: background 0.2s;
     }
     .file-upload-btn:hover { background: #f0f7fc; }
     .coord-box { margin-bottom: 4px; }
@@ -215,9 +213,9 @@
       <select id="watchlistSelect" onchange="loadFromWatchlist(this.value)">
         <option value="">-- Saved Units Watchlist --</option>
       </select>
-      <button type="button" class="inline-btn secondary-btn" onclick="saveCurrentToWatchlist()">★ Save Active Unit</button>
+      <button type="button" class="inline-btn secondary-btn" onclick="saveCurrentToWatchlist()">Save Unit</button>
       <button type="button" class="inline-btn secondary-btn del-btn" onclick="deleteFromWatchlist()">Delete</button>
-      <span id="saveConfirmMsg" style="color:#28a745; font-weight:bold; font-size:12px; margin-left:6px; opacity:0; transition:opacity 0.3s;">✓ Saved</span>
+      <span id="saveConfirmMsg" style="color:#28a745; font-weight:bold; font-size:12px; margin-left:6px; opacity:0; transition:opacity 0.3s;">Saved</span>
     </div>
 
     <h3 id="unit-title" style="margin:0 0 2px 0; font-size:17px;">Unit Weather Forecast</h3>
@@ -227,7 +225,7 @@
 
     <!-- Collapsible Advanced Setup (Clean Interface) -->
     <details class="setup-details">
-      <summary>▸ Change Boundary or Coordinates manually</summary>
+      <summary>Change boundary or coordinates manually</summary>
       <div class="setup-content">
         <label class="file-upload-btn">
           Upload Unit File (.geojson, .kml)
@@ -259,7 +257,6 @@
         </span>
         <div id="windSelectBtn" class="custom-select-btn" onclick="toggleWindMenu(event)">
           <span id="windSelectLabel">Any Dir</span>
-          <span style="font-size:9px; color:#555;">▼</span>
         </div>
         <div id="windMenu" class="custom-dropdown-menu" style="display:none;" onclick="event.stopPropagation()">
           <label class="wind-chk-item"><input type="checkbox" value="N" onchange="handleWindDirChange()"> N</label>
@@ -287,7 +284,7 @@
     <!-- Collapsible Bar for Hourly Details -->
     <div class="hourly-toggle-bar">
       <button type="button" id="btnToggleHourly" class="hourly-toggle-btn" onclick="toggleHourlySection()">
-        ▼ View Hourly Breakdown (All 7 Days)
+        Show Hourly Breakdown
       </button>
     </div>
   </div>
@@ -297,7 +294,7 @@
     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; border-bottom:1px solid #dee2e6; padding-bottom:8px;">
       <span id="active-day-heading" style="font-size:13px; font-weight:bold; color:#0078d4; text-transform:uppercase;">Hourly Breakdown</span>
       <div style="display:flex; gap:8px;">
-        <button class="inline-btn secondary-btn" id="btnToggleMoisture" onclick="toggleMoistureView()">+ Show Precip/Snow</button>
+        <button class="inline-btn secondary-btn" id="btnToggleMoisture" onclick="toggleMoistureView()">Show Precip / Snow</button>
         <button class="inline-btn secondary-btn" onclick="showAllHours()" style="font-size:11px; padding:6px 8px;">Show All 7 Days</button>
       </div>
     </div>
@@ -380,7 +377,7 @@
     const rawUnit = urlParams.get('unit') || urlParams.get('Name') || urlParams.get('name');
     const rawId = urlParams.get('id') || urlParams.get('OBJECTID') || urlParams.get('objectid') || '';
     const rawGeometry = urlParams.get('rings') || urlParams.get('geometry') || urlParams.get('geojson');
-    const cleanUnitId = rawId.replace(/[^0-9]/g, '');
+    let cleanUnitId = rawId.replace(/[^0-9]/g, '');
 
     const STATE_VENT_RULES = {
       CO: { name: 'Colorado (CDPHE Standards)', defaultMinVent: 40, poorLimit: 40, fairLimit: 60, goodLimit: 100 },
@@ -430,7 +427,7 @@
       showMoistureForecast = true;
       const btn = document.getElementById('btnToggleMoisture');
       btn.classList.add('active');
-      btn.innerText = '- Hide Precip/Snow';
+      btn.innerText = 'Hide Precip / Snow';
       document.getElementById('th-moisture').style.display = 'table-cell';
     }
 
@@ -532,7 +529,6 @@
       });
     }
 
-    // Modern Save without prompt() blocking
     function saveCurrentToWatchlist() {
       const currentName = activeUnitLabel && activeUnitLabel !== 'Unit Weather Forecast' ? activeUnitLabel : 'Custom Unit';
       
@@ -554,7 +550,6 @@
 
       saveWatchlist(list);
       
-      // Update dropdown and show brief success flash
       if (getWatchlist()[currentName]) {
         document.getElementById('watchlistSelect').value = currentName;
         const msg = document.getElementById('saveConfirmMsg');
@@ -565,10 +560,7 @@
 
     function deleteFromWatchlist() {
       const selName = document.getElementById('watchlistSelect').value;
-      if (!selName) {
-        alert("Select a unit from the Watchlist dropdown to delete.");
-        return;
-      }
+      if (!selName) return;
       if (confirm(`Delete "${selName}" from your Watchlist?`)) {
         const list = getWatchlist();
         delete list[selName];
@@ -603,7 +595,7 @@
         showMoistureForecast = u.showMoist;
         const btn = document.getElementById('btnToggleMoisture');
         btn.classList.toggle('active', showMoistureForecast);
-        btn.innerText = showMoistureForecast ? '- Hide Precip/Snow' : '+ Show Precip/Snow';
+        btn.innerText = showMoistureForecast ? 'Hide Precip / Snow' : 'Show Precip / Snow';
         document.getElementById('th-moisture').style.display = showMoistureForecast ? 'table-cell' : 'none';
       }
 
@@ -672,7 +664,7 @@
       showMoistureForecast = !showMoistureForecast;
       const btn = document.getElementById('btnToggleMoisture');
       btn.classList.toggle('active', showMoistureForecast);
-      btn.innerText = showMoistureForecast ? '- Hide Precip/Snow' : '+ Show Precip/Snow';
+      btn.innerText = showMoistureForecast ? 'Hide Precip / Snow' : 'Show Precip / Snow';
       document.getElementById('th-moisture').style.display = showMoistureForecast ? 'table-cell' : 'none';
       syncParamsToUrl();
       if (cachedHourlyRecords.length > 0) renderMatrixRows();
@@ -685,10 +677,10 @@
 
       if (isOpen) {
         container.style.display = 'none';
-        btn.innerText = '▼ View Hourly Breakdown (All 7 Days)';
+        btn.innerText = 'Show Hourly Breakdown';
       } else {
         container.style.display = 'block';
-        btn.innerText = '▲ Hide Hourly Breakdown';
+        btn.innerText = 'Hide Hourly Breakdown';
         renderMatrixRows();
       }
     }
@@ -785,7 +777,6 @@
       return d;
     }
 
-    // Resolves NWS PT6H Blocks into an hourly rate
     function getHourlyRateForTime(valuesArray, targetTime) {
       if (!valuesArray || !valuesArray.length) return 0;
       const targetMs = targetTime.getTime();
@@ -832,8 +823,10 @@
     }
 
     /* =========================================================
-       7. FILE UPLOAD 
+       7. FILE UPLOAD & FEATURE SERVICE
        ========================================================= */
+    const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
+
     function handleFileUpload(event) {
       const file = event.target.files[0];
       if (file) {
@@ -885,8 +878,56 @@
       }
     }
 
+    function queryArcGISJsonp(id) {
+      return new Promise((resolve, reject) => {
+        const cbName = 'arcgis_cb_' + Math.floor(Math.random() * 10000000);
+        const queryUrl = `${FEATURE_SERVICE_URL}?where=OBJECTID%3D${id}&outFields=*&returnGeometry=true&outSR=4326&f=json&callback=${cbName}`;
+
+        window[cbName] = function(data) {
+          delete window[cbName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+          if (data.error) reject(new Error(data.error.message));
+          else resolve(data);
+        };
+
+        const script = document.createElement('script');
+        script.src = queryUrl;
+        script.onerror = function() {
+          delete window[cbName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+          reject(new Error("Network request to ArcGIS service failed."));
+        };
+        document.head.appendChild(script);
+      });
+    }
+
+    async function getUnitCoordinatesById(id) {
+      if (!id) throw new Error("No valid numeric Unit ID received.");
+      const data = await queryArcGISJsonp(id);
+      if (!data.features || data.features.length === 0) throw new Error(`Unit ID ${id} not found.`);
+
+      const feat = data.features[0];
+      const attrs = feat.attributes || {};
+      
+      const fName = sanitizeUnitName(attrs.Name || attrs.name || attrs.NAME || attrs.unit_name || attrs.UnitName || attrs.UNIT_NAME || attrs.unit || attrs.Unit);
+      activeUnitLabel = fName || 'Unit Weather Forecast';
+      document.getElementById('unit-title').innerText = activeUnitLabel;
+
+      const geom = feat.geometry;
+      currentRings = geom.rings || null;
+
+      if (geom.rings) {
+        const centroid = calculateRingsCentroid(geom.rings);
+        if (!centroid) throw new Error("Could not compute centroid from polygon coordinates.");
+        return centroid;
+      } else if (geom.x && geom.y) {
+        return normalizePoint(geom.x, geom.y);
+      }
+      throw new Error("No usable geometry found in unit record.");
+    }
+
     /* =========================================================
-       8. CORE EVALUATION ENGINE & RAWS
+       8. RAWS & MAP PREVIEW
        ========================================================= */
     async function fetchRawsData(lat, lon) {
       try {
@@ -916,7 +957,7 @@
         const rh = (rhVal !== null && rhVal !== undefined) ? Math.round(rhVal) : null;
         const windMph = (windKmh !== null && windKmh !== undefined) ? Math.round(windKmh * 0.621371) : null;
 
-        document.getElementById('raws-header').innerText = `RAWS Station & Live Fuel Moisture: ${station.name} (${station.stationIdentifier})`;
+        document.getElementById('raws-header').innerText = `Nearest RAWS Station: ${station.name} (${station.stationIdentifier})`;
         document.getElementById('raws-temp').innerText = tempF !== null ? `${tempF}°F` : 'NO DATA';
         document.getElementById('raws-rh').innerText = rh !== null ? `${rh}%` : 'NO DATA';
         document.getElementById('raws-wind').innerText = windMph !== null ? `${windMph} mph` : 'NO DATA';
@@ -1002,11 +1043,14 @@
       updateMapImage();
     }
 
+    /* =========================================================
+       9. CORE EVALUATION ENGINE
+       ========================================================= */
     async function runEvaluation(isManual = false) {
       const evalBtn = document.getElementById('evalBtn');
       const origBtnText = evalBtn.innerText;
       
-      evalBtn.innerText = "Fetching NWS Forecast...";
+      evalBtn.innerText = "Evaluating...";
       evalBtn.disabled = true;
 
       try {
@@ -1017,7 +1061,7 @@
           coords = calculateRingsCentroid(currentRings);
         }
 
-        // 2. Fall back to feature service lookup only if no rings exist and an ID is provided
+        // 2. If no coords yet and a unit ID is available, query the feature service
         if (!coords && cleanUnitId && !isUploadedUnit) {
           document.getElementById('status').innerText = "Locating unit boundary...";
           try {
@@ -1025,8 +1069,8 @@
           } catch (err) {
             console.warn("Feature service lookup fallback to manual coordinate input:", err);
           }
-        } 
-        
+        }
+
         // 3. Fall back to coordinate input box
         if (!coords) {
           coords = parseSmartCoordinates(document.getElementById('coordInput').value);
@@ -1051,8 +1095,6 @@
 
         updateMapPreview(lat, lon);
         fetchRawsData(lat, lon);
-
-        document.getElementById('status').innerText = `Connecting to NWS Grid (${lat.toFixed(2)}, ${lon.toFixed(2)})...`;
 
         const pointRes = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`);
         if (!pointRes.ok) throw new Error("Could not reach NWS grid point.");
@@ -1092,7 +1134,6 @@
           const gust = p.windGust ? parseInt(p.windGust) : wind;
           const pop = p.probabilityOfPrecipitation ? p.probabilityOfPrecipitation.value : 0;
 
-          // Convert NWS Block format into exact hourly rates
           const qpfMm = getHourlyRateForTime(qpfVals, pTime);
           const snowMm = getHourlyRateForTime(snowVals, pTime);
           const rainIn = qpfMm * 0.0393701;
@@ -1114,34 +1155,21 @@
           }
 
           return {
-            pTime,
-            temp,
-            wind,
-            windDirRaw,
-            windDirSector,
-            gust,
+            pTime, temp, wind, windDirRaw, windDirSector, gust,
             windDisplay: p.windGust ? `${p.windSpeed} ${windDirRaw} (G${parseInt(p.windGust)})` : `${p.windSpeed} ${windDirRaw}`,
-            rh,
-            pop,
-            rainIn,
-            snowIn,
-            tWindMph,
-            ventRate
+            rh, pop, rainIn, snowIn, tWindMph, ventRate
           };
         });
 
         document.getElementById('status').innerHTML = `Forecast loaded for: <strong style="color:#333;">${loc.city}, ${loc.state}</strong> (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
-        document.querySelector('details.setup-details').removeAttribute('open'); // Auto-collapse setup details on run
+        document.querySelector('details.setup-details').removeAttribute('open');
         
         reEvaluateAllData();
-        
-        // Show 7-day cards
         document.getElementById('day-overview-container').style.display = 'block';
         
-        // Keep hourly breakdown collapsed by default
         if (!isManual) {
           document.getElementById('matrix-container').style.display = 'none';
-          document.getElementById('btnToggleHourly').innerText = '▼ View Hourly Breakdown (All 7 Days)';
+          document.getElementById('btnToggleHourly').innerText = 'Show Hourly Breakdown';
         }
 
         document.getElementById('exportMenuBtn').style.display = 'block';
@@ -1174,7 +1202,6 @@
         const rhOk   = (r.rh !== null) ? (r.rh >= minRH && r.rh <= maxRH) : true;
         const minVentOk = (minVent === null || r.ventRate === null || r.ventRate >= minVent);
 
-        // Wind Direction Limit Check
         let windDirOk = true;
         if (permittedWindDirs.size > 0) {
           windDirOk = permittedWindDirs.has(r.windDirSector);
@@ -1240,7 +1267,7 @@
       activeDayFilter = dayKey;
       const matrixBox = document.getElementById('matrix-container');
       matrixBox.style.display = 'block';
-      document.getElementById('btnToggleHourly').innerText = '▲ Hide Hourly Breakdown';
+      document.getElementById('btnToggleHourly').innerText = 'Hide Hourly Breakdown';
       reEvaluateAllData();
       renderMatrixRows();
       matrixBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1305,28 +1332,55 @@
     }
 
     /* =========================================================
-       9. MAP SELECTION LISTENER (Experience Builder)
+       10. MAP SELECTION LISTENER (Experience Builder)
        ========================================================= */
     window.addEventListener('message', function(event) {
       if (!event.data) return;
       try {
         const payload = (typeof event.data === 'string') ? JSON.parse(event.data) : event.data;
-        if (payload.rings || payload.geometry?.rings || payload.geojson) {
+        let feat = payload;
+        if (payload.features && payload.features.length > 0) feat = payload.features[0];
+        if (payload.graphics && payload.graphics.length > 0) feat = payload.graphics[0];
+
+        const geom = feat.geometry || feat.rings || feat.geojson || payload.rings || payload.geojson;
+        const attrs = feat.attributes || feat.properties || payload.attributes || {};
+
+        const pName = sanitizeUnitName(attrs.Name || attrs.name || attrs.NAME || attrs.unit_name || attrs.UnitName || attrs.UNIT_NAME || attrs.unit || attrs.Unit || payload.unit || payload.name);
+        if (pName) {
+          activeUnitLabel = pName;
+          document.getElementById('unit-title').innerText = activeUnitLabel;
+        }
+
+        let foundRings = null;
+        if (geom) {
+          if (geom.rings) foundRings = geom.rings;
+          else if (geom.type === 'Polygon') foundRings = geom.coordinates;
+          else if (geom.type === 'MultiPolygon') foundRings = geom.coordinates[0];
+          else if (Array.isArray(geom)) foundRings = Array.isArray(geom[0]?.[0]) ? geom : [geom];
+        }
+
+        if (foundRings && foundRings.length > 0) {
           isUploadedUnit = false;
-          const geom = payload.rings || payload.geometry?.rings || payload.geojson;
-          if (Array.isArray(geom)) {
-            currentRings = Array.isArray(geom[0]?.[0]) ? geom : [geom];
-          }
+          currentRings = foundRings;
           cachedCoords = calculateRingsCentroid(currentRings);
           if (cachedCoords) {
             document.getElementById('coordInput').value = `${cachedCoords.lat.toFixed(4)}, ${cachedCoords.lon.toFixed(4)}`;
           }
-          
-          const pName = sanitizeUnitName(payload.unit || payload.name || payload.Unit || payload.Name);
-          activeUnitLabel = pName || 'Unit Weather Forecast';
-          document.getElementById('unit-title').innerText = activeUnitLabel;
-          
           runEvaluation(true);
+        } else if (geom && (geom.x !== undefined || geom.longitude !== undefined)) {
+          const pt = normalizePoint(geom.x || geom.longitude, geom.y || geom.latitude);
+          currentRings = null;
+          isUploadedUnit = false;
+          document.getElementById('coordInput').value = `${pt.lat.toFixed(4)}, ${pt.lon.toFixed(4)}`;
+          runEvaluation(true);
+        } else {
+          const pId = attrs.OBJECTID || attrs.objectid || attrs.id || payload.id || payload.OBJECTID;
+          if (pId) {
+            cleanUnitId = String(pId).replace(/[^0-9]/g, '');
+            currentRings = null;
+            isUploadedUnit = false;
+            runEvaluation(false);
+          }
         }
       } catch(e) {
         console.warn("Could not process incoming map message:", e);
@@ -1334,7 +1388,7 @@
     });
 
     /* =========================================================
-       10. PDF PRINT EXPORT
+       11. PDF PRINT EXPORT
        ========================================================= */
     function openExportModal() { document.getElementById('exportModal').style.display = 'flex'; }
     function closeExportModal() { document.getElementById('exportModal').style.display = 'none'; }
@@ -1520,7 +1574,7 @@
     }
 
     /* =========================================================
-       11. AUTO-RUN INITIALIZATION
+       12. AUTO-RUN INITIALIZATION
        ========================================================= */
     if (cleanUnitId || currentRings || parseSmartCoordinates(document.getElementById('coordInput').value)) {
       runEvaluation(false);
