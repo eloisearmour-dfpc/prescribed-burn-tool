@@ -32,43 +32,55 @@
 
     .input-header { font-size: 12px; font-weight: bold; color: #0078d4; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 8px 0; }
     .rx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
-    .rx-field { display: flex; flex-direction: column; font-size: 12px; font-weight: bold; color: #444; }
-    .rx-field input { padding: 7px; font-size: 13px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 4px; background: #fff; }
+    .rx-field { display: flex; flex-direction: column; font-size: 12px; font-weight: bold; color: #444; position: relative; }
+    .rx-field input { padding: 7px; font-size: 13px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 4px; background: #fff; box-sizing: border-box; }
     
-    /* Compact Wind Direction Bar */
-    .wind-control-row {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      margin-top: 6px;
-      flex-wrap: wrap;
-    }
-    .wind-chip-group {
-      display: flex;
-      gap: 4px;
-      flex: 1;
-      min-width: 240px;
-    }
-    .dir-toggle {
-      flex: 1 1 0;
-      min-width: 26px;
-      padding: 6px 0 !important;
-      text-align: center;
+    /* Compact Multi-Select Dropdown */
+    .custom-select-btn {
+      padding: 7px 8px;
       font-size: 12px;
-      font-weight: bold;
       border: 1px solid #0078d4;
-      background: #fff;
-      color: #0078d4;
       border-radius: 4px;
+      margin-top: 4px;
+      background: #fff;
       cursor: pointer;
-      width: auto !important;
-      margin: 0 !important;
-      transition: background 0.15s, color 0.15s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: normal;
+      color: #333;
+      user-select: none;
+      box-sizing: border-box;
+      height: 31px;
     }
-    .dir-toggle.active {
-      background: #0078d4 !important;
-      color: #fff !important;
+    .custom-dropdown-menu {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      width: 140px;
+      background: white;
+      border: 1px solid #0078d4;
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 1000;
+      padding: 6px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      box-sizing: border-box;
     }
+    .wind-chk-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #333;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+    .wind-chk-item:hover { background: #f0f7fc; }
 
     /* Drag and Drop Zone UI */
     .drop-zone {
@@ -121,7 +133,7 @@
 
     /* 7-Day Overview Cards */
     .day-cards-header { display: flex; justify-content: space-between; align-items: center; margin: 14px 0 8px 0; }
-    .day-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-bottom: 10px; }
+    .day-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); gap: 8px; margin-bottom: 10px; }
     .day-card {
       background: #f1f3f5;
       border: 1.5px solid #ced4da;
@@ -140,11 +152,8 @@
     .day-card .status-pill { font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 10px; background: #6c757d; color: white; display: inline-block; margin-bottom: 4px; }
     .day-card .day-stats { font-size: 11px; color: #444; line-height: 1.3; }
 
-    /* Toggle Hourly Bar */
-    .hourly-toggle-bar {
-      margin: 10px 0;
-      text-align: center;
-    }
+    /* Collapsible Hourly Bar */
+    .hourly-toggle-bar { margin: 10px 0; text-align: center; }
     .hourly-toggle-btn {
       width: 100% !important;
       background: #f8fafc;
@@ -203,7 +212,7 @@
 
     <h3 id="unit-title" style="margin:0 0 4px 0; font-size:17px;">Unit Weather Forecast</h3>
     <div id="status" style="font-size: 12px; color: #0078d4; font-weight: 500; margin-bottom: 10px;">
-      Select a unit on the map, upload a boundary file, or load from your watchlist above.
+      Select a unit on the map, upload a boundary file, or select from your watchlist above.
     </div>
 
     <!-- Drag & Drop Unit File Zone -->
@@ -228,23 +237,26 @@
       <div class="rx-field">Max Wind (mph)<input type="number" id="maxWind" value="12"></div>
       <div class="rx-field">Max Gust (mph)<input type="number" id="maxGust" value="20"></div>
       <div class="rx-field">Min Vent (kt-ft)<input type="number" id="minVent" value="40"></div>
-    </div>
-
-    <!-- Compact Wind Direction Bar -->
-    <div style="margin-top: 10px;">
-      <span style="font-size: 11px; font-weight: bold; color: #444; text-transform: uppercase;">
-        Acceptable Wind Directions (Optional):
-      </span>
-      <div class="wind-control-row">
-        <div class="wind-chip-group" id="windChipGroup">
-          <button type="button" class="dir-toggle" onclick="toggleWindDir('N')">N</button>
-          <button type="button" class="dir-toggle" onclick="toggleWindDir('NE')">NE</button>
-          <button type="button" class="dir-toggle" onclick="toggleWindDir('E')">E</button>
-          <button type="button" class="dir-toggle" onclick="toggleWindDir('SE')">SE</button>
-          <button type="button" class="dir-toggle" onclick="toggleWindDir('S')">S</button>
-          <button type="button" class="dir-toggle" onclick="toggleWindDir('SW')">SW</button>
-          <button type="button" class="dir-toggle" onclick="toggleWindDir('W')">W</button>
-          <button type="button" class="dir-toggle" onclick="toggleWindDir('NW')">NW</button>
+      
+      <!-- Wind Direction Multi-Select Dropdown in Grid -->
+      <div class="rx-field" id="windField">
+        <span style="display:flex; justify-content:space-between; align-items:center;">
+          Wind Dir
+          <span id="windClearBtn" onclick="clearWindDirs(event)" style="cursor:pointer; color:#0078d4; font-size:10px; display:none;">Clear</span>
+        </span>
+        <div id="windSelectBtn" class="custom-select-btn" onclick="toggleWindMenu(event)">
+          <span id="windSelectLabel">Any Dir</span>
+          <span style="font-size:9px; color:#555;">▼</span>
+        </div>
+        <div id="windMenu" class="custom-dropdown-menu" style="display:none;" onclick="event.stopPropagation()">
+          <label class="wind-chk-item"><input type="checkbox" value="N" onchange="handleWindDirChange()"> N</label>
+          <label class="wind-chk-item"><input type="checkbox" value="NE" onchange="handleWindDirChange()"> NE</label>
+          <label class="wind-chk-item"><input type="checkbox" value="E" onchange="handleWindDirChange()"> E</label>
+          <label class="wind-chk-item"><input type="checkbox" value="SE" onchange="handleWindDirChange()"> SE</label>
+          <label class="wind-chk-item"><input type="checkbox" value="S" onchange="handleWindDirChange()"> S</label>
+          <label class="wind-chk-item"><input type="checkbox" value="SW" onchange="handleWindDirChange()"> SW</label>
+          <label class="wind-chk-item"><input type="checkbox" value="W" onchange="handleWindDirChange()"> W</label>
+          <label class="wind-chk-item"><input type="checkbox" value="NW" onchange="handleWindDirChange()"> NW</label>
         </div>
       </div>
     </div>
@@ -252,7 +264,7 @@
     <button id="evalBtn" onclick="runEvaluation(true)">Evaluate 7-Day Forecast</button>
   </div>
 
-  <!-- 7-Day Outlook Cards (Always Shown First When Evaluated) -->
+  <!-- 7-Day Outlook Cards (Displayed First Upon Evaluation) -->
   <div id="day-overview-container" style="display:none;">
     <div class="day-cards-header">
       <strong style="color:#0078d4; text-transform:uppercase; font-size:12px;">7-Day Burn Window Outlook:</strong>
@@ -347,11 +359,15 @@
   </div>
 
   <script>
+    /* =========================================================
+       1. GLOBAL STATE INITIALIZATION (DECLARED AT TOP)
+       ========================================================= */
     const urlParams = new URLSearchParams(window.location.search);
     const rawUnit = urlParams.get('unit') || urlParams.get('Name') || urlParams.get('name');
     const rawId = urlParams.get('id') || urlParams.get('OBJECTID') || urlParams.get('objectid') || '';
     const rawGeometry = urlParams.get('rings') || urlParams.get('geometry') || urlParams.get('geojson');
-    
+    const cleanUnitId = rawId.replace(/[^0-9]/g, '');
+
     const STATE_VENT_RULES = {
       CO: { name: 'Colorado (CDPHE Standards)', defaultMinVent: 40, poorLimit: 40, fairLimit: 60, goodLimit: 100 },
       MT: { name: 'Montana (Daily Call)', defaultMinVent: 25, poorLimit: 25, fairLimit: 45, goodLimit: 75 },
@@ -362,13 +378,21 @@
     let activeStateCode = STATE_VENT_RULES[explicitState] ? explicitState : 'CO';
     let userModifiedMinVent = false;
 
-    // Selected Wind Directions (Set)
+    let currentRings = null;
+    let cachedCoords = null;
+    let isUploadedUnit = false;
+    let currentBasemap = 'sat';
+    let currentBboxStr = '';
+    let activeUnitLabel = sanitizeUnitName(rawUnit ? decodeURIComponent(rawUnit) : null) || 'Unit Weather Forecast';
+    
     let permittedWindDirs = new Set();
     let showMoistureForecast = false;
     let cachedHourlyRecords = [];
     let activeDayFilter = null; // null = show all, or 'YYYY-MM-DD'
 
-    // Seed inputs from URL parameters if present
+    document.getElementById('unit-title').innerText = activeUnitLabel;
+
+    // Seed URL parameters if present
     if (urlParams.get('minTemp')) document.getElementById('minTemp').value = urlParams.get('minTemp');
     if (urlParams.get('maxTemp')) document.getElementById('maxTemp').value = urlParams.get('maxTemp');
     if (urlParams.get('minRH')) document.getElementById('minRH').value = urlParams.get('minRH');
@@ -391,6 +415,27 @@
       showMoistureForecast = true;
     }
 
+    // Parse initial URL geometry if passed directly
+    if (rawGeometry) {
+      try {
+        const parsed = JSON.parse(decodeURIComponent(rawGeometry));
+        if (parsed.rings) {
+          currentRings = parsed.rings;
+        } else if (parsed.type === 'Feature' && parsed.geometry) {
+          currentRings = parsed.geometry.type === 'Polygon' ? parsed.geometry.coordinates : [parsed.geometry.coordinates[0]];
+        } else if (parsed.type === 'Polygon') {
+          currentRings = parsed.coordinates;
+        } else if (Array.isArray(parsed)) {
+          currentRings = Array.isArray(parsed[0]?.[0]) ? parsed : [parsed];
+        }
+      } catch (e) {
+        console.warn("Could not parse initial URL geometry:", e);
+      }
+    }
+
+    /* =========================================================
+       2. URL SYNC & PARAMETER BINDINGS
+       ========================================================= */
     document.getElementById('minVent').addEventListener('change', () => { 
       userModifiedMinVent = true; 
       syncParamsToUrl();
@@ -400,11 +445,10 @@
       document.getElementById(id).addEventListener('input', syncParamsToUrl);
     });
 
-    // Clear saved polygon if manually editing coordinates
     document.getElementById('coordInput').addEventListener('input', () => {
-       currentRings = null;
-       isUploadedUnit = false;
-       syncParamsToUrl();
+      currentRings = null;
+      isUploadedUnit = false;
+      syncParamsToUrl();
     });
 
     function syncParamsToUrl() {
@@ -435,7 +479,9 @@
       window.history.replaceState(null, '', `${window.location.pathname}?${p.toString()}`);
     }
 
-    /* Watchlist Management (localStorage) */
+    /* =========================================================
+       3. SAVED UNITS WATCHLIST (localStorage)
+       ========================================================= */
     const STORAGE_KEY = 'rx_weather_unit_watchlist';
 
     function getWatchlist() {
@@ -465,7 +511,7 @@
 
     function saveCurrentToWatchlist() {
       const currentName = activeUnitLabel || 'My Prescribed Burn';
-      const promptName = prompt("Enter a name to save this unit and its prescription rules:", currentName);
+      const promptName = prompt("Enter a name to save this unit and its prescription thresholds:", currentName);
       if (!promptName) return;
 
       const list = getWatchlist();
@@ -492,7 +538,7 @@
     function deleteFromWatchlist() {
       const selName = document.getElementById('watchlistSelect').value;
       if (!selName) {
-        alert("Please select a unit from the Watchlist dropdown to delete.");
+        alert("Select a unit from the Watchlist dropdown to delete.");
         return;
       }
       if (confirm(`Delete "${selName}" from your Watchlist?`)) {
@@ -523,7 +569,7 @@
       document.getElementById('minVent').value = u.minVent || '40';
 
       permittedWindDirs = new Set(u.windDirs || []);
-      updateWindDirButtons();
+      updateWindSelectUI();
 
       if (u.showMoist !== undefined) {
         showMoistureForecast = u.showMoist;
@@ -538,27 +584,64 @@
     }
     populateWatchlistDropdown();
 
-    /* Wind Direction Controls */
-    function toggleWindDir(dir) {
-      if (permittedWindDirs.has(dir)) {
-        permittedWindDirs.delete(dir);
-      } else {
-        permittedWindDirs.add(dir);
-      }
-      updateWindDirButtons();
+    /* =========================================================
+       4. WIND DIRECTION POPUP & SELECTION
+       ========================================================= */
+    function toggleWindMenu(e) {
+      if (e) e.stopPropagation();
+      const menu = document.getElementById('windMenu');
+      menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'grid' : 'none';
+    }
+
+    function handleWindDirChange() {
+      permittedWindDirs.clear();
+      const chks = document.querySelectorAll('#windMenu input[type="checkbox"]');
+      chks.forEach(c => {
+        if (c.checked) permittedWindDirs.add(c.value);
+      });
+      updateWindSelectUI();
       syncParamsToUrl();
       if (cachedHourlyRecords.length > 0) reEvaluateAllData();
     }
 
-    function updateWindDirButtons() {
-      const btns = document.querySelectorAll('#windChipGroup .dir-toggle');
-      btns.forEach(b => {
-        b.classList.toggle('active', permittedWindDirs.has(b.innerText.trim()));
-      });
+    function clearWindDirs(e) {
+      if (e) e.stopPropagation();
+      permittedWindDirs.clear();
+      updateWindSelectUI();
+      syncParamsToUrl();
+      if (cachedHourlyRecords.length > 0) reEvaluateAllData();
     }
-    updateWindDirButtons();
 
-    /* Moisture View Toggle */
+    function updateWindSelectUI() {
+      const chks = document.querySelectorAll('#windMenu input[type="checkbox"]');
+      chks.forEach(c => {
+        c.checked = permittedWindDirs.has(c.value);
+      });
+
+      const label = document.getElementById('windSelectLabel');
+      const clearBtn = document.getElementById('windClearBtn');
+      if (permittedWindDirs.size === 0) {
+        label.innerText = 'Any Dir';
+        clearBtn.style.display = 'none';
+      } else {
+        const arr = Array.from(permittedWindDirs);
+        label.innerText = (arr.length <= 3) ? arr.join(',') : `${arr.length} Selected`;
+        clearBtn.style.display = 'inline';
+      }
+    }
+    updateWindSelectUI();
+
+    // Close wind dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      const field = document.getElementById('windField');
+      if (field && !field.contains(e.target)) {
+        document.getElementById('windMenu').style.display = 'none';
+      }
+    });
+
+    /* =========================================================
+       5. MOISTURE & HOURLY TOGGLES
+       ========================================================= */
     function toggleMoistureView() {
       showMoistureForecast = !showMoistureForecast;
       const btn = document.getElementById('btnToggleMoisture');
@@ -575,7 +658,6 @@
       document.getElementById('th-moisture').style.display = 'table-cell';
     }
 
-    /* Expand / Collapse Hourly Section */
     function toggleHourlySection() {
       const container = document.getElementById('matrix-container');
       const btn = document.getElementById('btnToggleHourly');
@@ -591,126 +673,13 @@
       }
     }
 
-    const cleanUnitId = rawId.replace(/[^0-9]/g, '');
-    const unitName = sanitizeUnitName(rawUnit ? decodeURIComponent(rawUnit) : null);
-
-    const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
-    let currentRings = null;
-    let isUploadedUnit = false;
-    let currentBasemap = 'sat';
-    let currentBboxStr = '';
-    
-    let activeUnitLabel = unitName || 'Unit Weather Forecast';
-    document.getElementById('unit-title').innerText = activeUnitLabel;
-
-    // Load initial geometry from URL if passed by the AGOL web map
-    if (rawGeometry) {
-      try {
-        const parsed = JSON.parse(decodeURIComponent(rawGeometry));
-        if (parsed.rings) {
-          currentRings = parsed.rings;
-        } else if (parsed.type === 'Feature' && parsed.geometry) {
-          currentRings = parsed.geometry.type === 'Polygon' ? parsed.geometry.coordinates : [parsed.geometry.coordinates[0]];
-        } else if (parsed.type === 'Polygon') {
-          currentRings = parsed.coordinates;
-        } else if (Array.isArray(parsed)) {
-          currentRings = Array.isArray(parsed[0][0]) ? parsed : [parsed];
-        }
-      } catch (e) {
-        console.warn("Could not parse URL geometry parameter:", e);
-      }
-    }
-
-    const dropZone = document.getElementById('dropZone');
-    ['dragenter', 'dragover'].forEach(eventName => {
-      dropZone.addEventListener(eventName, (e) => { e.preventDefault(); dropZone.classList.add('dragover'); }, false);
-    });
-    ['dragleave', 'drop'].forEach(eventName => {
-      dropZone.addEventListener(eventName, (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); }, false);
-    });
-    dropZone.addEventListener('drop', (e) => {
-      const dt = e.dataTransfer;
-      if (dt.files && dt.files.length) {
-        processUploadedFile(dt.files[0]);
-      }
-    });
-
-    function handleFileUpload(event) {
-      const file = event.target.files[0];
-      if (file) processUploadedFile(file);
-    }
-
-    function processUploadedFile(file) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const content = e.target.result;
-          let rings = null;
-          let name = file.name.replace(/\.[^/.]+$/, "");
-
-          if (file.name.endsWith('.json') || file.name.endsWith('.geojson') || content.trim().startsWith('{')) {
-            const parsed = JSON.parse(content);
-            let geom = parsed;
-            if (parsed.type === 'FeatureCollection' && parsed.features && parsed.features.length > 0) {
-              geom = parsed.features[0].geometry;
-              const props = parsed.features[0].properties || {};
-              name = props.name || props.Name || name;
-            } else if (parsed.type === 'Feature') {
-              geom = parsed.geometry;
-              const props = parsed.properties || {};
-              name = props.name || props.Name || name;
-            }
-
-            if (geom.type === 'Polygon') {
-              rings = geom.coordinates;
-            } else if (geom.type === 'MultiPolygon') {
-              rings = geom.coordinates[0];
-            } else if (geom.rings) {
-              rings = geom.rings;
-            }
-          } else if (file.name.endsWith('.kml') || content.includes('<coordinates>')) {
-            const coordMatch = content.match(/<coordinates>([\s\S]*?)<\/coordinates>/i);
-            if (coordMatch) {
-              const rawCoords = coordMatch[1].trim().split(/\s+/);
-              let pts = [];
-              rawCoords.forEach(str => {
-                const parts = str.split(',');
-                if (parts.length >= 2) {
-                  const n1 = parseFloat(parts[0]);
-                  const n2 = parseFloat(parts[1]);
-                  if (!isNaN(n1) && !isNaN(n2)) {
-                    const norm = normalizePoint(n1, n2);
-                    pts.push([norm.lon, norm.lat]);
-                  }
-                }
-              });
-              if (pts.length >= 3) rings = [pts];
-            }
-          }
-
-          if (rings && rings.length > 0) {
-            currentRings = rings;
-            isUploadedUnit = true;
-            window.history.replaceState({}, document.title, window.location.pathname);
-
-            activeUnitLabel = `${name} (Custom Upload)`;
-            document.getElementById('unit-title').innerText = activeUnitLabel;
-            
-            const centroid = calculateRingsCentroid(currentRings);
-            if (centroid) {
-              document.getElementById('coordInput').value = `${centroid.lat.toFixed(4)}, ${centroid.lon.toFixed(4)}`;
-              document.getElementById('status').innerText = `Active Boundary: Uploaded File "${name}" (${centroid.lat.toFixed(2)}, ${centroid.lon.toFixed(2)})`;
-              syncParamsToUrl();
-              runEvaluation(true);
-            }
-          } else {
-            alert("Could not extract polygon geometry from file. Please upload a valid GeoJSON or KML polygon file.");
-          }
-        } catch (err) {
-          alert("Error parsing unit file: " + err.message);
-        }
-      };
-      reader.readAsText(file);
+    /* =========================================================
+       6. GEOMETRY & UTILITY HELPERS
+       ========================================================= */
+    function sanitizeUnitName(name) {
+      if (!name) return null;
+      const s = String(name).trim();
+      return (s === '' || s === '{Name}' || s.toLowerCase() === 'none' || s.toLowerCase() === 'null') ? null : s;
     }
 
     function normalizePoint(n1, n2) {
@@ -796,6 +765,167 @@
       return d;
     }
 
+    function getValueForTime(valuesArray, targetTime) {
+      if (!valuesArray || !valuesArray.length) return null;
+      const targetMs = targetTime.getTime();
+      for (const item of valuesArray) {
+        const [timeStr, durationStr] = item.validTime.split('/');
+        const startMs = new Date(timeStr).getTime();
+        let durationMs = 3600000; 
+        if (durationStr && durationStr.startsWith('PT')) {
+          const hours = parseInt(durationStr.replace('PT', '').replace('H', '')) || 1;
+          durationMs = hours * 3600000;
+        }
+        if (targetMs >= startMs && targetMs < (startMs + durationMs)) {
+          return item.value;
+        }
+      }
+      return null;
+    }
+
+    function getVentCategory(rate, stateCode) {
+      const rules = STATE_VENT_RULES[stateCode] || STATE_VENT_RULES.CO;
+      if (rate === null || isNaN(rate)) return { text: 'N/A', cls: '' };
+      if (rate < rules.poorLimit)  return { text: `POOR (<${rules.poorLimit}k)`, cls: 'cell-fail' };
+      if (rate < rules.fairLimit)  return { text: `FAIR (${rules.poorLimit}-${rules.fairLimit}k)`, cls: 'cell-warn' };
+      if (rate < rules.goodLimit)  return { text: `GOOD (${rules.fairLimit}-${rules.goodLimit}k)`, cls: 'cell-pass' };
+      return { text: `EXCELLENT (≥${rules.goodLimit}k)`, cls: 'cell-pass' };
+    }
+
+    /* =========================================================
+       7. FILE UPLOAD & ARCGIS LOOKUP
+       ========================================================= */
+    const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
+
+    const dropZone = document.getElementById('dropZone');
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => { e.preventDefault(); dropZone.classList.add('dragover'); }, false);
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); }, false);
+    });
+    dropZone.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      if (dt.files && dt.files.length) processUploadedFile(dt.files[0]);
+    });
+
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (file) processUploadedFile(file);
+    }
+
+    function processUploadedFile(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const content = e.target.result;
+          let rings = null;
+          let name = file.name.replace(/\.[^/.]+$/, "");
+
+          if (file.name.endsWith('.json') || file.name.endsWith('.geojson') || content.trim().startsWith('{')) {
+            const parsed = JSON.parse(content);
+            let geom = parsed;
+            if (parsed.type === 'FeatureCollection' && parsed.features?.length > 0) {
+              geom = parsed.features[0].geometry;
+              const props = parsed.features[0].properties || {};
+              name = props.name || props.Name || name;
+            } else if (parsed.type === 'Feature') {
+              geom = parsed.geometry;
+              const props = parsed.properties || {};
+              name = props.name || props.Name || name;
+            }
+
+            if (geom.type === 'Polygon') rings = geom.coordinates;
+            else if (geom.type === 'MultiPolygon') rings = geom.coordinates[0];
+            else if (geom.rings) rings = geom.rings;
+          } else if (file.name.endsWith('.kml') || content.includes('<coordinates>')) {
+            const coordMatch = content.match(/<coordinates>([\s\S]*?)<\/coordinates>/i);
+            if (coordMatch) {
+              const rawCoords = coordMatch[1].trim().split(/\s+/);
+              let pts = [];
+              rawCoords.forEach(str => {
+                const parts = str.split(',');
+                if (parts.length >= 2) {
+                  const norm = normalizePoint(parseFloat(parts[0]), parseFloat(parts[1]));
+                  if (!isNaN(norm.lat) && !isNaN(norm.lon)) pts.push([norm.lon, norm.lat]);
+                }
+              });
+              if (pts.length >= 3) rings = [pts];
+            }
+          }
+
+          if (rings && rings.length > 0) {
+            currentRings = rings;
+            isUploadedUnit = true;
+            activeUnitLabel = `${name} (Custom Upload)`;
+            document.getElementById('unit-title').innerText = activeUnitLabel;
+            
+            const centroid = calculateRingsCentroid(currentRings);
+            if (centroid) {
+              document.getElementById('coordInput').value = `${centroid.lat.toFixed(4)}, ${centroid.lon.toFixed(4)}`;
+              document.getElementById('status').innerText = `Active Boundary: Uploaded File "${name}" (${centroid.lat.toFixed(2)}, ${centroid.lon.toFixed(2)})`;
+              syncParamsToUrl();
+              runEvaluation(true);
+            }
+          } else {
+            alert("Could not extract polygon geometry from file. Please upload a valid GeoJSON or KML polygon.");
+          }
+        } catch (err) {
+          alert("Error parsing unit file: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function queryArcGISJsonp(id) {
+      return new Promise((resolve, reject) => {
+        const cbName = 'arcgis_cb_' + Math.floor(Math.random() * 10000000);
+        const queryUrl = `${FEATURE_SERVICE_URL}?where=OBJECTID%3D${id}&outFields=*&returnGeometry=true&outSR=4326&f=json&callback=${cbName}`;
+
+        window[cbName] = function(data) {
+          delete window[cbName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+          if (data.error) reject(new Error(data.error.message));
+          else resolve(data);
+        };
+
+        const script = document.createElement('script');
+        script.src = queryUrl;
+        script.onerror = function() {
+          delete window[cbName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+          reject(new Error("Network request to ArcGIS service failed."));
+        };
+        document.head.appendChild(script);
+      });
+    }
+
+    async function getUnitCoordinatesById(id) {
+      if (!id) throw new Error("No valid numeric Unit ID received.");
+      const data = await queryArcGISJsonp(id);
+      if (!data.features || data.features.length === 0) throw new Error(`Unit ID ${id} not found.`);
+
+      const feat = data.features[0];
+      const attrs = feat.attributes || {};
+      
+      const fName = sanitizeUnitName(attrs.Name || attrs.name || attrs.NAME || attrs.unit_name || attrs.UnitName || attrs.UNIT_NAME || attrs.unit || attrs.Unit);
+      activeUnitLabel = fName || 'Unit Weather Forecast';
+      document.getElementById('unit-title').innerText = activeUnitLabel;
+
+      const geom = feat.geometry;
+      currentRings = geom.rings || null;
+
+      if (geom.rings) {
+        const centroid = calculateRingsCentroid(geom.rings);
+        if (!centroid) throw new Error("Could not compute centroid from polygon coordinates.");
+        return centroid;
+      } else if (geom.x && geom.y) {
+        return normalizePoint(geom.x, geom.y);
+      }
+
+      throw new Error("No usable geometry found in unit record.");
+    }
+
     async function fetchRawsData(lat, lon) {
       try {
         const stationsRes = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}/stations`);
@@ -841,75 +971,8 @@
 
         document.getElementById('raws-box').style.display = 'block';
       } catch (e) {
-        console.warn("Could not load RAWS station observation:", e);
+        console.warn("Could not load RAWS observation:", e);
       }
-    }
-
-    function queryArcGISJsonp(id) {
-      return new Promise((resolve, reject) => {
-        const cbName = 'arcgis_cb_' + Math.floor(Math.random() * 10000000);
-        const queryUrl = `${FEATURE_SERVICE_URL}?where=OBJECTID%3D${id}&outFields=*&returnGeometry=true&outSR=4326&f=json&callback=${cbName}`;
-
-        window[cbName] = function(data) {
-          delete window[cbName];
-          if (script.parentNode) script.parentNode.removeChild(script);
-          if (data.error) reject(new Error(`ArcGIS error: ${data.error.message}`));
-          else resolve(data);
-        };
-
-        const script = document.createElement('script');
-        script.src = queryUrl;
-        script.onerror = function() {
-          delete window[cbName];
-          if (script.parentNode) script.parentNode.removeChild(script);
-          reject(new Error("Network request to ArcGIS service failed."));
-        };
-        document.head.appendChild(script);
-      });
-    }
-
-    function getValueForTime(valuesArray, targetTime) {
-      if (!valuesArray || !valuesArray.length) return null;
-      const targetMs = targetTime.getTime();
-      for (const item of valuesArray) {
-        const [timeStr, durationStr] = item.validTime.split('/');
-        const startMs = new Date(timeStr).getTime();
-        let durationMs = 3600000; 
-        if (durationStr && durationStr.startsWith('PT')) {
-          const hours = parseInt(durationStr.replace('PT', '').replace('H', '')) || 1;
-          durationMs = hours * 3600000;
-        }
-        if (targetMs >= startMs && targetMs < (startMs + durationMs)) {
-          return item.value;
-        }
-      }
-      return null;
-    }
-
-    async function getUnitCoordinatesById(id) {
-      if (!id) throw new Error("No valid numeric Unit ID received.");
-      const data = await queryArcGISJsonp(id);
-      if (!data.features || data.features.length === 0) throw new Error(`Unit ID ${id} not found.`);
-
-      const feat = data.features[0];
-      const attrs = feat.attributes || {};
-      
-      const fName = sanitizeUnitName(attrs.Name || attrs.name || attrs.NAME || attrs.unit_name || attrs.UnitName || attrs.UNIT_NAME || attrs.unit || attrs.Unit);
-      activeUnitLabel = fName || 'Unit Weather Forecast';
-      document.getElementById('unit-title').innerText = activeUnitLabel;
-
-      const geom = feat.geometry;
-      currentRings = geom.rings || null;
-
-      if (geom.rings) {
-        const centroid = calculateRingsCentroid(geom.rings);
-        if (!centroid) throw new Error("Could not compute centroid from polygon coordinates.");
-        return centroid;
-      } else if (geom.x && geom.y) {
-        return normalizePoint(geom.x, geom.y);
-      }
-
-      throw new Error("No usable geometry found in unit record.");
     }
 
     function setBasemap(type) {
@@ -977,57 +1040,53 @@
       updateMapImage();
     }
 
-    function getVentCategory(rate, stateCode) {
-      const rules = STATE_VENT_RULES[stateCode] || STATE_VENT_RULES.CO;
-      if (rate === null || isNaN(rate)) return { text: 'N/A', cls: '' };
-      if (rate < rules.poorLimit)  return { text: `POOR (<${rules.poorLimit}k)`, cls: 'cell-fail' };
-      if (rate < rules.fairLimit)  return { text: `FAIR (${rules.poorLimit}-${rules.fairLimit}k)`, cls: 'cell-warn' };
-      if (rate < rules.goodLimit)  return { text: `GOOD (${rules.fairLimit}-${rules.goodLimit}k)`, cls: 'cell-pass' };
-      return { text: `EXCELLENT (≥${rules.goodLimit}k)`, cls: 'cell-pass' };
-    }
-
+    /* =========================================================
+       8. CORE EVALUATION ENGINE
+       ========================================================= */
     async function runEvaluation(isManual = false) {
       const evalBtn = document.getElementById('evalBtn');
       const origBtnText = evalBtn.innerText;
       
-      // Update UI so the user knows something is happening
-      evalBtn.innerText = "Fetching NWS Forecast...";
+      evalBtn.innerText = "Evaluating...";
       evalBtn.disabled = true;
 
       try {
         let coords = null;
 
-        // Ensure we only try the strict TWIG lookup if the web map didn't already provide the polygon rings
-        if (cleanUnitId && !isManual && !isUploadedUnit && !currentRings) {
+        // 1. If polygon rings already exist from map click or upload, use their centroid
+        if (currentRings && currentRings.length > 0) {
+          coords = calculateRingsCentroid(currentRings);
+        }
+
+        // 2. Fall back to feature service lookup only if no rings exist and an ID is provided
+        if (!coords && cleanUnitId && !isUploadedUnit) {
           document.getElementById('status').innerText = "Locating unit boundary...";
           try {
             coords = await getUnitCoordinatesById(cleanUnitId);
-            document.getElementById('coordInput').value = `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`;
           } catch (err) {
-            console.warn("TWIG lookup fallback to manual input:", err);
+            console.warn("Feature service lookup fallback to manual coordinate input:", err);
           }
         } 
         
-        // If the lookup above skipped or failed, parse coordinates from input or URL-provided rings
+        // 3. Fall back to coordinate input box
         if (!coords) {
           coords = parseSmartCoordinates(document.getElementById('coordInput').value);
           if (!coords && currentRings && currentRings.length > 0) {
             coords = calculateRingsCentroid(currentRings);
-            if (coords) {
-              document.getElementById('coordInput').value = `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`;
-            }
           }
         }
 
-        if (!coords) {
-          document.getElementById('status').innerText = "Please select a unit on the map or enter valid coordinates (e.g., 38.87, -106.95).";
+        if (coords) {
+          document.getElementById('coordInput').value = `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`;
+        } else {
+          document.getElementById('status').innerText = "Select a unit on the map or enter valid coordinates (e.g., 38.87, -106.95).";
           return;
         }
 
         const { lat, lon } = coords;
 
         if (lat < 24 || lat > 50 || lon > -65 || lon < -130) {
-          document.getElementById('status').innerText = `Error: Coordinates (${lat.toFixed(2)}, ${lon.toFixed(2)}) fall outside the NWS forecast grid.`;
+          document.getElementById('status').innerText = `Error: Coordinates (${lat.toFixed(2)}, ${lon.toFixed(2)}) fall outside NWS forecast coverage.`;
           return;
         }
 
@@ -1037,7 +1096,7 @@
         document.getElementById('status').innerText = `Connecting to NWS Grid (${lat.toFixed(2)}, ${lon.toFixed(2)})...`;
 
         const pointRes = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`);
-        if (!pointRes.ok) throw new Error("NWS grid point response error (" + pointRes.status + ")");
+        if (!pointRes.ok) throw new Error("Could not reach NWS grid point.");
         const pointData = await pointRes.json();
         
         const loc = pointData.properties.relativeLocation.properties;
@@ -1053,12 +1112,11 @@
         const gridUrl   = pointData.properties.forecastGridData;
 
         const [forecastRes, gridRes] = await Promise.all([fetch(hourlyUrl), fetch(gridUrl)]);
-        if (!forecastRes.ok || !gridRes.ok) throw new Error("NWS forecast data is temporarily unavailable for this location.");
+        if (!forecastRes.ok || !gridRes.ok) throw new Error("NWS forecast data is currently unreachable for this point.");
 
         const forecastData = await forecastRes.json();
         const gridData     = await gridRes.json();
 
-        // Up to 7 days of hourly periods
         const periods = forecastData.properties.periods || [];
         const mixingHeightVals = gridData.properties?.mixingHeight?.values || [];
         const transportWindVals = gridData.properties?.transportWindSpeed?.values || [];
@@ -1075,7 +1133,6 @@
           const gust = p.windGust ? parseInt(p.windGust) : wind;
           const pop = p.probabilityOfPrecipitation ? p.probabilityOfPrecipitation.value : 0;
 
-          // Liquid QPF & Snow from grid
           const qpfMm = getValueForTime(qpfVals, pTime) || 0;
           const snowMm = getValueForTime(snowVals, pTime) || 0;
           const rainIn = qpfMm * 0.0393701;
@@ -1117,9 +1174,10 @@
         
         reEvaluateAllData();
         
+        // Show 7-day cards
         document.getElementById('day-overview-container').style.display = 'block';
         
-        // If it's a fresh automated load, keep the hourly matrix hidden by default
+        // Keep hourly breakdown collapsed by default
         if (!isManual) {
           document.getElementById('matrix-container').style.display = 'none';
           document.getElementById('btnToggleHourly').innerText = 'Show Hourly Breakdown ▼';
@@ -1155,7 +1213,7 @@
         const rhOk   = (r.rh !== null) ? (r.rh >= minRH && r.rh <= maxRH) : true;
         const minVentOk = (minVent === null || r.ventRate === null || r.ventRate >= minVent);
 
-        // Wind Direction Check
+        // Wind Direction Limit Check
         let windDirOk = true;
         if (permittedWindDirs.size > 0) {
           windDirOk = permittedWindDirs.has(r.windDirSector);
@@ -1285,6 +1343,9 @@
       });
     }
 
+    /* =========================================================
+       9. MAP SELECTION LISTENER (Experience Builder)
+       ========================================================= */
     window.addEventListener('message', function(event) {
       if (!event.data) return;
       try {
@@ -1293,18 +1354,27 @@
           isUploadedUnit = false;
           const geom = payload.rings || payload.geometry?.rings || payload.geojson;
           if (Array.isArray(geom)) {
-            currentRings = Array.isArray(geom[0][0]) ? geom : [geom];
+            currentRings = Array.isArray(geom[0]?.[0]) ? geom : [geom];
+          }
+          cachedCoords = calculateRingsCentroid(currentRings);
+          if (cachedCoords) {
+            document.getElementById('coordInput').value = `${cachedCoords.lat.toFixed(4)}, ${cachedCoords.lon.toFixed(4)}`;
           }
           
-          const pName = sanitizeUnitName(payload.unit || payload.name);
+          const pName = sanitizeUnitName(payload.unit || payload.name || payload.Unit || payload.Name);
           activeUnitLabel = pName || 'Unit Weather Forecast';
-          
           document.getElementById('unit-title').innerText = activeUnitLabel;
+          
           runEvaluation(true);
         }
-      } catch(e) {}
+      } catch(e) {
+        console.warn("Could not process incoming map message:", e);
+      }
     });
 
+    /* =========================================================
+       10. PDF PRINT EXPORT
+       ========================================================= */
     function openExportModal() { document.getElementById('exportModal').style.display = 'flex'; }
     function closeExportModal() { document.getElementById('exportModal').style.display = 'none'; }
 
@@ -1320,7 +1390,7 @@
 
       const printWin = window.open('', '_blank');
       if (!printWin) {
-        alert("Pop-up blocked! Please allow pop-ups for this site to open the printable report tab.");
+        alert("Please allow pop-ups for this site to open printable report.");
         return;
       }
 
@@ -1421,14 +1491,12 @@
               margin-top: 2px;
             }
 
-            /* 7-Day Card Print Layout */
             .day-card { border: 1px solid #ccc; border-radius: 4px; padding: 6px 4px; text-align: center; font-size: 10px; background: #fafafa; }
             .day-card.card-pass { background: #eef8ee; border-color: #28a745; }
             .day-title { font-weight: bold; }
             .status-pill { font-weight: bold; display: inline-block; padding: 1px 4px; border-radius: 6px; font-size: 9px; margin: 3px 0; background: #6c757d; color: white; }
             .card-pass .status-pill { background: #28a745; }
 
-            /* Strip box styles from RAWS container in print */
             #raws-box.data-box {
               background: transparent !important;
               border: none !important;
@@ -1499,19 +1567,15 @@
             <div class="classic-text-item"><span class="lbl">Relative Humidity</span><span class="val">${minRH}% to ${maxRH}%</span></div>
             <div class="classic-text-item"><span class="lbl">Max 20ft Wind</span><span class="val">${maxWind} mph</span></div>
             <div class="classic-text-item"><span class="lbl">Max Wind Gust</span><span class="val">${maxGust} mph</span></div>
-            <div class="classic-text-item"><span class="lbl">Acceptable Wind Dirs</span><span class="val">${windDirText}</span></div>
+            <div class="classic-text-item"><span class="lbl">Permitted Wind Dirs</span><span class="val">${windDirText}</span></div>
             <div class="classic-text-item"><span class="lbl">Min Ventilation</span><span class="val">${minVent ? minVent + ' kt-ft' : 'None'}</span></div>
           </div>
       `;
 
-      if (show7Day) {
-        reportHtml += sevenDaySummaryHtml;
-      }
-
+      if (show7Day) reportHtml += sevenDaySummaryHtml;
       if (showRaws && document.getElementById('raws-box').style.display !== 'none') {
         reportHtml += document.getElementById('raws-box').outerHTML;
       }
-
       reportHtml += matrixHtml;
 
       if (showSatMap) {
@@ -1554,7 +1618,10 @@
       printWin.document.close();
     }
 
-    if (cleanUnitId || currentRings) {
+    /* =========================================================
+       11. AUTO-RUN INITIALIZATION
+       ========================================================= */
+    if (cleanUnitId || currentRings || parseSmartCoordinates(document.getElementById('coordInput').value)) {
       runEvaluation(false);
     }
   </script>
