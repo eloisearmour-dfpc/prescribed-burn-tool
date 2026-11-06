@@ -30,76 +30,123 @@
       background: #fff;
     }
 
-    .input-header { font-size: 12px; font-weight: bold; color: #0078d4; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 8px 0; }
-    .rx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+    .input-header { font-size: 12px; font-weight: bold; color: #0078d4; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 8px 0; border-bottom: 1px solid #0078d4; padding-bottom: 4px; }
+    .rx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
     .rx-field { display: flex; flex-direction: column; font-size: 12px; font-weight: bold; color: #444; position: relative; }
     .rx-field input { padding: 7px; font-size: 13px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 4px; background: #fff; box-sizing: border-box; }
     
-    /* Compact Wind Direction Bar */
-    .wind-control-row { display: flex; gap: 8px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
-    .wind-chip-group { display: flex; gap: 4px; flex: 1; min-width: 240px; }
-    .dir-toggle {
-      flex: 1 1 0;
-      min-width: 26px;
-      padding: 6px 0 !important;
-      text-align: center;
+    /* Compact Multi-Select Dropdown */
+    .custom-select-btn {
+      padding: 7px 8px;
+      font-size: 12px;
+      border: 1px solid #0078d4;
+      border-radius: 4px;
+      margin-top: 4px;
+      background: #fff;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: normal;
+      color: #333;
+      user-select: none;
+      box-sizing: border-box;
+      height: 31px;
+    }
+    .custom-dropdown-menu {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      width: 140px;
+      background: white;
+      border: 1px solid #0078d4;
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 1000;
+      padding: 6px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      box-sizing: border-box;
+    }
+    .wind-chk-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #333;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+    .wind-chk-item:hover { background: #f0f7fc; }
+
+    /* Clean Details Summary (Upload/Coords) */
+    details.setup-details {
+      margin-bottom: 12px;
+      padding: 8px 10px;
+      background: #f0f4f8;
+      border-radius: 6px;
+      border: 1px solid #d0e1f9;
+    }
+    details.setup-details summary {
       font-size: 12px;
       font-weight: bold;
-      border: 1px solid #0078d4;
+      color: #0078d4;
+      cursor: pointer;
+      outline: none;
+    }
+    details.setup-details summary::-webkit-details-marker { display: none; }
+    
+    .setup-content {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #d0e1f9;
+    }
+    .file-upload-btn {
+      display: inline-block;
       background: #fff;
       color: #0078d4;
+      border: 1px solid #0078d4;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
       border-radius: 4px;
       cursor: pointer;
-      width: auto !important;
-      margin: 0 !important;
-      transition: background 0.15s, color 0.15s;
+      margin-bottom: 8px;
+      transition: background 0.2s;
     }
-    .dir-toggle.active { background: #0078d4 !important; color: #fff !important; }
-
-    /* Drag and Drop Zone UI */
-    .drop-zone {
-      border: 2px dashed #0078d4;
-      border-radius: 6px;
-      padding: 12px;
-      text-align: center;
-      background: #f0f7fc;
-      cursor: pointer;
-      margin-bottom: 10px;
-      transition: background 0.2s, border-color 0.2s;
-    }
-    .drop-zone:hover, .drop-zone.dragover { background: #e1f0fa; border-color: #005a9e; }
-    .drop-zone-text { font-size: 12px; color: #0078d4; font-weight: bold; }
-
-    .coord-box { background: #f0f4f8; padding: 10px 12px; border-radius: 6px; margin-bottom: 12px; }
+    .file-upload-btn:hover { background: #f0f7fc; }
+    .coord-box { margin-bottom: 4px; }
     .coord-box input { width: 100%; padding: 7px; font-size: 13px; border: 1px solid #0078d4; border-radius: 4px; box-sizing: border-box; margin-top: 5px; }
-    
+
     .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 12px; border-radius: 4px; margin-top: 12px; font-size: 13px; }
     .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 10px; margin-top: 8px; }
     .data-item { background: white; padding: 8px 10px; border-radius: 4px; border: 1px solid #d0e1f9; }
     .data-item .label { font-size: 11px; color: #555; text-transform: uppercase; font-weight: bold; }
     .data-item .val { font-size: 14px; font-weight: bold; color: #0078d4; margin-top: 3px; }
 
-    button { background: #0078d4; color: white; border: none; padding: 12px; border-radius: 4px; font-weight: bold; font-size: 14px; cursor: pointer; margin-top: 10px; width: 100%; transition: background 0.2s; }
+    button { background: #0078d4; color: white; border: none; padding: 12px; border-radius: 4px; font-weight: bold; font-size: 14px; cursor: pointer; margin-top: 14px; width: 100%; transition: background 0.2s; }
     button:hover { background: #005a9e; }
     button:disabled { cursor: not-allowed; background: #6c757d; }
     
     button.inline-btn { width: auto !important; margin: 0 !important; padding: 6px 12px; font-size: 12px; font-weight: 600; }
-    button.secondary-btn { background: #fff; color: #0078d4; border: 1.5px solid #0078d4; }
+    button.secondary-btn { background: #fff; color: #0078d4; border: 1px solid #0078d4; }
     button.secondary-btn.active { background: #0078d4; color: #fff; }
     button.del-btn { color: #d9534f; border-color: #d9534f; }
     button.del-btn:hover { background: #fdf2f2; }
-
     button.export-btn { background: #28a745; margin-top: 14px; margin-bottom: 14px; font-size: 14px; }
     button.export-btn:hover { background: #218838; }
 
     /* 7-Day Overview Cards */
-    .day-cards-header { display: flex; justify-content: space-between; align-items: center; margin: 14px 0 8px 0; }
-    .day-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); gap: 8px; margin-bottom: 10px; }
+    .day-cards-header { display: flex; justify-content: space-between; align-items: center; margin: 16px 0 8px 0; }
+    .day-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 6px; margin-bottom: 10px; }
     .day-card {
       background: #f1f3f5;
-      border: 1.5px solid #ced4da;
+      border: 1px solid #ced4da;
       border-radius: 6px;
-      padding: 8px 6px;
+      padding: 10px 4px 6px 4px;
       text-align: center;
       cursor: pointer;
       position: relative;
@@ -109,27 +156,28 @@
     .day-card.selected { border-color: #0078d4; box-shadow: 0 0 0 2px #0078d4; }
     .day-card.card-pass { background: #e8f5e9; border-color: #28a745; }
     .day-card.card-pass .status-pill { background: #28a745; color: white; }
-    .day-card .storm-badge { font-size: 9px; font-weight: bold; background: #005a9e; color: white; padding: 2px 4px; border-radius: 3px; position: absolute; top: -6px; left: 50%; transform: translateX(-50%); letter-spacing: 0.5px; white-space: nowrap; }
-    .day-card .day-title { font-size: 12px; font-weight: bold; text-transform: uppercase; color: #222; margin-top: 4px; }
-    .day-card .day-date { font-size: 11px; color: #666; margin-bottom: 4px; }
+    .day-card .storm-badge { font-size: 9px; font-weight: bold; background: #005a9e; color: white; padding: 2px 4px; border-radius: 3px; position: absolute; top: -6px; left: 50%; transform: translateX(-50%); letter-spacing: 0.5px; white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+    .day-card .day-title { font-size: 12px; font-weight: bold; text-transform: uppercase; color: #222; margin-top: 2px; }
+    .day-card .day-date { font-size: 10px; color: #666; margin-bottom: 4px; }
     .day-card .status-pill { font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 10px; background: #6c757d; color: white; display: inline-block; margin-bottom: 4px; }
-    .day-card .day-stats { font-size: 11px; color: #444; line-height: 1.3; }
+    .day-card .day-stats { font-size: 11px; color: #444; line-height: 1.3; font-weight: 500; }
 
-    /* Collapsible Hourly Bar */
+    /* Simple Outline Button for Hourly */
     .hourly-toggle-bar { margin: 10px 0; text-align: center; }
     .hourly-toggle-btn {
       width: 100% !important;
-      background: #f8fafc;
+      background: #fff;
       color: #0078d4;
-      border: 1.5px dashed #0078d4;
+      border: 1px solid #0078d4;
       padding: 8px 12px;
       font-size: 12px;
       font-weight: bold;
-      border-radius: 6px;
+      border-radius: 4px;
       cursor: pointer;
       margin: 0;
+      transition: background 0.2s;
     }
-    .hourly-toggle-btn:hover { background: #edf4fb; }
+    .hourly-toggle-btn:hover { background: #f0f7fc; }
 
     /* Matrix Table */
     table { width: 100%; border-collapse: collapse; background: white; margin-top: 10px; font-size: 12px; }
@@ -144,7 +192,7 @@
 
     .map-controls-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; font-weight: bold; }
     .map-btn-group { display: flex; gap: 6px; }
-    .map-toggle-btn { padding: 6px 12px; font-size: 13px; font-weight: 600; border: 1.5px solid #0078d4; background: #fff; color: #0078d4; border-radius: 4px; cursor: pointer; width: auto !important; margin: 0 !important; }
+    .map-toggle-btn { padding: 4px 10px; font-size: 12px; font-weight: 600; border: 1px solid #0078d4; background: #fff; color: #0078d4; border-radius: 4px; cursor: pointer; width: auto !important; margin: 0 !important; }
     .map-toggle-btn.active { background: #0078d4; color: #fff; }
 
     .map-container { position: relative; width: 100%; max-width: 600px; margin: 14px auto; display: none; text-align: center; }
@@ -167,26 +215,33 @@
       <select id="watchlistSelect" onchange="loadFromWatchlist(this.value)">
         <option value="">-- Saved Units Watchlist --</option>
       </select>
-      <button type="button" class="inline-btn secondary-btn" onclick="saveCurrentToWatchlist()">Save Unit</button>
+      <button type="button" class="inline-btn secondary-btn" onclick="saveCurrentToWatchlist()">★ Save Active Unit</button>
       <button type="button" class="inline-btn secondary-btn del-btn" onclick="deleteFromWatchlist()">Delete</button>
+      <span id="saveConfirmMsg" style="color:#28a745; font-weight:bold; font-size:12px; margin-left:6px; opacity:0; transition:opacity 0.3s;">✓ Saved</span>
     </div>
 
-    <h3 id="unit-title" style="margin:0 0 4px 0; font-size:17px;">Unit Weather Forecast</h3>
-    <div id="status" style="font-size: 12px; color: #0078d4; font-weight: 500; margin-bottom: 10px;">
-      Select a unit on the map, upload a boundary file, or load from your watchlist above.
+    <h3 id="unit-title" style="margin:0 0 2px 0; font-size:17px;">Unit Weather Forecast</h3>
+    <div id="status" style="font-size: 12px; color: #666; margin-bottom: 12px;">
+      Select a unit on the map or load from your watchlist.
     </div>
 
-    <div id="dropZone" class="drop-zone" onclick="document.getElementById('fileInput').click()">
-      <div class="drop-zone-text">Upload a Unit File (.geojson, .kml)</div>
-      <input type="file" id="fileInput" accept=".json,.geojson,.kml" onchange="handleFileUpload(event)" style="display:none;">
-    </div>
-
-    <div class="coord-box">
-      <div style="font-size: 11px; font-weight: bold; color: #555;">Or Enter Lat/Lon Coordinates:</div>
-      <input type="text" id="coordInput" placeholder="Coordinates (e.g. 38.87, -106.95)">
-    </div>
+    <!-- Collapsible Advanced Setup (Clean Interface) -->
+    <details class="setup-details">
+      <summary>▸ Change Boundary or Coordinates manually</summary>
+      <div class="setup-content">
+        <label class="file-upload-btn">
+          Upload Unit File (.geojson, .kml)
+          <input type="file" id="fileInput" accept=".json,.geojson,.kml" onchange="handleFileUpload(event)" style="display:none;">
+        </label>
+        <div class="coord-box">
+          <div style="font-size: 11px; font-weight: bold; color: #555;">Or Enter Lat/Lon Coordinates:</div>
+          <input type="text" id="coordInput" placeholder="e.g. 38.87, -106.95">
+        </div>
+      </div>
+    </details>
 
     <div class="input-header">Prescription Thresholds</div>
+
     <div class="rx-grid">
       <div class="rx-field">Min Temp (°F)<input type="number" id="minTemp" value="40"></div>
       <div class="rx-field">Max Temp (°F)<input type="number" id="maxTemp" value="75"></div>
@@ -195,22 +250,26 @@
       <div class="rx-field">Max Wind (mph)<input type="number" id="maxWind" value="12"></div>
       <div class="rx-field">Max Gust (mph)<input type="number" id="maxGust" value="20"></div>
       <div class="rx-field">Min Vent (kt-ft)<input type="number" id="minVent" value="40"></div>
-    </div>
-
-    <div style="margin-top: 10px;">
-      <span style="font-size: 11px; font-weight: bold; color: #444; text-transform: uppercase;">
-        Acceptable Wind Directions (Optional):
-      </span>
-      <div class="wind-control-row">
-        <div class="wind-chip-group" id="windChipGroup">
-          <button type="button" class="dir-toggle" onclick="toggleWindDir('N')">N</button>
-          <button type="button" class="dir-toggle" onclick="toggleWindDir('NE')">NE</button>
-          <button type="button" class="dir-toggle" onclick="toggleWindDir('E')">E</button>
-          <button type="button" class="dir-toggle" onclick="toggleWindDir('SE')">SE</button>
-          <button type="button" class="dir-toggle" onclick="toggleWindDir('S')">S</button>
-          <button type="button" class="dir-toggle" onclick="toggleWindDir('SW')">SW</button>
-          <button type="button" class="dir-toggle" onclick="toggleWindDir('W')">W</button>
-          <button type="button" class="dir-toggle" onclick="toggleWindDir('NW')">NW</button>
+      
+      <!-- Wind Direction Multi-Select Dropdown in Grid -->
+      <div class="rx-field" id="windField">
+        <span style="display:flex; justify-content:space-between; align-items:center;">
+          Wind Dir
+          <span id="windClearBtn" onclick="clearWindDirs(event)" style="cursor:pointer; color:#0078d4; font-size:10px; display:none;">Clear</span>
+        </span>
+        <div id="windSelectBtn" class="custom-select-btn" onclick="toggleWindMenu(event)">
+          <span id="windSelectLabel">Any Dir</span>
+          <span style="font-size:9px; color:#555;">▼</span>
+        </div>
+        <div id="windMenu" class="custom-dropdown-menu" style="display:none;" onclick="event.stopPropagation()">
+          <label class="wind-chk-item"><input type="checkbox" value="N" onchange="handleWindDirChange()"> N</label>
+          <label class="wind-chk-item"><input type="checkbox" value="NE" onchange="handleWindDirChange()"> NE</label>
+          <label class="wind-chk-item"><input type="checkbox" value="E" onchange="handleWindDirChange()"> E</label>
+          <label class="wind-chk-item"><input type="checkbox" value="SE" onchange="handleWindDirChange()"> SE</label>
+          <label class="wind-chk-item"><input type="checkbox" value="S" onchange="handleWindDirChange()"> S</label>
+          <label class="wind-chk-item"><input type="checkbox" value="SW" onchange="handleWindDirChange()"> SW</label>
+          <label class="wind-chk-item"><input type="checkbox" value="W" onchange="handleWindDirChange()"> W</label>
+          <label class="wind-chk-item"><input type="checkbox" value="NW" onchange="handleWindDirChange()"> NW</label>
         </div>
       </div>
     </div>
@@ -218,24 +277,29 @@
     <button id="evalBtn" onclick="runEvaluation(true)">Evaluate 7-Day Forecast</button>
   </div>
 
+  <!-- 7-Day Outlook Cards (Displayed First Upon Evaluation) -->
   <div id="day-overview-container" style="display:none;">
     <div class="day-cards-header">
-      <strong style="color:#0078d4; text-transform:uppercase; font-size:12px;">7-Day Burn Window Outlook:</strong>
-      <button class="inline-btn secondary-btn" id="btnToggleMoisture" onclick="toggleMoistureView()">Show Precip / Snow</button>
+      <strong style="color:#0078d4; text-transform:uppercase; font-size:12px; letter-spacing:0.5px;">7-Day Outlook:</strong>
     </div>
     <div class="day-cards-grid" id="day-cards-grid"></div>
     
+    <!-- Collapsible Bar for Hourly Details -->
     <div class="hourly-toggle-bar">
       <button type="button" id="btnToggleHourly" class="hourly-toggle-btn" onclick="toggleHourlySection()">
-        Show Hourly Breakdown ▼
+        ▼ View Hourly Breakdown (All 7 Days)
       </button>
     </div>
   </div>
 
+  <!-- Hourly Matrix (Collapsed by Default) -->
   <div id="matrix-container" style="display:none;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-      <span id="active-day-heading" style="font-size:12px; font-weight:bold; color:#444; text-transform:uppercase;">Hourly Breakdown</span>
-      <button class="inline-btn secondary-btn" onclick="showAllHours()" style="font-size:11px; padding:3px 8px;">Show All 7 Days</button>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; border-bottom:1px solid #dee2e6; padding-bottom:8px;">
+      <span id="active-day-heading" style="font-size:13px; font-weight:bold; color:#0078d4; text-transform:uppercase;">Hourly Breakdown</span>
+      <div style="display:flex; gap:8px;">
+        <button class="inline-btn secondary-btn" id="btnToggleMoisture" onclick="toggleMoistureView()">+ Show Precip/Snow</button>
+        <button class="inline-btn secondary-btn" onclick="showAllHours()" style="font-size:11px; padding:6px 8px;">Show All 7 Days</button>
+      </div>
     </div>
     <table id="matrix">
       <thead>
@@ -254,7 +318,7 @@
   </div>
 
   <div id="raws-box" class="data-box" style="display:none;">
-    <div style="font-weight:bold; color:#0078d4; margin-bottom:6px; font-size:14px;" id="raws-header">Nearest RAWS Observation & Fuel Moisture</div>
+    <div style="font-weight:bold; color:#0078d4; margin-bottom:6px; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;" id="raws-header">RAWS Station & Live Fuel Moisture</div>
     <div class="data-grid">
       <div class="data-item"><div class="label">Observed Temp</div><div class="val" id="raws-temp">--</div></div>
       <div class="data-item"><div class="label">Observed RH</div><div class="val" id="raws-rh">--</div></div>
@@ -265,9 +329,10 @@
     </div>
   </div>
 
+  <!-- Map Preview with Satellite & Topo Toggles -->
   <div id="map-preview" class="map-container">
     <div class="map-controls-row">
-      <span style="text-transform:uppercase; font-size:11px;">Unit Location Preview</span>
+      <span style="text-transform:uppercase; font-size:11px; color:#555;">Location Preview</span>
       <div class="map-btn-group">
         <button class="map-toggle-btn active" id="btnSat" onclick="setBasemap('sat')">Satellite</button>
         <button class="map-toggle-btn" id="btnTopo" onclick="setBasemap('topo')">Topo</button>
@@ -282,8 +347,9 @@
     </div>
   </div>
 
-  <button id="exportMenuBtn" class="export-btn" style="display:none;" onclick="openExportModal()">Export Data Summary / PDF</button>
+  <button id="exportMenuBtn" class="export-btn" style="display:none;" onclick="openExportModal()">Export PDF Briefing</button>
 
+  <!-- PDF Configuration Modal -->
   <div id="exportModal" class="modal-overlay">
     <div class="modal">
       <h4>Export Report Options</h4>
@@ -358,13 +424,13 @@
       const dirs = urlParams.get('windDirs').split(',');
       dirs.forEach(d => permittedWindDirs.add(d.trim().toUpperCase()));
     }
-    updateWindDirButtons();
+    updateWindSelectUI();
 
     if (urlParams.get('moist') === '1') {
       showMoistureForecast = true;
       const btn = document.getElementById('btnToggleMoisture');
       btn.classList.add('active');
-      btn.innerText = 'Hide Precip / Snow';
+      btn.innerText = '- Hide Precip/Snow';
       document.getElementById('th-moisture').style.display = 'table-cell';
     }
 
@@ -450,7 +516,7 @@
         localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
         populateWatchlistDropdown();
       } catch(e) {
-        alert("Saving units is not supported in this embedded map view due to your browser's security settings (cross-origin iframe limitations).");
+        alert("Saving units is not supported in this embedded map view due to your browser's security settings.");
       }
     }
 
@@ -466,14 +532,13 @@
       });
     }
 
+    // Modern Save without prompt() blocking
     function saveCurrentToWatchlist() {
-      const currentName = activeUnitLabel || 'My Prescribed Burn';
-      const promptName = prompt("Enter a name to save this unit and its prescription thresholds:", currentName);
-      if (!promptName) return;
-
+      const currentName = activeUnitLabel && activeUnitLabel !== 'Unit Weather Forecast' ? activeUnitLabel : 'Custom Unit';
+      
       const list = getWatchlist();
-      list[promptName] = {
-        name: promptName,
+      list[currentName] = {
+        name: currentName,
         coords: document.getElementById('coordInput').value,
         rings: currentRings,
         minTemp: document.getElementById('minTemp').value,
@@ -489,10 +554,12 @@
 
       saveWatchlist(list);
       
-      // Update dropdown selection if save was successful
-      if (getWatchlist()[promptName]) {
-        document.getElementById('watchlistSelect').value = promptName;
-        alert(`Saved "${promptName}" to your local Watchlist.`);
+      // Update dropdown and show brief success flash
+      if (getWatchlist()[currentName]) {
+        document.getElementById('watchlistSelect').value = currentName;
+        const msg = document.getElementById('saveConfirmMsg');
+        msg.style.opacity = 1;
+        setTimeout(() => msg.style.opacity = 0, 2000);
       }
     }
 
@@ -530,13 +597,13 @@
       document.getElementById('minVent').value = u.minVent || '40';
 
       permittedWindDirs = new Set(u.windDirs || []);
-      updateWindDirButtons();
+      updateWindSelectUI();
 
       if (u.showMoist !== undefined) {
         showMoistureForecast = u.showMoist;
         const btn = document.getElementById('btnToggleMoisture');
         btn.classList.toggle('active', showMoistureForecast);
-        btn.innerText = showMoistureForecast ? 'Hide Precip / Snow' : 'Show Precip / Snow';
+        btn.innerText = showMoistureForecast ? '- Hide Precip/Snow' : '+ Show Precip/Snow';
         document.getElementById('th-moisture').style.display = showMoistureForecast ? 'table-cell' : 'none';
       }
 
@@ -546,25 +613,57 @@
     populateWatchlistDropdown();
 
     /* =========================================================
-       4. WIND DIRECTION CONTROLS
+       4. WIND DIRECTION DROP-DOWN
        ========================================================= */
-    function toggleWindDir(dir) {
-      if (permittedWindDirs.has(dir)) {
-        permittedWindDirs.delete(dir);
-      } else {
-        permittedWindDirs.add(dir);
-      }
-      updateWindDirButtons();
+    function toggleWindMenu(e) {
+      if (e) e.stopPropagation();
+      const menu = document.getElementById('windMenu');
+      menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'grid' : 'none';
+    }
+
+    function handleWindDirChange() {
+      permittedWindDirs.clear();
+      const chks = document.querySelectorAll('#windMenu input[type="checkbox"]');
+      chks.forEach(c => {
+        if (c.checked) permittedWindDirs.add(c.value);
+      });
+      updateWindSelectUI();
       syncParamsToUrl();
       if (cachedHourlyRecords.length > 0) reEvaluateAllData();
     }
 
-    function updateWindDirButtons() {
-      const btns = document.querySelectorAll('#windChipGroup .dir-toggle');
-      btns.forEach(b => {
-        b.classList.toggle('active', permittedWindDirs.has(b.innerText.trim()));
-      });
+    function clearWindDirs(e) {
+      if (e) e.stopPropagation();
+      permittedWindDirs.clear();
+      updateWindSelectUI();
+      syncParamsToUrl();
+      if (cachedHourlyRecords.length > 0) reEvaluateAllData();
     }
+
+    function updateWindSelectUI() {
+      const chks = document.querySelectorAll('#windMenu input[type="checkbox"]');
+      chks.forEach(c => {
+        c.checked = permittedWindDirs.has(c.value);
+      });
+
+      const label = document.getElementById('windSelectLabel');
+      const clearBtn = document.getElementById('windClearBtn');
+      if (permittedWindDirs.size === 0) {
+        label.innerText = 'Any Dir';
+        clearBtn.style.display = 'none';
+      } else {
+        const arr = Array.from(permittedWindDirs);
+        label.innerText = (arr.length <= 3) ? arr.join(',') : `${arr.length} Selected`;
+        clearBtn.style.display = 'inline';
+      }
+    }
+
+    document.addEventListener('click', (e) => {
+      const field = document.getElementById('windField');
+      if (field && !field.contains(e.target)) {
+        document.getElementById('windMenu').style.display = 'none';
+      }
+    });
 
     /* =========================================================
        5. MOISTURE & HOURLY TOGGLES
@@ -573,7 +672,7 @@
       showMoistureForecast = !showMoistureForecast;
       const btn = document.getElementById('btnToggleMoisture');
       btn.classList.toggle('active', showMoistureForecast);
-      btn.innerText = showMoistureForecast ? 'Hide Precip / Snow' : 'Show Precip / Snow';
+      btn.innerText = showMoistureForecast ? '- Hide Precip/Snow' : '+ Show Precip/Snow';
       document.getElementById('th-moisture').style.display = showMoistureForecast ? 'table-cell' : 'none';
       syncParamsToUrl();
       if (cachedHourlyRecords.length > 0) renderMatrixRows();
@@ -586,10 +685,10 @@
 
       if (isOpen) {
         container.style.display = 'none';
-        btn.innerText = 'Show Hourly Breakdown ▼';
+        btn.innerText = '▼ View Hourly Breakdown (All 7 Days)';
       } else {
         container.style.display = 'block';
-        btn.innerText = 'Hide Hourly Breakdown ▲';
+        btn.innerText = '▲ Hide Hourly Breakdown';
         renderMatrixRows();
       }
     }
@@ -733,138 +832,62 @@
     }
 
     /* =========================================================
-       7. FILE UPLOAD & ARCGIS LOOKUP
+       7. FILE UPLOAD 
        ========================================================= */
-    const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
-
-    const dropZone = document.getElementById('dropZone');
-    ['dragenter', 'dragover'].forEach(eventName => {
-      dropZone.addEventListener(eventName, (e) => { e.preventDefault(); dropZone.classList.add('dragover'); }, false);
-    });
-    ['dragleave', 'drop'].forEach(eventName => {
-      dropZone.addEventListener(eventName, (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); }, false);
-    });
-    dropZone.addEventListener('drop', (e) => {
-      const dt = e.dataTransfer;
-      if (dt.files && dt.files.length) processUploadedFile(dt.files[0]);
-    });
-
     function handleFileUpload(event) {
       const file = event.target.files[0];
-      if (file) processUploadedFile(file);
-    }
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            const content = e.target.result;
+            let rings = null;
+            let name = file.name.replace(/\.[^/.]+$/, "");
 
-    function processUploadedFile(file) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const content = e.target.result;
-          let rings = null;
-          let name = file.name.replace(/\.[^/.]+$/, "");
+            if (file.name.endsWith('.json') || file.name.endsWith('.geojson') || content.trim().startsWith('{')) {
+              const parsed = JSON.parse(content);
+              let geom = parsed;
+              if (parsed.type === 'FeatureCollection' && parsed.features?.length > 0) {
+                geom = parsed.features[0].geometry;
+                const props = parsed.features[0].properties || {};
+                name = props.name || props.Name || name;
+              } else if (parsed.type === 'Feature') {
+                geom = parsed.geometry;
+                const props = parsed.properties || {};
+                name = props.name || props.Name || name;
+              }
 
-          if (file.name.endsWith('.json') || file.name.endsWith('.geojson') || content.trim().startsWith('{')) {
-            const parsed = JSON.parse(content);
-            let geom = parsed;
-            if (parsed.type === 'FeatureCollection' && parsed.features?.length > 0) {
-              geom = parsed.features[0].geometry;
-              const props = parsed.features[0].properties || {};
-              name = props.name || props.Name || name;
-            } else if (parsed.type === 'Feature') {
-              geom = parsed.geometry;
-              const props = parsed.properties || {};
-              name = props.name || props.Name || name;
+              if (geom.type === 'Polygon') rings = geom.coordinates;
+              else if (geom.type === 'MultiPolygon') rings = geom.coordinates[0];
+              else if (geom.rings) rings = geom.rings;
             }
 
-            if (geom.type === 'Polygon') rings = geom.coordinates;
-            else if (geom.type === 'MultiPolygon') rings = geom.coordinates[0];
-            else if (geom.rings) rings = geom.rings;
-          } else if (file.name.endsWith('.kml') || content.includes('<coordinates>')) {
-            const coordMatch = content.match(/<coordinates>([\s\S]*?)<\/coordinates>/i);
-            if (coordMatch) {
-              const rawCoords = coordMatch[1].trim().split(/\s+/);
-              let pts = [];
-              rawCoords.forEach(str => {
-                const parts = str.split(',');
-                if (parts.length >= 2) {
-                  const norm = normalizePoint(parseFloat(parts[0]), parseFloat(parts[1]));
-                  if (!isNaN(norm.lat) && !isNaN(norm.lon)) pts.push([norm.lon, norm.lat]);
-                }
-              });
-              if (pts.length >= 3) rings = [pts];
+            if (rings && rings.length > 0) {
+              currentRings = rings;
+              isUploadedUnit = true;
+              activeUnitLabel = `${name} (Custom Upload)`;
+              document.getElementById('unit-title').innerText = activeUnitLabel;
+              
+              const centroid = calculateRingsCentroid(currentRings);
+              if (centroid) {
+                document.getElementById('coordInput').value = `${centroid.lat.toFixed(4)}, ${centroid.lon.toFixed(4)}`;
+                syncParamsToUrl();
+                runEvaluation(true);
+              }
+            } else {
+              alert("Could not extract polygon geometry from file.");
             }
+          } catch (err) {
+            alert("Error parsing unit file: " + err.message);
           }
-
-          if (rings && rings.length > 0) {
-            currentRings = rings;
-            isUploadedUnit = true;
-            activeUnitLabel = `${name} (Custom Upload)`;
-            document.getElementById('unit-title').innerText = activeUnitLabel;
-            
-            const centroid = calculateRingsCentroid(currentRings);
-            if (centroid) {
-              document.getElementById('coordInput').value = `${centroid.lat.toFixed(4)}, ${centroid.lon.toFixed(4)}`;
-              document.getElementById('status').innerText = `Active Boundary: Uploaded File "${name}" (${centroid.lat.toFixed(2)}, ${centroid.lon.toFixed(2)})`;
-              syncParamsToUrl();
-              runEvaluation(true);
-            }
-          } else {
-            alert("Could not extract polygon geometry from file.");
-          }
-        } catch (err) {
-          alert("Error parsing unit file: " + err.message);
-        }
-      };
-      reader.readAsText(file);
-    }
-
-    function queryArcGISJsonp(id) {
-      return new Promise((resolve, reject) => {
-        const cbName = 'arcgis_cb_' + Math.floor(Math.random() * 10000000);
-        const queryUrl = `${FEATURE_SERVICE_URL}?where=OBJECTID%3D${id}&outFields=*&returnGeometry=true&outSR=4326&f=json&callback=${cbName}`;
-
-        window[cbName] = function(data) {
-          delete window[cbName];
-          if (script.parentNode) script.parentNode.removeChild(script);
-          if (data.error) reject(new Error(data.error.message));
-          else resolve(data);
         };
-
-        const script = document.createElement('script');
-        script.src = queryUrl;
-        script.onerror = function() {
-          delete window[cbName];
-          if (script.parentNode) script.parentNode.removeChild(script);
-          reject(new Error("Network request to ArcGIS service failed."));
-        };
-        document.head.appendChild(script);
-      });
-    }
-
-    async function getUnitCoordinatesById(id) {
-      if (!id) throw new Error("No valid numeric Unit ID received.");
-      const data = await queryArcGISJsonp(id);
-      if (!data.features || data.features.length === 0) throw new Error(`Unit ID ${id} not found.`);
-
-      const feat = data.features[0];
-      const attrs = feat.attributes || {};
-      
-      const fName = sanitizeUnitName(attrs.Name || attrs.name || attrs.NAME || attrs.unit_name || attrs.UnitName || attrs.UNIT_NAME || attrs.unit || attrs.Unit);
-      activeUnitLabel = fName || 'Unit Weather Forecast';
-      document.getElementById('unit-title').innerText = activeUnitLabel;
-
-      const geom = feat.geometry;
-      currentRings = geom.rings || null;
-
-      if (geom.rings) {
-        const centroid = calculateRingsCentroid(geom.rings);
-        if (!centroid) throw new Error("Could not compute centroid from polygon coordinates.");
-        return centroid;
-      } else if (geom.x && geom.y) {
-        return normalizePoint(geom.x, geom.y);
+        reader.readAsText(file);
       }
-      throw new Error("No usable geometry found in unit record.");
     }
 
+    /* =========================================================
+       8. CORE EVALUATION ENGINE & RAWS
+       ========================================================= */
     async function fetchRawsData(lat, lon) {
       try {
         const stationsRes = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}/stations`);
@@ -893,7 +916,7 @@
         const rh = (rhVal !== null && rhVal !== undefined) ? Math.round(rhVal) : null;
         const windMph = (windKmh !== null && windKmh !== undefined) ? Math.round(windKmh * 0.621371) : null;
 
-        document.getElementById('raws-header').innerText = `Nearest RAWS Station: ${station.name} (${station.stationIdentifier})`;
+        document.getElementById('raws-header').innerText = `RAWS Station & Live Fuel Moisture: ${station.name} (${station.stationIdentifier})`;
         document.getElementById('raws-temp').innerText = tempF !== null ? `${tempF}°F` : 'NO DATA';
         document.getElementById('raws-rh').innerText = rh !== null ? `${rh}%` : 'NO DATA';
         document.getElementById('raws-wind').innerText = windMph !== null ? `${windMph} mph` : 'NO DATA';
@@ -979,14 +1002,11 @@
       updateMapImage();
     }
 
-    /* =========================================================
-       8. CORE EVALUATION ENGINE
-       ========================================================= */
     async function runEvaluation(isManual = false) {
       const evalBtn = document.getElementById('evalBtn');
       const origBtnText = evalBtn.innerText;
       
-      evalBtn.innerText = "Evaluating...";
+      evalBtn.innerText = "Fetching NWS Forecast...";
       evalBtn.disabled = true;
 
       try {
@@ -1110,7 +1130,8 @@
           };
         });
 
-        document.getElementById('status').innerText = `Forecast loaded for: ${loc.city}, ${loc.state} (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
+        document.getElementById('status').innerHTML = `Forecast loaded for: <strong style="color:#333;">${loc.city}, ${loc.state}</strong> (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
+        document.querySelector('details.setup-details').removeAttribute('open'); // Auto-collapse setup details on run
         
         reEvaluateAllData();
         
@@ -1120,7 +1141,7 @@
         // Keep hourly breakdown collapsed by default
         if (!isManual) {
           document.getElementById('matrix-container').style.display = 'none';
-          document.getElementById('btnToggleHourly').innerText = 'Show Hourly Breakdown ▼';
+          document.getElementById('btnToggleHourly').innerText = '▼ View Hourly Breakdown (All 7 Days)';
         }
 
         document.getElementById('exportMenuBtn').style.display = 'block';
@@ -1219,7 +1240,7 @@
       activeDayFilter = dayKey;
       const matrixBox = document.getElementById('matrix-container');
       matrixBox.style.display = 'block';
-      document.getElementById('btnToggleHourly').innerText = 'Hide Hourly Breakdown ▲';
+      document.getElementById('btnToggleHourly').innerText = '▲ Hide Hourly Breakdown';
       reEvaluateAllData();
       renderMatrixRows();
       matrixBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1399,37 +1420,11 @@
             h2 { margin: 0 0 4px 0; color: #111; font-size: 20px; }
             .meta { font-size: 12px; color: #555; margin-bottom: 14px; border-bottom: 2px solid #222; padding-bottom: 6px; }
             
-            .report-section-title {
-              font-size: 11px;
-              font-weight: bold;
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
-              color: #111;
-              border-bottom: 1px solid #444;
-              padding-bottom: 3px;
-              margin-top: 14px;
-              margin-bottom: 8px;
-            }
+            .report-section-title { font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; color: #111; border-bottom: 1px solid #444; padding-bottom: 3px; margin-top: 14px; margin-bottom: 8px; }
 
-            .classic-text-grid {
-              display: grid;
-              grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-              gap: 12px;
-              margin-bottom: 14px;
-            }
-            .classic-text-item .lbl {
-              font-size: 10px;
-              color: #666;
-              text-transform: uppercase;
-              font-weight: 600;
-              display: block;
-            }
-            .classic-text-item .val {
-              font-size: 13px;
-              font-weight: bold;
-              color: #111;
-              margin-top: 2px;
-            }
+            .classic-text-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 14px; }
+            .classic-text-item .lbl { font-size: 10px; color: #666; text-transform: uppercase; font-weight: 600; display: block; }
+            .classic-text-item .val { font-size: 13px; font-weight: bold; color: #111; margin-top: 2px; }
 
             .day-card { border: 1px solid #ccc; border-radius: 4px; padding: 12px 4px 6px 4px; text-align: center; font-size: 10px; background: #fafafa; position: relative; }
             .day-card.card-pass { background: #eef8ee; border-color: #28a745; }
@@ -1438,22 +1433,8 @@
             .card-pass .status-pill { background: #28a745; }
             .storm-badge { font-size: 9px; font-weight: bold; background: #005a9e; color: white; padding: 2px 4px; border-radius: 3px; position: absolute; top: -6px; left: 50%; transform: translateX(-50%); white-space: nowrap; }
 
-            #raws-box.data-box {
-              background: transparent !important;
-              border: none !important;
-              padding: 0 !important;
-              margin-bottom: 14px !important;
-            }
-            #raws-header {
-              font-size: 11px !important;
-              font-weight: bold !important;
-              text-transform: uppercase !important;
-              letter-spacing: 0.5px !important;
-              color: #111 !important;
-              border-bottom: 1px solid #444 !important;
-              padding-bottom: 3px !important;
-              margin-bottom: 8px !important;
-            }
+            #raws-box.data-box { background: transparent !important; border: none !important; padding: 0 !important; margin-bottom: 14px !important; }
+            #raws-header { font-size: 11px !important; font-weight: bold !important; text-transform: uppercase !important; letter-spacing: 0.5px !important; color: #111 !important; border-bottom: 1px solid #444 !important; padding-bottom: 3px !important; margin-bottom: 8px !important; }
             .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-top: 4px; }
             .data-item { background: transparent !important; border: none !important; padding: 0 !important; }
             .data-item .label { font-size: 10px !important; color: #666 !important; text-transform: uppercase !important; font-weight: 600 !important; display: block; }
@@ -1477,11 +1458,10 @@
         <body>
           <h2>${currentTitle}</h2>
           <div class="meta">
-            <strong>Forecast Zone / Coords:</strong> ${currentStatus} &nbsp;|&nbsp; 
-            <strong>Report Generated:</strong> ${new Date().toLocaleString()}
+            <strong>${currentStatus}</strong><br> 
+            Report Generated: ${new Date().toLocaleString()}
           </div>
 
-          <!-- Classic Text Prescription Limits -->
           <div class="report-section-title">Prescription Thresholds</div>
           <div class="classic-text-grid">
             <div class="classic-text-item"><span class="lbl">Temperature</span><span class="val">${minTemp}°F to ${maxTemp}°F</span></div>
