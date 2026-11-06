@@ -35,52 +35,26 @@
     .rx-field { display: flex; flex-direction: column; font-size: 12px; font-weight: bold; color: #444; position: relative; }
     .rx-field input { padding: 7px; font-size: 13px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 4px; background: #fff; box-sizing: border-box; }
     
-    /* Compact Multi-Select Dropdown */
-    .custom-select-btn {
-      padding: 7px 8px;
+    /* Compact Wind Direction Bar */
+    .wind-control-row { display: flex; gap: 8px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+    .wind-chip-group { display: flex; gap: 4px; flex: 1; min-width: 240px; }
+    .dir-toggle {
+      flex: 1 1 0;
+      min-width: 26px;
+      padding: 6px 0 !important;
+      text-align: center;
       font-size: 12px;
+      font-weight: bold;
       border: 1px solid #0078d4;
-      border-radius: 4px;
-      margin-top: 4px;
       background: #fff;
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-weight: normal;
-      color: #333;
-      user-select: none;
-      box-sizing: border-box;
-      height: 31px;
-    }
-    .custom-dropdown-menu {
-      position: absolute;
-      top: 100%;
-      left: 0;
-      width: 140px;
-      background: white;
-      border: 1px solid #0078d4;
+      color: #0078d4;
       border-radius: 4px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      z-index: 1000;
-      padding: 6px;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 4px;
-      box-sizing: border-box;
-    }
-    .wind-chk-item {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 11px;
-      font-weight: 600;
       cursor: pointer;
-      color: #333;
-      padding: 2px 4px;
-      border-radius: 3px;
+      width: auto !important;
+      margin: 0 !important;
+      transition: background 0.15s, color 0.15s;
     }
-    .wind-chk-item:hover { background: #f0f7fc; }
+    .dir-toggle.active { background: #0078d4 !important; color: #fff !important; }
 
     /* Drag and Drop Zone UI */
     .drop-zone {
@@ -93,10 +67,7 @@
       margin-bottom: 10px;
       transition: background 0.2s, border-color 0.2s;
     }
-    .drop-zone:hover, .drop-zone.dragover {
-      background: #e1f0fa;
-      border-color: #005a9e;
-    }
+    .drop-zone:hover, .drop-zone.dragover { background: #e1f0fa; border-color: #005a9e; }
     .drop-zone-text { font-size: 12px; color: #0078d4; font-weight: bold; }
 
     .coord-box { background: #f0f4f8; padding: 10px 12px; border-radius: 6px; margin-bottom: 12px; }
@@ -112,18 +83,8 @@
     button:hover { background: #005a9e; }
     button:disabled { cursor: not-allowed; background: #6c757d; }
     
-    button.inline-btn {
-      width: auto !important;
-      margin: 0 !important;
-      padding: 6px 12px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-    button.secondary-btn {
-      background: #fff;
-      color: #0078d4;
-      border: 1.5px solid #0078d4;
-    }
+    button.inline-btn { width: auto !important; margin: 0 !important; padding: 6px 12px; font-size: 12px; font-weight: 600; }
+    button.secondary-btn { background: #fff; color: #0078d4; border: 1.5px solid #0078d4; }
     button.secondary-btn.active { background: #0078d4; color: #fff; }
     button.del-btn { color: #d9534f; border-color: #d9534f; }
     button.del-btn:hover { background: #fdf2f2; }
@@ -141,13 +102,15 @@
       padding: 8px 6px;
       text-align: center;
       cursor: pointer;
+      position: relative;
       transition: transform 0.15s, border-color 0.15s;
     }
     .day-card:hover { transform: translateY(-2px); border-color: #0078d4; }
     .day-card.selected { border-color: #0078d4; box-shadow: 0 0 0 2px #0078d4; }
     .day-card.card-pass { background: #e8f5e9; border-color: #28a745; }
     .day-card.card-pass .status-pill { background: #28a745; color: white; }
-    .day-card .day-title { font-size: 12px; font-weight: bold; text-transform: uppercase; color: #222; }
+    .day-card .storm-badge { font-size: 9px; font-weight: bold; background: #005a9e; color: white; padding: 2px 4px; border-radius: 3px; position: absolute; top: -6px; left: 50%; transform: translateX(-50%); letter-spacing: 0.5px; white-space: nowrap; }
+    .day-card .day-title { font-size: 12px; font-weight: bold; text-transform: uppercase; color: #222; margin-top: 4px; }
     .day-card .day-date { font-size: 11px; color: #666; margin-bottom: 4px; }
     .day-card .status-pill { font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 10px; background: #6c757d; color: white; display: inline-block; margin-bottom: 4px; }
     .day-card .day-stats { font-size: 11px; color: #444; line-height: 1.3; }
@@ -176,10 +139,9 @@
     tr.matrix-row:nth-child(even) { background-color: #fbfcfd; }
     
     .cell-pass { background-color: #d4edda !important; color: #155724 !important; font-weight: 600; }
-    .cell-fail { background-color: #f8d7da !important; color: #721c24 !important; font-weight: 600; }
+    .cell-fail { background-color: #fce8e8 !important; color: #721c24 !important; font-weight: 600; }
     .cell-warn { background-color: #fff3cd !important; color: #856404 !important; font-weight: 600; }
 
-    /* Map Controls & Preview */
     .map-controls-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; font-weight: bold; }
     .map-btn-group { display: flex; gap: 6px; }
     .map-toggle-btn { padding: 6px 12px; font-size: 13px; font-weight: 600; border: 1.5px solid #0078d4; background: #fff; color: #0078d4; border-radius: 4px; cursor: pointer; width: auto !important; margin: 0 !important; }
@@ -189,7 +151,6 @@
     .map-container img { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; display: block; }
     .map-container svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 
-    /* Export Modal */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.55); z-index: 1000; align-items: center; justify-content: center; }
     .modal { background: white; padding: 20px; border-radius: 8px; max-width: 440px; width: 90%; box-shadow: 0 4px 16px rgba(0,0,0,0.25); text-align: left; }
     .modal h4 { margin: 0 0 10px 0; font-size: 16px; color: #0078d4; }
@@ -212,23 +173,20 @@
 
     <h3 id="unit-title" style="margin:0 0 4px 0; font-size:17px;">Unit Weather Forecast</h3>
     <div id="status" style="font-size: 12px; color: #0078d4; font-weight: 500; margin-bottom: 10px;">
-      Select a unit on the map, upload a boundary file, or select from your watchlist above.
+      Select a unit on the map, upload a boundary file, or load from your watchlist above.
     </div>
 
-    <!-- Drag & Drop Unit File Zone -->
     <div id="dropZone" class="drop-zone" onclick="document.getElementById('fileInput').click()">
       <div class="drop-zone-text">Upload a Unit File (.geojson, .kml)</div>
       <input type="file" id="fileInput" accept=".json,.geojson,.kml" onchange="handleFileUpload(event)" style="display:none;">
     </div>
 
-    <!-- Smart Coordinate Entry Box -->
     <div class="coord-box">
       <div style="font-size: 11px; font-weight: bold; color: #555;">Or Enter Lat/Lon Coordinates:</div>
       <input type="text" id="coordInput" placeholder="Coordinates (e.g. 38.87, -106.95)">
     </div>
 
     <div class="input-header">Prescription Thresholds</div>
-
     <div class="rx-grid">
       <div class="rx-field">Min Temp (°F)<input type="number" id="minTemp" value="40"></div>
       <div class="rx-field">Max Temp (°F)<input type="number" id="maxTemp" value="75"></div>
@@ -237,26 +195,22 @@
       <div class="rx-field">Max Wind (mph)<input type="number" id="maxWind" value="12"></div>
       <div class="rx-field">Max Gust (mph)<input type="number" id="maxGust" value="20"></div>
       <div class="rx-field">Min Vent (kt-ft)<input type="number" id="minVent" value="40"></div>
-      
-      <!-- Wind Direction Multi-Select Dropdown in Grid -->
-      <div class="rx-field" id="windField">
-        <span style="display:flex; justify-content:space-between; align-items:center;">
-          Wind Dir
-          <span id="windClearBtn" onclick="clearWindDirs(event)" style="cursor:pointer; color:#0078d4; font-size:10px; display:none;">Clear</span>
-        </span>
-        <div id="windSelectBtn" class="custom-select-btn" onclick="toggleWindMenu(event)">
-          <span id="windSelectLabel">Any Dir</span>
-          <span style="font-size:9px; color:#555;">▼</span>
-        </div>
-        <div id="windMenu" class="custom-dropdown-menu" style="display:none;" onclick="event.stopPropagation()">
-          <label class="wind-chk-item"><input type="checkbox" value="N" onchange="handleWindDirChange()"> N</label>
-          <label class="wind-chk-item"><input type="checkbox" value="NE" onchange="handleWindDirChange()"> NE</label>
-          <label class="wind-chk-item"><input type="checkbox" value="E" onchange="handleWindDirChange()"> E</label>
-          <label class="wind-chk-item"><input type="checkbox" value="SE" onchange="handleWindDirChange()"> SE</label>
-          <label class="wind-chk-item"><input type="checkbox" value="S" onchange="handleWindDirChange()"> S</label>
-          <label class="wind-chk-item"><input type="checkbox" value="SW" onchange="handleWindDirChange()"> SW</label>
-          <label class="wind-chk-item"><input type="checkbox" value="W" onchange="handleWindDirChange()"> W</label>
-          <label class="wind-chk-item"><input type="checkbox" value="NW" onchange="handleWindDirChange()"> NW</label>
+    </div>
+
+    <div style="margin-top: 10px;">
+      <span style="font-size: 11px; font-weight: bold; color: #444; text-transform: uppercase;">
+        Acceptable Wind Directions (Optional):
+      </span>
+      <div class="wind-control-row">
+        <div class="wind-chip-group" id="windChipGroup">
+          <button type="button" class="dir-toggle" onclick="toggleWindDir('N')">N</button>
+          <button type="button" class="dir-toggle" onclick="toggleWindDir('NE')">NE</button>
+          <button type="button" class="dir-toggle" onclick="toggleWindDir('E')">E</button>
+          <button type="button" class="dir-toggle" onclick="toggleWindDir('SE')">SE</button>
+          <button type="button" class="dir-toggle" onclick="toggleWindDir('S')">S</button>
+          <button type="button" class="dir-toggle" onclick="toggleWindDir('SW')">SW</button>
+          <button type="button" class="dir-toggle" onclick="toggleWindDir('W')">W</button>
+          <button type="button" class="dir-toggle" onclick="toggleWindDir('NW')">NW</button>
         </div>
       </div>
     </div>
@@ -264,15 +218,13 @@
     <button id="evalBtn" onclick="runEvaluation(true)">Evaluate 7-Day Forecast</button>
   </div>
 
-  <!-- 7-Day Outlook Cards (Displayed First Upon Evaluation) -->
   <div id="day-overview-container" style="display:none;">
     <div class="day-cards-header">
       <strong style="color:#0078d4; text-transform:uppercase; font-size:12px;">7-Day Burn Window Outlook:</strong>
-      <button class="inline-btn secondary-btn" id="btnToggleMoisture" onclick="toggleMoistureView()">Show Moisture Forecast</button>
+      <button class="inline-btn secondary-btn" id="btnToggleMoisture" onclick="toggleMoistureView()">Show Precip / Snow</button>
     </div>
     <div class="day-cards-grid" id="day-cards-grid"></div>
     
-    <!-- Collapsible Bar for Hourly Details -->
     <div class="hourly-toggle-bar">
       <button type="button" id="btnToggleHourly" class="hourly-toggle-btn" onclick="toggleHourlySection()">
         Show Hourly Breakdown ▼
@@ -280,7 +232,6 @@
     </div>
   </div>
 
-  <!-- Hourly Matrix (Collapsed by Default) -->
   <div id="matrix-container" style="display:none;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
       <span id="active-day-heading" style="font-size:12px; font-weight:bold; color:#444; text-transform:uppercase;">Hourly Breakdown</span>
@@ -293,10 +244,9 @@
           <th>Temp</th>
           <th>RH</th>
           <th>20ft Wind</th>
-          <th id="th-moisture" style="display:none;">Precip / Snow</th>
+          <th id="th-moisture" style="display:none;">Precip & Snow</th>
           <th>Transport Wind</th>
           <th>Vent Rate</th>
-          <th>Status</th>
         </tr>
       </thead>
       <tbody id="matrix-body"></tbody>
@@ -315,7 +265,6 @@
     </div>
   </div>
 
-  <!-- Map Preview with Satellite & Topo Toggles -->
   <div id="map-preview" class="map-container">
     <div class="map-controls-row">
       <span style="text-transform:uppercase; font-size:11px;">Unit Location Preview</span>
@@ -335,7 +284,6 @@
 
   <button id="exportMenuBtn" class="export-btn" style="display:none;" onclick="openExportModal()">Export Data Summary / PDF</button>
 
-  <!-- PDF Configuration Modal -->
   <div id="exportModal" class="modal-overlay">
     <div class="modal">
       <h4>Export Report Options</h4>
@@ -360,7 +308,7 @@
 
   <script>
     /* =========================================================
-       1. GLOBAL STATE INITIALIZATION (DECLARED AT TOP)
+       1. GLOBAL STATE INITIALIZATION (DECLARED FIRST)
        ========================================================= */
     const urlParams = new URLSearchParams(window.location.search);
     const rawUnit = urlParams.get('unit') || urlParams.get('Name') || urlParams.get('name');
@@ -410,12 +358,16 @@
       const dirs = urlParams.get('windDirs').split(',');
       dirs.forEach(d => permittedWindDirs.add(d.trim().toUpperCase()));
     }
+    updateWindDirButtons();
 
     if (urlParams.get('moist') === '1') {
       showMoistureForecast = true;
+      const btn = document.getElementById('btnToggleMoisture');
+      btn.classList.add('active');
+      btn.innerText = 'Hide Precip / Snow';
+      document.getElementById('th-moisture').style.display = 'table-cell';
     }
 
-    // Parse initial URL geometry if passed directly
     if (rawGeometry) {
       try {
         const parsed = JSON.parse(decodeURIComponent(rawGeometry));
@@ -480,7 +432,7 @@
     }
 
     /* =========================================================
-       3. SAVED UNITS WATCHLIST (localStorage)
+       3. SAVED UNITS WATCHLIST (localStorage with Safety Catch)
        ========================================================= */
     const STORAGE_KEY = 'rx_weather_unit_watchlist';
 
@@ -488,13 +440,18 @@
       try {
         return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
       } catch(e) {
+        console.warn("LocalStorage access denied or unavailable.");
         return {};
       }
     }
 
     function saveWatchlist(list) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-      populateWatchlistDropdown();
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+        populateWatchlistDropdown();
+      } catch(e) {
+        alert("Saving units is not supported in this embedded map view due to your browser's security settings (cross-origin iframe limitations).");
+      }
     }
 
     function populateWatchlistDropdown() {
@@ -531,8 +488,12 @@
       };
 
       saveWatchlist(list);
-      document.getElementById('watchlistSelect').value = promptName;
-      alert(`Saved "${promptName}" to your local Watchlist.`);
+      
+      // Update dropdown selection if save was successful
+      if (getWatchlist()[promptName]) {
+        document.getElementById('watchlistSelect').value = promptName;
+        alert(`Saved "${promptName}" to your local Watchlist.`);
+      }
     }
 
     function deleteFromWatchlist() {
@@ -569,13 +530,13 @@
       document.getElementById('minVent').value = u.minVent || '40';
 
       permittedWindDirs = new Set(u.windDirs || []);
-      updateWindSelectUI();
+      updateWindDirButtons();
 
       if (u.showMoist !== undefined) {
         showMoistureForecast = u.showMoist;
         const btn = document.getElementById('btnToggleMoisture');
         btn.classList.toggle('active', showMoistureForecast);
-        btn.innerText = showMoistureForecast ? 'Hide Moisture Forecast' : 'Show Moisture Forecast';
+        btn.innerText = showMoistureForecast ? 'Hide Precip / Snow' : 'Show Precip / Snow';
         document.getElementById('th-moisture').style.display = showMoistureForecast ? 'table-cell' : 'none';
       }
 
@@ -585,59 +546,25 @@
     populateWatchlistDropdown();
 
     /* =========================================================
-       4. WIND DIRECTION POPUP & SELECTION
+       4. WIND DIRECTION CONTROLS
        ========================================================= */
-    function toggleWindMenu(e) {
-      if (e) e.stopPropagation();
-      const menu = document.getElementById('windMenu');
-      menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'grid' : 'none';
-    }
-
-    function handleWindDirChange() {
-      permittedWindDirs.clear();
-      const chks = document.querySelectorAll('#windMenu input[type="checkbox"]');
-      chks.forEach(c => {
-        if (c.checked) permittedWindDirs.add(c.value);
-      });
-      updateWindSelectUI();
-      syncParamsToUrl();
-      if (cachedHourlyRecords.length > 0) reEvaluateAllData();
-    }
-
-    function clearWindDirs(e) {
-      if (e) e.stopPropagation();
-      permittedWindDirs.clear();
-      updateWindSelectUI();
-      syncParamsToUrl();
-      if (cachedHourlyRecords.length > 0) reEvaluateAllData();
-    }
-
-    function updateWindSelectUI() {
-      const chks = document.querySelectorAll('#windMenu input[type="checkbox"]');
-      chks.forEach(c => {
-        c.checked = permittedWindDirs.has(c.value);
-      });
-
-      const label = document.getElementById('windSelectLabel');
-      const clearBtn = document.getElementById('windClearBtn');
-      if (permittedWindDirs.size === 0) {
-        label.innerText = 'Any Dir';
-        clearBtn.style.display = 'none';
+    function toggleWindDir(dir) {
+      if (permittedWindDirs.has(dir)) {
+        permittedWindDirs.delete(dir);
       } else {
-        const arr = Array.from(permittedWindDirs);
-        label.innerText = (arr.length <= 3) ? arr.join(',') : `${arr.length} Selected`;
-        clearBtn.style.display = 'inline';
+        permittedWindDirs.add(dir);
       }
+      updateWindDirButtons();
+      syncParamsToUrl();
+      if (cachedHourlyRecords.length > 0) reEvaluateAllData();
     }
-    updateWindSelectUI();
 
-    // Close wind dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-      const field = document.getElementById('windField');
-      if (field && !field.contains(e.target)) {
-        document.getElementById('windMenu').style.display = 'none';
-      }
-    });
+    function updateWindDirButtons() {
+      const btns = document.querySelectorAll('#windChipGroup .dir-toggle');
+      btns.forEach(b => {
+        b.classList.toggle('active', permittedWindDirs.has(b.innerText.trim()));
+      });
+    }
 
     /* =========================================================
        5. MOISTURE & HOURLY TOGGLES
@@ -646,16 +573,10 @@
       showMoistureForecast = !showMoistureForecast;
       const btn = document.getElementById('btnToggleMoisture');
       btn.classList.toggle('active', showMoistureForecast);
-      btn.innerText = showMoistureForecast ? 'Hide Moisture Forecast' : 'Show Moisture Forecast';
+      btn.innerText = showMoistureForecast ? 'Hide Precip / Snow' : 'Show Precip / Snow';
       document.getElementById('th-moisture').style.display = showMoistureForecast ? 'table-cell' : 'none';
       syncParamsToUrl();
       if (cachedHourlyRecords.length > 0) renderMatrixRows();
-    }
-    if (showMoistureForecast) {
-      const btn = document.getElementById('btnToggleMoisture');
-      btn.classList.add('active');
-      btn.innerText = 'Hide Moisture Forecast';
-      document.getElementById('th-moisture').style.display = 'table-cell';
     }
 
     function toggleHourlySection() {
@@ -765,6 +686,25 @@
       return d;
     }
 
+    // Resolves NWS PT6H Blocks into an hourly rate
+    function getHourlyRateForTime(valuesArray, targetTime) {
+      if (!valuesArray || !valuesArray.length) return 0;
+      const targetMs = targetTime.getTime();
+      for (const item of valuesArray) {
+        const [timeStr, durationStr] = item.validTime.split('/');
+        const startMs = new Date(timeStr).getTime();
+        let hours = 1;
+        if (durationStr && durationStr.startsWith('PT')) {
+          hours = parseInt(durationStr.replace('PT', '').replace('H', '')) || 1;
+        }
+        const durationMs = hours * 3600000;
+        if (targetMs >= startMs && targetMs < (startMs + durationMs)) {
+          return (item.value || 0) / hours; 
+        }
+      }
+      return 0;
+    }
+
     function getValueForTime(valuesArray, targetTime) {
       if (!valuesArray || !valuesArray.length) return null;
       const targetMs = targetTime.getTime();
@@ -868,7 +808,7 @@
               runEvaluation(true);
             }
           } else {
-            alert("Could not extract polygon geometry from file. Please upload a valid GeoJSON or KML polygon.");
+            alert("Could not extract polygon geometry from file.");
           }
         } catch (err) {
           alert("Error parsing unit file: " + err.message);
@@ -922,7 +862,6 @@
       } else if (geom.x && geom.y) {
         return normalizePoint(geom.x, geom.y);
       }
-
       throw new Error("No usable geometry found in unit record.");
     }
 
@@ -1133,8 +1072,9 @@
           const gust = p.windGust ? parseInt(p.windGust) : wind;
           const pop = p.probabilityOfPrecipitation ? p.probabilityOfPrecipitation.value : 0;
 
-          const qpfMm = getValueForTime(qpfVals, pTime) || 0;
-          const snowMm = getValueForTime(snowVals, pTime) || 0;
+          // Convert NWS Block format into exact hourly rates
+          const qpfMm = getHourlyRateForTime(qpfVals, pTime);
+          const snowMm = getHourlyRateForTime(snowVals, pTime);
           const rainIn = qpfMm * 0.0393701;
           const snowIn = snowMm * 0.0393701;
 
@@ -1255,22 +1195,20 @@
         card.className = `day-card ${inRxCount > 0 ? 'card-pass' : ''} ${activeDayFilter === key ? 'selected' : ''}`;
         card.onclick = () => selectDayFromCard(key);
 
-        let moistureBadge = '';
-        if (totalSnow >= 0.1) {
-          moistureBadge = `<div style="font-size:10px; font-weight:bold; color:#005a9e; margin-top:2px;">Snow: ${totalSnow.toFixed(1)}"</div>`;
-        } else if (totalRain >= 0.05) {
-          moistureBadge = `<div style="font-size:10px; font-weight:bold; color:#0078d4; margin-top:2px;">Rain: ${totalRain.toFixed(2)}"</div>`;
-        } else if (maxPoP >= 40) {
-          moistureBadge = `<div style="font-size:10px; color:#555; margin-top:2px;">PoP: ${maxPoP}%</div>`;
+        let stormBadge = '';
+        if (totalSnow >= 0.5) {
+          stormBadge = `<div class="storm-badge">SNOW DAY</div>`;
+        } else if (totalRain >= 0.1 && maxPoP >= 40) {
+          stormBadge = `<div class="storm-badge">STORM DAY</div>`;
         }
 
         card.innerHTML = `
+          ${stormBadge}
           <div class="day-title">${dayName}</div>
           <div class="day-date">${dateStr}</div>
           <div class="status-pill">${inRxCount > 0 ? inRxCount + 'h IN-RX' : 'OUT-OF-RX'}</div>
           <div class="day-stats">
             <div>${Math.min(...records.map(r => r.temp))}° to ${Math.max(...records.map(r => r.temp))}°F</div>
-            ${moistureBadge}
           </div>
         `;
         container.appendChild(card);
@@ -1317,27 +1255,29 @@
 
         let ventDisplay = 'N/A';
         if (r.ventRate !== null) {
-          ventDisplay = `${r.ventRate} kt-ft <span style="font-size:10px; opacity:0.85;">(${r.ventCat.text})</span>`;
+          ventDisplay = `${r.ventRate} kt-ft <br><span style="font-size:10px; opacity:0.85;">(${r.ventCat.text})</span>`;
         }
         const ventCellClass = (!r.minVentOk) ? 'cell-fail' : r.ventCat.cls;
 
         let moistureTd = '';
         if (showMoistureForecast) {
-          let mText = `${r.pop}%`;
-          if (r.snowIn >= 0.05) mText += ` | ${r.snowIn.toFixed(1)}" S`;
-          else if (r.rainIn >= 0.01) mText += ` | ${r.rainIn.toFixed(2)}" R`;
-          moistureTd = `<td>${mText}</td>`;
+          let mHtml = `<div style="font-size:10px; color:#666;">${r.pop}%</div>`;
+          if (r.snowIn >= 0.01) mHtml += `<div style="color:#005a9e; font-weight:bold;">${r.snowIn.toFixed(1)}" S</div>`;
+          else if (r.rainIn >= 0.01) mHtml += `<div style="color:#0078d4; font-weight:bold;">${r.rainIn.toFixed(2)}" R</div>`;
+          else mHtml += `<div style="color:#aaa;">--</div>`;
+          moistureTd = `<td>${mHtml}</td>`;
         }
 
         tr.innerHTML = `
-          <td>${weekday} ${month}/${day}, ${time}</td>
+          <td class="${r.isGo ? 'cell-pass' : 'cell-fail'}" style="border-right: 2px solid #ccc;">
+            <strong>${weekday} ${month}/${day}</strong><br>${time}
+          </td>
           <td class="${r.tempOk ? 'cell-pass' : 'cell-fail'}">${r.temp}°F</td>
           <td class="${r.rhOk ? 'cell-pass' : 'cell-fail'}">${r.rh !== null ? r.rh + '%' : 'N/A'}</td>
           <td class="${r.windOk ? 'cell-pass' : 'cell-fail'}">${r.windDisplay}</td>
           ${moistureTd}
           <td>${r.tWindMph !== null ? r.tWindMph + ' mph' : 'N/A'}</td>
           <td class="${ventCellClass}">${ventDisplay}</td>
-          <td class="${r.isGo ? 'cell-pass' : 'cell-fail'}">${r.isGo ? 'IN-RX' : 'OUT-OF-RX'}</td>
         `;
         tbody.appendChild(tr);
       });
@@ -1428,8 +1368,8 @@
           const rows = matrixClone.querySelectorAll('tbody tr');
           let keptCount = 0;
           rows.forEach(row => {
-            const statusCell = row.cells[row.cells.length - 1];
-            if (statusCell && (statusCell.classList.contains('cell-fail') || statusCell.innerText.includes('OUT-OF-RX'))) {
+            const firstCell = row.cells[0];
+            if (firstCell && firstCell.classList.contains('cell-fail')) {
               row.remove();
             } else {
               keptCount++;
@@ -1437,7 +1377,7 @@
           });
           if (keptCount === 0) {
             const emptyTr = document.createElement('tr');
-            emptyTr.innerHTML = '<td colspan="8" style="padding:14px; color:#666; font-style:italic;">No forecast hours met all prescription thresholds during this forecast period.</td>';
+            emptyTr.innerHTML = `<td colspan="${showMoistureForecast ? 7 : 6}" style="padding:14px; color:#666; font-style:italic;">No forecast hours met all prescription thresholds during this forecast period.</td>`;
             matrixClone.querySelector('tbody').appendChild(emptyTr);
           }
         }
@@ -1491,11 +1431,12 @@
               margin-top: 2px;
             }
 
-            .day-card { border: 1px solid #ccc; border-radius: 4px; padding: 6px 4px; text-align: center; font-size: 10px; background: #fafafa; }
+            .day-card { border: 1px solid #ccc; border-radius: 4px; padding: 12px 4px 6px 4px; text-align: center; font-size: 10px; background: #fafafa; position: relative; }
             .day-card.card-pass { background: #eef8ee; border-color: #28a745; }
-            .day-title { font-weight: bold; }
+            .day-title { font-weight: bold; margin-top: 6px; }
             .status-pill { font-weight: bold; display: inline-block; padding: 1px 4px; border-radius: 6px; font-size: 9px; margin: 3px 0; background: #6c757d; color: white; }
             .card-pass .status-pill { background: #28a745; }
+            .storm-badge { font-size: 9px; font-weight: bold; background: #005a9e; color: white; padding: 2px 4px; border-radius: 3px; position: absolute; top: -6px; left: 50%; transform: translateX(-50%); white-space: nowrap; }
 
             #raws-box.data-box {
               background: transparent !important;
@@ -1513,30 +1454,10 @@
               padding-bottom: 3px !important;
               margin-bottom: 8px !important;
             }
-            .data-grid {
-              display: grid;
-              grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-              gap: 12px;
-              margin-top: 4px;
-            }
-            .data-item {
-              background: transparent !important;
-              border: none !important;
-              padding: 0 !important;
-            }
-            .data-item .label {
-              font-size: 10px !important;
-              color: #666 !important;
-              text-transform: uppercase !important;
-              font-weight: 600 !important;
-              display: block;
-            }
-            .data-item .val {
-              font-size: 13px !important;
-              font-weight: bold !important;
-              color: #111 !important;
-              margin-top: 2px !important;
-            }
+            .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-top: 4px; }
+            .data-item { background: transparent !important; border: none !important; padding: 0 !important; }
+            .data-item .label { font-size: 10px !important; color: #666 !important; text-transform: uppercase !important; font-weight: 600 !important; display: block; }
+            .data-item .val { font-size: 13px !important; font-weight: bold !important; color: #111 !important; margin-top: 2px !important; }
 
             table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 16px; margin-top: 6px; }
             th, td { border: 1px solid #ccc; padding: 5px 6px; text-align: center; }
@@ -1567,7 +1488,7 @@
             <div class="classic-text-item"><span class="lbl">Relative Humidity</span><span class="val">${minRH}% to ${maxRH}%</span></div>
             <div class="classic-text-item"><span class="lbl">Max 20ft Wind</span><span class="val">${maxWind} mph</span></div>
             <div class="classic-text-item"><span class="lbl">Max Wind Gust</span><span class="val">${maxGust} mph</span></div>
-            <div class="classic-text-item"><span class="lbl">Permitted Wind Dirs</span><span class="val">${windDirText}</span></div>
+            <div class="classic-text-item"><span class="lbl">Acceptable Wind Dirs</span><span class="val">${windDirText}</span></div>
             <div class="classic-text-item"><span class="lbl">Min Ventilation</span><span class="val">${minVent ? minVent + ' kt-ft' : 'None'}</span></div>
           </div>
       `;
