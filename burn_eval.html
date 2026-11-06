@@ -271,7 +271,7 @@
       </div>
     </div>
     
-    <button id="evalBtn" onclick="runEvaluation(true)">Evaluate 7-Day Forecast</button>
+    <button id="evalBtn" onclick="handleEvaluateClick()">Evaluate 7-Day Forecast</button>
   </div>
 
   <!-- 7-Day Outlook Cards (Displayed First Upon Evaluation) -->
@@ -371,7 +371,7 @@
 
   <script>
     /* =========================================================
-       1. GLOBAL STATE INITIALIZATION (DECLARED FIRST)
+       1. GLOBAL STATE INITIALIZATION
        ========================================================= */
     const urlParams = new URLSearchParams(window.location.search);
     const rawUnit = urlParams.get('unit') || urlParams.get('Name') || urlParams.get('name');
@@ -454,44 +454,53 @@
     document.getElementById('minVent').addEventListener('change', () => { 
       userModifiedMinVent = true; 
       syncParamsToUrl();
+      if (cachedHourlyRecords.length > 0) reEvaluateAllData();
     });
 
     ['minTemp', 'maxTemp', 'minRH', 'maxRH', 'maxWind', 'maxGust'].forEach(id => {
-      document.getElementById(id).addEventListener('input', syncParamsToUrl);
+      document.getElementById(id).addEventListener('input', () => {
+        syncParamsToUrl();
+        if (cachedHourlyRecords.length > 0) reEvaluateAllData();
+      });
     });
 
     document.getElementById('coordInput').addEventListener('input', () => {
       currentRings = null;
       isUploadedUnit = false;
+      cachedHourlyRecords = []; // Forces new forecast fetch on coordinate change
       syncParamsToUrl();
     });
 
     function syncParamsToUrl() {
-      const p = new URLSearchParams(window.location.search);
-      p.set('minTemp', document.getElementById('minTemp').value);
-      p.set('maxTemp', document.getElementById('maxTemp').value);
-      p.set('minRH', document.getElementById('minRH').value);
-      p.set('maxRH', document.getElementById('maxRH').value);
-      p.set('maxWind', document.getElementById('maxWind').value);
-      p.set('maxGust', document.getElementById('maxGust').value);
-      p.set('minVent', document.getElementById('minVent').value);
+      try {
+        const p = new URLSearchParams(window.location.search);
+        p.set('minTemp', document.getElementById('minTemp').value);
+        p.set('maxTemp', document.getElementById('maxTemp').value);
+        p.set('minRH', document.getElementById('minRH').value);
+        p.set('maxRH', document.getElementById('maxRH').value);
+        p.set('maxWind', document.getElementById('maxWind').value);
+        p.set('maxGust', document.getElementById('maxGust').value);
+        p.set('minVent', document.getElementById('minVent').value);
 
-      if (permittedWindDirs.size > 0) {
-        p.set('windDirs', Array.from(permittedWindDirs).join(','));
-      } else {
-        p.delete('windDirs');
+        if (permittedWindDirs.size > 0) {
+          p.set('windDirs', Array.from(permittedWindDirs).join(','));
+        } else {
+          p.delete('windDirs');
+        }
+
+        if (showMoistureForecast) {
+          p.set('moist', '1');
+        } else {
+          p.delete('moist');
+        }
+
+        const coordVal = document.getElementById('coordInput').value;
+        if (coordVal) p.set('coords', coordVal);
+
+        window.history.replaceState(null, '', `${window.location.pathname}?${p.toString()}`);
+      } catch(e) {
+        // Safe fallback if iframe environment blocks replaceState
       }
-
-      if (showMoistureForecast) {
-        p.set('moist', '1');
-      } else {
-        p.delete('moist');
-      }
-
-      const coordVal = document.getElementById('coordInput').value;
-      if (coordVal) p.set('coords', coordVal);
-
-      window.history.replaceState(null, '', `${window.location.pathname}?${p.toString()}`);
     }
 
     /* =========================================================
@@ -503,7 +512,6 @@
       try {
         return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
       } catch(e) {
-        console.warn("LocalStorage access denied or unavailable.");
         return {};
       }
     }
@@ -513,7 +521,7 @@
         localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
         populateWatchlistDropdown();
       } catch(e) {
-        alert("Saving units is not supported in this embedded map view due to your browser's security settings.");
+        alert("Saving units is not supported in this embedded map view due to browser security restrictions.");
       }
     }
 
@@ -579,6 +587,7 @@
       document.getElementById('coordInput').value = u.coords || '';
       currentRings = u.rings || null;
       isUploadedUnit = !!currentRings;
+      cachedHourlyRecords = []; // Clear to pull fresh weather for loaded unit
 
       document.getElementById('minTemp').value = u.minTemp || '40';
       document.getElementById('maxTemp').value = u.maxTemp || '75';
@@ -605,7 +614,7 @@
     populateWatchlistDropdown();
 
     /* =========================================================
-       4. WIND DIRECTION DROP-DOWN
+       4. WIND DIRECTION CONTROLS
        ========================================================= */
     function toggleWindMenu(e) {
       if (e) e.stopPropagation();
@@ -777,6 +786,13 @@
       return d;
     }
 
+    function getLocalDayKey(d) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
     function getHourlyRateForTime(valuesArray, targetTime) {
       if (!valuesArray || !valuesArray.length) return 0;
       const targetMs = targetTime.getTime();
@@ -823,7 +839,7 @@
     }
 
     /* =========================================================
-       7. FILE UPLOAD & FEATURE SERVICE
+       7. FILE UPLOAD & FEATURE SERVICE QUERY
        ========================================================= */
     const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
 
@@ -858,6 +874,7 @@
             if (rings && rings.length > 0) {
               currentRings = rings;
               isUploadedUnit = true;
+              cachedHourlyRecords = []; // Forces new weather pull
               activeUnitLabel = `${name} (Custom Upload)`;
               document.getElementById('unit-title').innerText = activeUnitLabel;
               
@@ -1044,8 +1061,17 @@
     }
 
     /* =========================================================
-       9. CORE EVALUATION ENGINE
+       9. EVALUATION & DATA ENGINE
        ========================================================= */
+    function handleEvaluateClick() {
+      // If we already have the weather forecast loaded, re-evaluate instantly
+      if (cachedHourlyRecords && cachedHourlyRecords.length > 0) {
+        reEvaluateAllData();
+      } else {
+        runEvaluation(true);
+      }
+    }
+
     async function runEvaluation(isManual = false) {
       const evalBtn = document.getElementById('evalBtn');
       const origBtnText = evalBtn.innerText;
@@ -1134,6 +1160,7 @@
           const gust = p.windGust ? parseInt(p.windGust) : wind;
           const pop = p.probabilityOfPrecipitation ? p.probabilityOfPrecipitation.value : 0;
 
+          // Accurately apportion NWS PT6H blocks to an hourly rate
           const qpfMm = getHourlyRateForTime(qpfVals, pTime);
           const snowMm = getHourlyRateForTime(snowVals, pTime);
           const rainIn = qpfMm * 0.0393701;
@@ -1193,7 +1220,8 @@
 
       const dayGroups = {};
       cachedHourlyRecords.forEach(r => {
-        const dayKey = r.pTime.toISOString().split('T')[0];
+        // Group by local calendar date to prevent splitting across UTC midnight
+        const dayKey = getLocalDayKey(r.pTime);
         if (!dayGroups[dayKey]) dayGroups[dayKey] = [];
 
         const tempOk = (r.temp >= minTemp && r.temp <= maxTemp);
@@ -1268,14 +1296,12 @@
       const matrixBox = document.getElementById('matrix-container');
       matrixBox.style.display = 'block';
       document.getElementById('btnToggleHourly').innerText = 'Hide Hourly Breakdown';
-      reEvaluateAllData();
       renderMatrixRows();
       matrixBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function showAllHours() {
       activeDayFilter = null;
-      reEvaluateAllData();
       renderMatrixRows();
     }
 
@@ -1285,8 +1311,9 @@
 
       let displayedRecords = cachedHourlyRecords;
       if (activeDayFilter) {
-        displayedRecords = cachedHourlyRecords.filter(r => r.pTime.toISOString().split('T')[0] === activeDayFilter);
-        const dateSample = new Date(activeDayFilter + 'T12:00:00');
+        displayedRecords = cachedHourlyRecords.filter(r => getLocalDayKey(r.pTime) === activeDayFilter);
+        const [y, m, d] = activeDayFilter.split('-');
+        const dateSample = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 12, 0, 0);
         document.getElementById('active-day-heading').innerText = `Hourly Breakdown: ${dateSample.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}`;
       } else {
         document.getElementById('active-day-heading').innerText = 'Hourly Breakdown (All 7 Days)';
@@ -1363,6 +1390,7 @@
           isUploadedUnit = false;
           currentRings = foundRings;
           cachedCoords = calculateRingsCentroid(currentRings);
+          cachedHourlyRecords = []; // Clear old weather on unit switch
           if (cachedCoords) {
             document.getElementById('coordInput').value = `${cachedCoords.lat.toFixed(4)}, ${cachedCoords.lon.toFixed(4)}`;
           }
@@ -1371,6 +1399,7 @@
           const pt = normalizePoint(geom.x || geom.longitude, geom.y || geom.latitude);
           currentRings = null;
           isUploadedUnit = false;
+          cachedHourlyRecords = [];
           document.getElementById('coordInput').value = `${pt.lat.toFixed(4)}, ${pt.lon.toFixed(4)}`;
           runEvaluation(true);
         } else {
@@ -1379,6 +1408,7 @@
             cleanUnitId = String(pId).replace(/[^0-9]/g, '');
             currentRings = null;
             isUploadedUnit = false;
+            cachedHourlyRecords = [];
             runEvaluation(false);
           }
         }
