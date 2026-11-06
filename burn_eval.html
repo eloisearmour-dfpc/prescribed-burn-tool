@@ -223,7 +223,7 @@
       Select a unit on the map or load from your watchlist.
     </div>
 
-    <!-- Collapsible Advanced Setup (Clean Interface) -->
+    <!-- Collapsible Advanced Setup -->
     <details class="setup-details">
       <summary>Change boundary or coordinates manually</summary>
       <div class="setup-content">
@@ -241,13 +241,13 @@
     <div class="input-header">Prescription Thresholds</div>
 
     <div class="rx-grid">
-      <div class="rx-field">Min Temp (°F)<input type="number" id="minTemp" value="40"></div>
-      <div class="rx-field">Max Temp (°F)<input type="number" id="maxTemp" value="75"></div>
-      <div class="rx-field">Min RH (%)<input type="number" id="minRH" value="20"></div>
-      <div class="rx-field">Max RH (%)<input type="number" id="maxRH" value="50"></div>
-      <div class="rx-field">Max Wind (mph)<input type="number" id="maxWind" value="12"></div>
-      <div class="rx-field">Max Gust (mph)<input type="number" id="maxGust" value="20"></div>
-      <div class="rx-field">Min Vent (kt-ft)<input type="number" id="minVent" value="40"></div>
+      <div class="rx-field">Min Temp (°F)<input type="number" id="minTemp" placeholder="None"></div>
+      <div class="rx-field">Max Temp (°F)<input type="number" id="maxTemp" placeholder="None"></div>
+      <div class="rx-field">Min RH (%)<input type="number" id="minRH" placeholder="None"></div>
+      <div class="rx-field">Max RH (%)<input type="number" id="maxRH" placeholder="None"></div>
+      <div class="rx-field">Max Wind (mph)<input type="number" id="maxWind" placeholder="None"></div>
+      <div class="rx-field">Max Gust (mph)<input type="number" id="maxGust" placeholder="None"></div>
+      <div class="rx-field">Min Vent (kt-ft)<input type="number" id="minVent" placeholder="None"></div>
       
       <!-- Wind Direction Multi-Select Dropdown in Grid -->
       <div class="rx-field" id="windField">
@@ -274,7 +274,7 @@
     <button id="evalBtn" onclick="handleEvaluateClick()">Evaluate 7-Day Forecast</button>
   </div>
 
-  <!-- 7-Day Outlook Cards (Displayed First Upon Evaluation) -->
+  <!-- 7-Day Outlook Cards -->
   <div id="day-overview-container" style="display:none;">
     <div class="day-cards-header" style="flex-direction:column; align-items:flex-start;">
       <strong style="color:#0078d4; text-transform:uppercase; font-size:12px; letter-spacing:0.5px;">7-Day Burn Window Outlook</strong>
@@ -388,7 +388,6 @@
 
     const explicitState = (urlParams.get('state') || '').toUpperCase();
     let activeStateCode = STATE_VENT_RULES[explicitState] ? explicitState : 'CO';
-    let userModifiedMinVent = false;
 
     let currentRings = null;
     let cachedCoords = null;
@@ -400,23 +399,18 @@
     let permittedWindDirs = new Set();
     let showMoistureForecast = false;
     let cachedHourlyRecords = [];
-    let activeDayFilter = null; // null = show all, or 'YYYY-MM-DD'
+    let activeDayFilter = null;
 
     document.getElementById('unit-title').innerText = activeUnitLabel;
 
-    // Seed URL parameters if present
+    // Seed URL parameters if present (without forcing defaults)
     if (urlParams.get('minTemp')) document.getElementById('minTemp').value = urlParams.get('minTemp');
     if (urlParams.get('maxTemp')) document.getElementById('maxTemp').value = urlParams.get('maxTemp');
     if (urlParams.get('minRH')) document.getElementById('minRH').value = urlParams.get('minRH');
     if (urlParams.get('maxRH')) document.getElementById('maxRH').value = urlParams.get('maxRH');
     if (urlParams.get('maxWind')) document.getElementById('maxWind').value = urlParams.get('maxWind');
     if (urlParams.get('maxGust')) document.getElementById('maxGust').value = urlParams.get('maxGust');
-    if (urlParams.get('minVent')) {
-      document.getElementById('minVent').value = urlParams.get('minVent');
-      userModifiedMinVent = true;
-    } else {
-      document.getElementById('minVent').value = STATE_VENT_RULES[activeStateCode].defaultMinVent;
-    }
+    if (urlParams.get('minVent')) document.getElementById('minVent').value = urlParams.get('minVent');
 
     if (urlParams.get('windDirs')) {
       const dirs = urlParams.get('windDirs').split(',');
@@ -452,13 +446,7 @@
     /* =========================================================
        2. URL SYNC & PARAMETER BINDINGS
        ========================================================= */
-    document.getElementById('minVent').addEventListener('change', () => { 
-      userModifiedMinVent = true; 
-      syncParamsToUrl();
-      if (cachedHourlyRecords.length > 0) reEvaluateAllData();
-    });
-
-    ['minTemp', 'maxTemp', 'minRH', 'maxRH', 'maxWind', 'maxGust'].forEach(id => {
+    ['minTemp', 'maxTemp', 'minRH', 'maxRH', 'maxWind', 'maxGust', 'minVent'].forEach(id => {
       document.getElementById(id).addEventListener('input', () => {
         syncParamsToUrl();
         if (cachedHourlyRecords.length > 0) reEvaluateAllData();
@@ -468,44 +456,34 @@
     document.getElementById('coordInput').addEventListener('input', () => {
       currentRings = null;
       isUploadedUnit = false;
-      cachedHourlyRecords = []; // Forces new forecast fetch on coordinate change
+      cachedHourlyRecords = [];
       syncParamsToUrl();
     });
 
     function syncParamsToUrl() {
       try {
         const p = new URLSearchParams(window.location.search);
-        p.set('minTemp', document.getElementById('minTemp').value);
-        p.set('maxTemp', document.getElementById('maxTemp').value);
-        p.set('minRH', document.getElementById('minRH').value);
-        p.set('maxRH', document.getElementById('maxRH').value);
-        p.set('maxWind', document.getElementById('maxWind').value);
-        p.set('maxGust', document.getElementById('maxGust').value);
-        p.set('minVent', document.getElementById('minVent').value);
+        ['minTemp', 'maxTemp', 'minRH', 'maxRH', 'maxWind', 'maxGust', 'minVent'].forEach(id => {
+          const val = document.getElementById(id).value.trim();
+          if (val !== "") p.set(id, val);
+          else p.delete(id);
+        });
 
-        if (permittedWindDirs.size > 0) {
-          p.set('windDirs', Array.from(permittedWindDirs).join(','));
-        } else {
-          p.delete('windDirs');
-        }
+        if (permittedWindDirs.size > 0) p.set('windDirs', Array.from(permittedWindDirs).join(','));
+        else p.delete('windDirs');
 
-        if (showMoistureForecast) {
-          p.set('moist', '1');
-        } else {
-          p.delete('moist');
-        }
+        if (showMoistureForecast) p.set('moist', '1');
+        else p.delete('moist');
 
         const coordVal = document.getElementById('coordInput').value;
         if (coordVal) p.set('coords', coordVal);
 
         window.history.replaceState(null, '', `${window.location.pathname}?${p.toString()}`);
-      } catch(e) {
-        // Safe fallback if iframe environment blocks replaceState
-      }
+      } catch(e) {}
     }
 
     /* =========================================================
-       3. SAVED UNITS WATCHLIST (localStorage with Safety Catch)
+       3. SAVED UNITS WATCHLIST (localStorage)
        ========================================================= */
     const STORAGE_KEY = 'rx_weather_unit_watchlist';
 
@@ -540,7 +518,6 @@
 
     function saveCurrentToWatchlist() {
       const currentName = activeUnitLabel && activeUnitLabel !== 'Unit Weather Forecast' ? activeUnitLabel : 'Custom Unit';
-      
       const list = getWatchlist();
       list[currentName] = {
         name: currentName,
@@ -558,7 +535,6 @@
       };
 
       saveWatchlist(list);
-      
       if (getWatchlist()[currentName]) {
         document.getElementById('watchlistSelect').value = currentName;
         const msg = document.getElementById('saveConfirmMsg');
@@ -588,15 +564,15 @@
       document.getElementById('coordInput').value = u.coords || '';
       currentRings = u.rings || null;
       isUploadedUnit = !!currentRings;
-      cachedHourlyRecords = []; // Clear to pull fresh weather for loaded unit
+      cachedHourlyRecords = [];
 
-      document.getElementById('minTemp').value = u.minTemp || '40';
-      document.getElementById('maxTemp').value = u.maxTemp || '75';
-      document.getElementById('minRH').value = u.minRH || '20';
-      document.getElementById('maxRH').value = u.maxRH || '50';
-      document.getElementById('maxWind').value = u.maxWind || '12';
-      document.getElementById('maxGust').value = u.maxGust || '20';
-      document.getElementById('minVent').value = u.minVent || '40';
+      document.getElementById('minTemp').value = u.minTemp || '';
+      document.getElementById('maxTemp').value = u.maxTemp || '';
+      document.getElementById('minRH').value = u.minRH || '';
+      document.getElementById('maxRH').value = u.maxRH || '';
+      document.getElementById('maxWind').value = u.maxWind || '';
+      document.getElementById('maxGust').value = u.maxGust || '';
+      document.getElementById('minVent').value = u.minVent || '';
 
       permittedWindDirs = new Set(u.windDirs || []);
       updateWindSelectUI();
@@ -875,7 +851,7 @@
             if (rings && rings.length > 0) {
               currentRings = rings;
               isUploadedUnit = true;
-              cachedHourlyRecords = []; // Forces new weather pull
+              cachedHourlyRecords = [];
               activeUnitLabel = `${name} (Custom Upload)`;
               document.getElementById('unit-title').innerText = activeUnitLabel;
               
@@ -1062,7 +1038,7 @@
     }
 
     /* =========================================================
-       9. EVALUATION & DATA ENGINE
+       9. EVALUATION & DATA ENGINE (Soft Constraints / Empty = None)
        ========================================================= */
     function handleEvaluateClick() {
       const evalBtn = document.getElementById('evalBtn');
@@ -1070,7 +1046,7 @@
       
       if (cachedHourlyRecords && cachedHourlyRecords.length > 0) {
         evalBtn.innerText = "Recalculated";
-        evalBtn.style.background = "#28a745"; // Success green flash
+        evalBtn.style.background = "#28a745";
         
         const container = document.getElementById('day-overview-container');
         if (container) container.style.opacity = '0.5';
@@ -1099,12 +1075,10 @@
       try {
         let coords = null;
 
-        // 1. If polygon rings already exist from map click or upload, use their centroid
         if (currentRings && currentRings.length > 0) {
           coords = calculateRingsCentroid(currentRings);
         }
 
-        // 2. If no coords yet and a unit ID is available, query the feature service
         if (!coords && cleanUnitId && !isUploadedUnit) {
           document.getElementById('status').innerText = "Locating unit boundary...";
           try {
@@ -1114,7 +1088,6 @@
           }
         }
 
-        // 3. Fall back to coordinate input box
         if (!coords) {
           coords = parseSmartCoordinates(document.getElementById('coordInput').value);
           if (!coords && currentRings && currentRings.length > 0) {
@@ -1147,9 +1120,6 @@
         const detectedState = (loc.state || '').toUpperCase();
         if (!explicitState && STATE_VENT_RULES[detectedState]) {
           activeStateCode = detectedState;
-          if (!userModifiedMinVent) {
-            document.getElementById('minVent').value = STATE_VENT_RULES[activeStateCode].defaultMinVent;
-          }
         }
 
         const hourlyUrl = pointData.properties.forecastHourly;
@@ -1225,20 +1195,42 @@
       }
     }
 
+    function getNumOrNull(id) {
+      const val = document.getElementById(id).value.trim();
+      return (val !== "" && !isNaN(val)) ? parseFloat(val) : null;
+    }
+
     function reEvaluateAllData() {
-      const minTemp = parseFloat(document.getElementById('minTemp').value);
-      const maxTemp = parseFloat(document.getElementById('maxTemp').value);
-      const minRH   = parseFloat(document.getElementById('minRH').value);
-      const maxRH   = parseFloat(document.getElementById('maxRH').value);
-      const maxWind = parseFloat(document.getElementById('maxWind').value);
-      const maxGust = parseFloat(document.getElementById('maxGust').value);
-      const minVentVal = document.getElementById('minVent').value;
-      const minVent = minVentVal !== "" ? parseFloat(minVentVal) : null;
-      const windDirText = permittedWindDirs.size > 0 ? Array.from(permittedWindDirs).join(',') : 'Any';
-      
+      const minTemp = getNumOrNull('minTemp');
+      const maxTemp = getNumOrNull('maxTemp');
+      const minRH   = getNumOrNull('minRH');
+      const maxRH   = getNumOrNull('maxRH');
+      const maxWind = getNumOrNull('maxWind');
+      const maxGust = getNumOrNull('maxGust');
+      const minVent = getNumOrNull('minVent');
+      const hasWindDir = permittedWindDirs.size > 0;
+
+      const hasAnyConstraint = (minTemp !== null || maxTemp !== null || minRH !== null || maxRH !== null || maxWind !== null || maxGust !== null || minVent !== null || hasWindDir);
+
+      let activeRulesList = [];
+      if (minTemp !== null && maxTemp !== null) activeRulesList.push(`Temp ${minTemp}–${maxTemp}°F`);
+      else if (minTemp !== null) activeRulesList.push(`Temp ≥${minTemp}°F`);
+      else if (maxTemp !== null) activeRulesList.push(`Temp ≤${maxTemp}°F`);
+
+      if (minRH !== null && maxRH !== null) activeRulesList.push(`RH ${minRH}–${maxRH}%`);
+      else if (minRH !== null) activeRulesList.push(`RH ≥${minRH}%`);
+      else if (maxRH !== null) activeRulesList.push(`RH ≤${maxRH}%`);
+
+      if (maxWind !== null) activeRulesList.push(`Wind ≤${maxWind} mph`);
+      if (maxGust !== null) activeRulesList.push(`Gust ≤${maxGust} mph`);
+      if (minVent !== null) activeRulesList.push(`Vent ≥${minVent} kt-ft`);
+      if (hasWindDir) activeRulesList.push(`Dir: ${Array.from(permittedWindDirs).join(',')}`);
+
       const breadcrumb = document.getElementById('active-rules-breadcrumb');
       if (breadcrumb) {
-        breadcrumb.innerText = `Evaluated at: ${minTemp}–${maxTemp}°F | RH ${minRH}–${maxRH}% | Wind ≤${maxWind} mph | Vent ≥${minVent !== null ? minVent : '0'} | Dir: ${windDirText}`;
+        breadcrumb.innerText = hasAnyConstraint 
+          ? `Active Constraints: ${activeRulesList.join(' | ')}`
+          : `No constraints set — enter thresholds above to filter burn windows.`;
       }
 
       const dayGroups = {};
@@ -1246,41 +1238,47 @@
         const dayKey = getLocalDayKey(r.pTime);
         if (!dayGroups[dayKey]) dayGroups[dayKey] = [];
 
-        const tempOk = (r.temp >= minTemp && r.temp <= maxTemp);
-        const windOk = (r.wind <= maxWind);
-        const gustOk = (r.gust <= maxGust);
-        const rhOk   = (r.rh !== null) ? (r.rh >= minRH && r.rh <= maxRH) : true;
-        const minVentOk = (minVent === null || r.ventRate === null || r.ventRate >= minVent);
+        const tempMinOk = (minTemp === null || r.temp >= minTemp);
+        const tempMaxOk = (maxTemp === null || r.temp <= maxTemp);
+        const tempOk = tempMinOk && tempMaxOk;
 
-        let windDirOk = true;
-        if (permittedWindDirs.size > 0) {
-          windDirOk = permittedWindDirs.has(r.windDirSector);
-        }
+        const rhMinOk = (minRH === null || (r.rh !== null && r.rh >= minRH));
+        const rhMaxOk = (maxRH === null || (r.rh !== null && r.rh <= maxRH));
+        const rhOk = rhMinOk && rhMaxOk;
 
-        r.isGo = tempOk && windOk && gustOk && rhOk && minVentOk && windDirOk;
+        const windSpeedOk = (maxWind === null || r.wind <= maxWind);
+        const gustOk = (maxGust === null || r.gust <= maxGust);
+        const windDirOk = (!hasWindDir || permittedWindDirs.has(r.windDirSector));
+        const windOk = windSpeedOk && gustOk && windDirOk;
+
+        const minVentOk = (minVent === null || (r.ventRate !== null && r.ventRate >= minVent));
+
+        r.isGo = hasAnyConstraint ? (tempOk && rhOk && windOk && minVentOk) : false;
         r.tempOk = tempOk;
         r.rhOk = rhOk;
-        r.windOk = windOk && gustOk && windDirOk;
+        r.windOk = windOk;
         r.minVentOk = minVentOk;
         r.ventCat = getVentCategory(r.ventRate, activeStateCode);
         
         let limiters = [];
-        if (!tempOk) limiters.push("Temp");
-        if (!rhOk) limiters.push("RH");
-        if (!windOk || !gustOk || !windDirOk) limiters.push("Wind");
+        if (!tempMinOk || !tempMaxOk) limiters.push("Temp");
+        if (!rhMinOk || !rhMaxOk) limiters.push("RH");
+        if (!windSpeedOk) limiters.push("Wind");
+        if (!gustOk) limiters.push("Gust");
+        if (!windDirOk) limiters.push("Wind Dir");
         if (!minVentOk) limiters.push("Vent");
         r.limiters = limiters;
 
         dayGroups[dayKey].push(r);
       });
 
-      render7DayCards(dayGroups);
+      render7DayCards(dayGroups, hasAnyConstraint);
       if (document.getElementById('matrix-container').style.display !== 'none') {
-        renderMatrixRows();
+        renderMatrixRows(hasAnyConstraint);
       }
     }
 
-    function render7DayCards(dayGroups) {
+    function render7DayCards(dayGroups, hasAnyConstraint) {
       const container = document.getElementById('day-cards-grid');
       container.innerHTML = '';
 
@@ -1296,33 +1294,36 @@
         const totalSnow = records.reduce((sum, r) => sum + (r.snowIn || 0), 0);
         const totalRain = records.reduce((sum, r) => sum + (r.rainIn || 0), 0);
 
-        // Identify the most common limiting factors during daytime hours (10 AM - 5 PM)
-        let primaryLimiters = [];
-        if (inRxCount === 0) {
+        let statusText = '';
+        let cardPassClass = '';
+
+        if (!hasAnyConstraint) {
+          statusText = 'NO RX SET';
+        } else if (inRxCount > 0) {
+          statusText = `${inRxCount}h IN-RX`;
+          cardPassClass = 'card-pass';
+        } else {
           const daytimeRecords = records.filter(r => {
             const hr = r.pTime.getHours();
             return hr >= 10 && hr <= 17;
           });
           const limiterCounts = {};
           (daytimeRecords.length > 0 ? daytimeRecords : records).forEach(r => {
-            r.limiters.forEach(l => {
+            (r.limiters || []).forEach(l => {
               limiterCounts[l] = (limiterCounts[l] || 0) + 1;
             });
           });
           
           const sortedLimiters = Object.entries(limiterCounts).sort((a, b) => b[1] - a[1]);
           if (sortedLimiters.length > 0) {
-            primaryLimiters = sortedLimiters.slice(0, 2).map(e => e[0]);
+            statusText = `OUT-OF-RX: ${sortedLimiters.slice(0, 2).map(e => e[0]).join(', ')}`;
+          } else {
+            statusText = 'OUT-OF-RX';
           }
         }
 
-        let statusText = inRxCount > 0 ? `${inRxCount}h IN-RX` : 'OUT-OF-RX';
-        if (inRxCount === 0 && primaryLimiters.length > 0) {
-          statusText = `OUT-OF-RX: ${primaryLimiters.join(', ')}`;
-        }
-
         const card = document.createElement('div');
-        card.className = `day-card ${inRxCount > 0 ? 'card-pass' : ''} ${activeDayFilter === key ? 'selected' : ''}`;
+        card.className = `day-card ${cardPassClass} ${activeDayFilter === key ? 'selected' : ''}`;
         card.onclick = () => selectDayFromCard(key);
 
         let stormBadge = '';
@@ -1361,9 +1362,18 @@
       renderMatrixRows();
     }
 
-    function renderMatrixRows() {
+    function renderMatrixRows(hasAnyConstraint) {
       const tbody = document.getElementById('matrix-body');
       tbody.innerHTML = '';
+
+      const minTemp = getNumOrNull('minTemp');
+      const maxTemp = getNumOrNull('maxTemp');
+      const minRH   = getNumOrNull('minRH');
+      const maxRH   = getNumOrNull('maxRH');
+      const maxWind = getNumOrNull('maxWind');
+      const maxGust = getNumOrNull('maxGust');
+      const minVent = getNumOrNull('minVent');
+      const hasWindDir = permittedWindDirs.size > 0;
 
       let displayedRecords = cachedHourlyRecords;
       if (activeDayFilter) {
@@ -1384,11 +1394,35 @@
         const day     = String(r.pTime.getDate()).padStart(2, '0');
         const time    = r.pTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+        let dateCellClass = '';
+        if (hasAnyConstraint) {
+          dateCellClass = r.isGo ? 'cell-pass' : 'cell-fail';
+        }
+
+        let tempCellClass = '';
+        if (minTemp !== null || maxTemp !== null) {
+          tempCellClass = r.tempOk ? 'cell-pass' : 'cell-fail';
+        }
+
+        let rhCellClass = '';
+        if (minRH !== null || maxRH !== null) {
+          rhCellClass = r.rhOk ? 'cell-pass' : 'cell-fail';
+        }
+
+        let windCellClass = '';
+        if (maxWind !== null || maxGust !== null || hasWindDir) {
+          windCellClass = r.windOk ? 'cell-pass' : 'cell-fail';
+        }
+
         let ventDisplay = 'N/A';
         if (r.ventRate !== null) {
           ventDisplay = `${r.ventRate} kt-ft <br><span style="font-size:10px; opacity:0.85;">(${r.ventCat.text})</span>`;
         }
-        const ventCellClass = (!r.minVentOk) ? 'cell-fail' : r.ventCat.cls;
+        
+        let ventCellClass = r.ventCat.cls;
+        if (minVent !== null) {
+          ventCellClass = r.minVentOk ? 'cell-pass' : 'cell-fail';
+        }
 
         let moistureTd = '';
         if (showMoistureForecast) {
@@ -1400,12 +1434,12 @@
         }
 
         tr.innerHTML = `
-          <td class="${r.isGo ? 'cell-pass' : 'cell-fail'}" style="border-right: 2px solid #ccc;">
+          <td class="${dateCellClass}" style="border-right: 2px solid #ccc;">
             <strong>${weekday} ${month}/${day}</strong><br>${time}
           </td>
-          <td class="${r.tempOk ? 'cell-pass' : 'cell-fail'}">${r.temp}°F</td>
-          <td class="${r.rhOk ? 'cell-pass' : 'cell-fail'}">${r.rh !== null ? r.rh + '%' : 'N/A'}</td>
-          <td class="${r.windOk ? 'cell-pass' : 'cell-fail'}">${r.windDisplay}</td>
+          <td class="${tempCellClass}">${r.temp}°F</td>
+          <td class="${rhCellClass}">${r.rh !== null ? r.rh + '%' : 'N/A'}</td>
+          <td class="${windCellClass}">${r.windDisplay}</td>
           ${moistureTd}
           <td>${r.tWindMph !== null ? r.tWindMph + ' mph' : 'N/A'}</td>
           <td class="${ventCellClass}">${ventDisplay}</td>
@@ -1446,7 +1480,7 @@
           isUploadedUnit = false;
           currentRings = foundRings;
           cachedCoords = calculateRingsCentroid(currentRings);
-          cachedHourlyRecords = []; // Clear old weather on unit switch
+          cachedHourlyRecords = [];
           if (cachedCoords) {
             document.getElementById('coordInput').value = `${cachedCoords.lat.toFixed(4)}, ${cachedCoords.lon.toFixed(4)}`;
           }
@@ -1498,14 +1532,24 @@
       const currentTitle = document.getElementById('unit-title').innerText;
       const currentStatus = document.getElementById('status').innerText;
 
-      const minTemp = document.getElementById('minTemp').value;
-      const maxTemp = document.getElementById('maxTemp').value;
-      const minRH = document.getElementById('minRH').value;
-      const maxRH = document.getElementById('maxRH').value;
-      const maxWind = document.getElementById('maxWind').value;
-      const maxGust = document.getElementById('maxGust').value;
-      const minVent = document.getElementById('minVent').value;
+      const minTemp = document.getElementById('minTemp').value.trim();
+      const maxTemp = document.getElementById('maxTemp').value.trim();
+      const minRH = document.getElementById('minRH').value.trim();
+      const maxRH = document.getElementById('maxRH').value.trim();
+      const maxWind = document.getElementById('maxWind').value.trim();
+      const maxGust = document.getElementById('maxGust').value.trim();
+      const minVent = document.getElementById('minVent').value.trim();
       const windDirText = permittedWindDirs.size > 0 ? Array.from(permittedWindDirs).join(', ') : 'Any Direction';
+
+      let tempDisplay = 'None';
+      if (minTemp && maxTemp) tempDisplay = `${minTemp}°F to ${maxTemp}°F`;
+      else if (minTemp) tempDisplay = `≥ ${minTemp}°F`;
+      else if (maxTemp) tempDisplay = `≤ ${maxTemp}°F`;
+
+      let rhDisplay = 'None';
+      if (minRH && maxRH) rhDisplay = `${minRH}% to ${maxRH}%`;
+      else if (minRH) rhDisplay = `≥ ${minRH}%`;
+      else if (maxRH) rhDisplay = `≤ ${maxRH}%`;
 
       const satUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
       const topoUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
@@ -1604,10 +1648,10 @@
 
           <div class="report-section-title">Prescription Thresholds</div>
           <div class="classic-text-grid">
-            <div class="classic-text-item"><span class="lbl">Temperature</span><span class="val">${minTemp}°F to ${maxTemp}°F</span></div>
-            <div class="classic-text-item"><span class="lbl">Relative Humidity</span><span class="val">${minRH}% to ${maxRH}%</span></div>
-            <div class="classic-text-item"><span class="lbl">Max 20ft Wind</span><span class="val">${maxWind} mph</span></div>
-            <div class="classic-text-item"><span class="lbl">Max Wind Gust</span><span class="val">${maxGust} mph</span></div>
+            <div class="classic-text-item"><span class="lbl">Temperature</span><span class="val">${tempDisplay}</span></div>
+            <div class="classic-text-item"><span class="lbl">Relative Humidity</span><span class="val">${rhDisplay}</span></div>
+            <div class="classic-text-item"><span class="lbl">Max 20ft Wind</span><span class="val">${maxWind ? maxWind + ' mph' : 'None'}</span></div>
+            <div class="classic-text-item"><span class="lbl">Max Wind Gust</span><span class="val">${maxGust ? maxGust + ' mph' : 'None'}</span></div>
             <div class="classic-text-item"><span class="lbl">Acceptable Wind Dirs</span><span class="val">${windDirText}</span></div>
             <div class="classic-text-item"><span class="lbl">Min Ventilation</span><span class="val">${minVent ? minVent + ' kt-ft' : 'None'}</span></div>
           </div>
