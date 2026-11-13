@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Area & District Burn Window Scanner</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 14px; background: #f8f9fa; color: #333; margin: 0; font-size: 13px; }
+    .card { background: white; padding: 16px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); margin-bottom: 12px; border: 1px solid #dee2e6; }
+    
+    /* Area Search Toolbar */
+    .area-bar {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      background: #f0f7fc;
+      border: 1px solid #b6dcfb;
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .area-bar select {
+      flex: 1;
+      padding: 7px 8px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid #0078d4;
+      border-radius: 4px;
+      background: #fff;
+      color: #333;
+      min-width: 150px;
+      cursor: pointer;
+    }
+    .area-bar select:disabled {
+      background: #e9ecef;
+      color: #6c757d;
+      border-color: #ced4da;
+      cursor: not-allowed;
+    }
+
+    .input-header { font-size: 12px; font-weight: bold; color: #0078d4; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 8px 0; border-bottom: 1px solid #0078d4; padding-bottom: 4px; }
+    .rx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
+    .rx-field { display: flex; flex-direction: column; font-size: 12px; font-weight: bold; color: #444; position: relative; }
+    .rx-field input { padding: 7px; font-size: 13px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 4px; background: #fff; box-sizing: border-box; }
+    
+    /* Compact Multi-Select Dropdown */
+    .custom-select-btn {
+      padding: 7px 8px;
+      font-size: 12px;
+      border: 1px solid #0078d4;
+      border-radius: 4px;
+      margin-top: 4px;
+      background: #fff;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: normal;
+      color: #333;
+      user-select: none;
+      box-sizing: border-box;
+      height: 31px;
+    }
+    .custom-dropdown-menu {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      width: 140px;
+      background: white;
+      border: 1px solid #0078d4;
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 1000;
+      padding: 6px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      box-sizing: border-box;
+    }
+    .wind-chk-item { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; cursor: pointer; color: #333; padding: 2px 4px; border-radius: 3px; }
+    .wind-chk-item:hover { background: #f0f7fc; }
+
+    /* Unified Button Styles */
+    button { background: #0078d4; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; margin-top: 10px; width: 100%; transition: background 0.2s, color 0.2s, border-color 0.2s; }
+    button:hover { background: #005a9e; }
+    button:disabled { cursor: not-allowed; background: #e9ecef; color: #6c757d; border: 1px solid #ced4da; }
+    
+    #scanBtn {
+      background: #f8fafc;
+      color: #0078d4;
+      border: 1.5px solid #0078d4;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: bold;
+      border-radius: 4px;
+      margin-top: 14px;
+    }
+    #scanBtn:hover:not(:disabled) { background: #0078d4; color: #fff; }
+
+    button.export-btn { background: #28a745; margin-top: 14px; font-size: 13px; }
+    button.export-btn:hover { background: #218838; }
+
+    /* Summary Grid */
+    .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 8px; margin-bottom: 12px; }
+    .data-item { background: #f8fafc; padding: 8px 10px; border-radius: 4px; border: 1px solid #dee2e6; }
+    .data-item .label { font-size: 10px; color: #555; text-transform: uppercase; font-weight: bold; }
+    .data-item .val { font-size: 14px; font-weight: bold; color: #0078d4; margin-top: 3px; }
+
+    /* Day Filter Strip */
+    .day-filter-bar { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 12px; }
+    .day-chip { padding: 4px 9px; font-size: 11px; font-weight: 600; border: 1px solid #ced4da; background: #fff; color: #444; border-radius: 12px; cursor: pointer; width: auto !important; margin: 0 !important; }
+    .day-chip:hover { border-color: #0078d4; color: #0078d4; }
+    .day-chip.active { background: #0078d4; color: #fff; border-color: #0078d4; }
+    .day-chip.has-win { border-color: #28a745; }
+    .day-chip.has-win.active { background: #28a745; border-color: #28a745; color: #fff; }
+
+    /* Unit Result Rows */
+    .section-subhead { font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 6px 0; display: flex; justify-content: space-between; align-items: center; }
+    .unit-row { border: 1px solid #dee2e6; border-radius: 6px; padding: 9px 11px; margin-bottom: 6px; background: #fff; transition: border-color 0.15s; }
+    .unit-row.in-rx { background: #f4fbf6; border-color: #b7e4c7; }
+    .unit-row:hover { border-color: #0078d4; }
+    .unit-row-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .unit-name { font-weight: bold; font-size: 13px; color: #222; }
+    .unit-meta { font-size: 11px; color: #666; margin-top: 2px; }
+    .status-pill { font-size: 10px; font-weight: bold; padding: 2px 7px; border-radius: 10px; background: #6c757d; color: white; white-space: nowrap; }
+    .status-pill.pass { background: #28a745; }
+
+    /* Grouped Out-of-Rx Accordions */
+    details.limiter-group { border: 1px solid #dee2e6; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; background: #f8f9fa; }
+    details.limiter-group summary { font-size: 12px; font-weight: 600; color: #495057; cursor: pointer; outline: none; }
+    .limiter-list { margin-top: 8px; padding-top: 6px; border-top: 1px solid #dee2e6; display: flex; flex-direction: column; gap: 4px; }
+    .limiter-item { font-size: 12px; color: #444; display: flex; justify-content: space-between; padding: 3px 4px; background: #fff; border-radius: 4px; border: 1px solid #e9ecef; }
+
+    /* Mini 7-Day Strip */
+    .mini-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #d8f3dc; }
+    .mini-day { text-align: center; padding: 4px 2px; border-radius: 4px; background: #f1f3f5; font-size: 10px; border: 1px solid #dee2e6; }
+    .mini-day.pass { background: #d4edda; border-color: #28a745; color: #155724; font-weight: bold; }
+
+    /* Map Preview */
+    .map-controls-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; font-weight: bold; }
+    .map-btn-group { display: flex; gap: 6px; }
+    .map-toggle-btn { padding: 4px 10px; font-size: 12px; font-weight: 600; border: 1px solid #0078d4; background: #fff; color: #0078d4; border-radius: 4px; cursor: pointer; width: auto !important; margin: 0 !important; }
+    .map-toggle-btn.active { background: #0078d4; color: #fff; }
+    .map-container { position: relative; width: 100%; max-width: 600px; margin: 12px auto 0 auto; display: none; text-align: center; }
+    .map-container img { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; display: block; }
+    .map-container svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    .legend-row { display: flex; gap: 14px; justify-content: center; font-size: 11px; color: #555; margin-top: 6px; font-weight: 600; flex-wrap: wrap; }
+    .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h3 id="area-title" style="margin:0 0 2px 0; font-size:17px;">District Burn Window Scanner</h3>
+    <div id="status" style="font-size: 12px; color: #666; margin-bottom: 12px;">
+      Select a jurisdiction to scan planned burn units.
+    </div>
+
+    <!-- CASCADING DROPDOWNS -->
+    <div class="area-bar">
+      <select id="agencySelect" onchange="handleAgencyChange()">
+        <option value="">-- Select Agency --</option>
+        <option value="USFS">USFS (Forest Service)</option>
+        <option value="BLM">BLM (Bureau of Land Management)</option>
+        <option value="NPS">NPS (National Park Service)</option>
+        <option value="FWS">FWS (Fish & Wildlife Service)</option>
+        <option value="BIA">BIA (Tribal Lands)</option>
+      </select>
+
+      <select id="districtSelect" onchange="handleDistrictChange()" disabled>
+        <option value="">-- Select District / Unit --</option>
+      </select>
+    </div>
+
+    <div class="input-header">Prescription Thresholds</div>
+
+    <div class="rx-grid">
+      <div class="rx-field">Min Temp (°F)<input type="number" id="minTemp" placeholder="None"></div>
+      <div class="rx-field">Max Temp (°F)<input type="number" id="maxTemp" placeholder="None"></div>
+      <div class="rx-field">Min RH (%)<input type="number" id="minRH" placeholder="None"></div>
+      <div class="rx-field">Max RH (%)<input type="number" id="maxRH" placeholder="None"></div>
+      <div class="rx-field">Max Wind (mph)<input type="number" id="maxWind" placeholder="None"></div>
+      <div class="rx-field">Max Gust (mph)<input type="number" id="maxGust" placeholder="None"></div>
+      <div class="rx-field">Min Vent (kt-ft)<input type="number" id="minVent" placeholder="None"></div>
+      
+      <div class="rx-field" id="windField">
+        <span style="display:flex; justify-content:space-between; align-items:center;">
+          Wind Dir
+          <span id="windClearBtn" onclick="clearWindDirs(event)" style="cursor:pointer; color:#0078d4; font-size:10px; display:none;">Clear</span>
+        </span>
+        <div id="windSelectBtn" class="custom-select-btn" onclick="toggleWindMenu(event)">
+          <span id="windSelectLabel">Any Dir</span>
+        </div>
+        <div id="windMenu" class="custom-dropdown-menu" style="display:none;" onclick="event.stopPropagation()">
+          <label class="wind-chk-item"><input type="checkbox" value="N" onchange="handleWindDirChange()"> N</label>
+          <label class="wind-chk-item"><input type="checkbox" value="NE" onchange="handleWindDirChange()"> NE</label>
+          <label class="wind-chk-item"><input type="checkbox" value="E" onchange="handleWindDirChange()"> E</label>
+          <label class="wind-chk-item"><input type="checkbox" value="SE" onchange="handleWindDirChange()"> SE</label>
+          <label class="wind-chk-item"><input type="checkbox" value="S" onchange="handleWindDirChange()"> S</label>
+          <label class="wind-chk-item"><input type="checkbox" value="SW" onchange="handleWindDirChange()"> SW</label>
+          <label class="wind-chk-item"><input type="checkbox" value="W" onchange="handleWindDirChange()"> W</label>
+          <label class="wind-chk-item"><input type="checkbox" value="NW" onchange="handleWindDirChange()"> NW</label>
+        </div>
+      </div>
+    </div>
+
+    <button id="scanBtn" onclick="handleScanButtonClick()" disabled>Select a District to Scan</button>
+  </div>
+
+  <!-- Results Dashboard Card -->
+  <div id="results-card" class="card" style="display:none;">
+    <div class="data-grid">
+      <div class="data-item"><div class="label">Units Scanned</div><div class="val" id="stat-total">0</div></div>
+      <div class="data-item"><div class="label">Units In-Rx</div><div class="val" id="stat-inrx" style="color:#28a745;">0</div></div>
+      <div class="data-item"><div class="label">Best Burn Day</div><div class="val" id="stat-bestday">--</div></div>
+    </div>
+
+    <div class="day-filter-bar" id="day-filter-bar"></div>
+
+    <div class="section-subhead">
+      <span style="color:#28a745;" id="inrx-heading">Windows Identified (0)</span>
+    </div>
+    <div id="inrx-list"></div>
+
+    <div class="section-subhead" style="margin-top:16px;">
+      <span style="color:#6c757d;" id="outrx-heading">Out of Prescription (0)</span>
+    </div>
+    <div id="outrx-list"></div>
+
+    <!-- Area Map Preview -->
+    <div id="map-preview" class="map-container">
+      <div class="map-controls-row">
+        <span style="text-transform:uppercase; font-size:11px; color:#555;">Scanned Units Overview</span>
+        <div class="map-btn-group">
+          <button class="map-toggle-btn active" id="btnSat" onclick="setBasemap('sat')">Satellite</button>
+          <button class="map-toggle-btn" id="btnTopo" onclick="setBasemap('topo')">Topo</button>
+        </div>
+      </div>
+      <div style="position:relative; display:inline-block; width:100%;">
+        <img id="map-img" src="" alt="Scanned Area Preview">
+        <svg id="map-svg" viewBox="0 0 600 350" preserveAspectRatio="none"></svg>
+      </div>
+      <div class="legend-row">
+        <span><span class="legend-dot" style="background:rgba(40,167,69,0.55); border:1px solid #28a745;"></span>In-Rx Unit</span>
+        <span><span class="legend-dot" style="background:rgba(108,117,125,0.35); border:1px solid #6c757d;"></span>Out-of-Rx Unit</span>
+        <span id="legBoundary" style="display:none;"><span class="legend-dot" style="background:transparent; border:1.5px solid #0078d4;"></span>District / Unit Boundary</span>
+      </div>
+    </div>
+
+    <button id="exportBtn" class="export-btn" onclick="exportSummaryPdf()">Print / Save Area Summary PDF</button>
+  </div>
+
+  <script>
+    /* =========================================================
+       1. LIVE AGENCY SERVICE CONFIGURATION
+       ========================================================= */
+    const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0";
+    
+    // The dictionary that maps each agency to its live web layer and correct column name
+    const AGENCY_CONFIG = {
+      "USFS": {
+        url: "https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/Forest_Service_Ranger_Districts/FeatureServer/0",
+        nameField: "DISTRICTNAME"
+      },
+      "BLM": {
+        url: "https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/blm_natl_admu_field_poly_webpub_A_view/FeatureServer/0",
+        nameField: "ADMU_NAME"
+      },
+      "NPS": {
+        url: "https://services1.arcgis.com/fBc8EJBxQRMcHlei/arcgis/rest/services/NPS_Land_Resources_Division_Boundary_and_Tract_Data_Service/FeatureServer/2",
+        nameField: "UNIT_NAME"
+      },
+      "FWS": {
+        url: "https://services.arcgis.com/QVENGdaPbd4LUkLV/arcgis/rest/services/National_Wildlife_Refuge_System_Boundaries/FeatureServer/0",
+        nameField: "ORGNAME"
+      },
+      "BIA": {
+        // Appended /0 to the MapServer URL you provided to target the specific layer
+        url: "https://biamaps.geoplatform.gov/server/rest/services/DivLTR/BIA_AIAN_National_LAR/MapServer/0",
+        nameField: "LARName"
+      }
+    };
+
+    const STATE_VENT_RULES = {
+      CO: { poorLimit: 40, fairLimit: 60, goodLimit: 100 },
+      MT: { poorLimit: 25, fairLimit: 45, goodLimit: 75 },
+      ID: { poorLimit: 25, fairLimit: 45, goodLimit: 75 }
+    };
+
+    let activeAreaLabel = "District Burn Window Scanner";
+    let currentEnvelope = null;       
+    let currentBoundaryRings = null;  
+    let permittedWindDirs = new Set();
+    let scannedUnits = [];
+    let activeDayFilter = null;
+    let currentBasemap = 'sat';
+    let currentBboxStr = '';
+
+    /* =========================================================
+       2. NETWORK HELPERS
+       ========================================================= */
+    function jsonpRequest(url) {
+      return new Promise((resolve, reject) => {
+        const cbName = 'cb_' + Math.floor(Math.random() * 100000000);
+        const sep = url.includes('?') ? '&' : '?';
+        const script = document.createElement('script');
+        script.src = `${url}${sep}callback=${cbName}`;
+        window[cbName] = (data) => {
+          delete window[cbName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+          if (data && data.error) reject(new Error(data.error.message));
+          else resolve(data);
+        };
+        script.onerror = () => {
+          delete window[cbName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+          reject(new Error("Service request failed."));
+        };
+        document.head.appendChild(script);
+      });
+    }
+
+    /* =========================================================
+       3. CASCADING DROPDOWN LOGIC
+       ========================================================= */
+    async function handleAgencyChange() {
+      const agency = document.getElementById('agencySelect').value;
+      const distSelect = document.getElementById('districtSelect');
+      const scanBtn = document.getElementById('scanBtn');
+      
+      // Reset District dropdown and map cache
+      distSelect.innerHTML = '<option value="">-- Select District / Unit --</option>';
+      distSelect.disabled = true;
+      scanBtn.disabled = true;
+      scanBtn.innerText = "Select a District to Scan";
+      currentBoundaryRings = null; 
+      currentEnvelope = null;
+
+      if (!agency) return;
+      
+      const config = AGENCY_CONFIG[agency];
+      distSelect.innerHTML = '<option value="">Loading districts...</option>';
+      
+      try {
+        // Query the live layer for all unique district names
+        const url = `${config.url}/query?where=1%3D1&outFields=${config.nameField}&returnGeometry=false&returnDistinctValues=true&orderByFields=${config.nameField}&f=json`;
+        const data = await jsonpRequest(url);
+        
+        distSelect.innerHTML = '<option value="">-- Select District / Unit --</option>';
+        if (data && data.features) {
+          data.features.forEach(f => {
+            const val = f.attributes[config.nameField];
+            if (val && String(val).trim() !== '') {
+              const opt = document.createElement('option');
+              opt.value = val;
+              opt.innerText = val;
+              distSelect.appendChild(opt);
+            }
+          });
+          distSelect.disabled = false;
+        } else {
+          distSelect.innerHTML = '<option value="">No districts found</option>';
+        }
+      } catch (e) {
+        distSelect.innerHTML = '<option value="">Error loading districts</option>';
+        console.warn("Error fetching dropdown values:", e);
+      }
+    }
+
+    function handleDistrictChange() {
+      const district = document.getElementById('districtSelect').value;
+      const scanBtn = document.getElementById('scanBtn');
+      
+      // Clear old cached geometry so a new scan fetches the new polygon
+      currentBoundaryRings = null;
+      currentEnvelope = null;
+
+      if (district) {
+        scanBtn.disabled = false;
+        scanBtn.innerText = `Scan Units in ${district}`;
+      } else {
+        scanBtn.disabled = true;
+        scanBtn.innerText = "Select a District to Scan";
+      }
+    }
+
+    /* =========================================================
+       4. THRESHOLD INPUT LISTENERS (LIVE RE-EVALUATION)
+       ========================================================= */
+    ['minTemp', 'maxTemp', 'minRH', 'maxRH', 'maxWind', 'maxGust', 'minVent'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => {
+        if (scannedUnits.length > 0) evaluateAllScannedUnits();
+      });
+    });
+
+    function toggleWindMenu(e) {
+      if (e) e.stopPropagation();
+      const menu = document.getElementById('windMenu');
+      menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'grid' : 'none';
+    }
+
+    function handleWindDirChange() {
+      permittedWindDirs.clear();
+      document.querySelectorAll('#windMenu input[type="checkbox"]').forEach(c => {
+        if (c.checked) permittedWindDirs.add(c.value);
+      });
+      updateWindSelectUI();
+      if (scannedUnits.length > 0) evaluateAllScannedUnits();
+    }
+
+    function clearWindDirs(e) {
+      if (e) e.stopPropagation();
+      permittedWindDirs.clear();
+      updateWindSelectUI();
+      if (scannedUnits.length > 0) evaluateAllScannedUnits();
+    }
+
+    function updateWindSelectUI() {
+      document.querySelectorAll('#windMenu input[type="checkbox"]').forEach(c => {
+        c.checked = permittedWindDirs.has(c.value);
+      });
+      const label = document.getElementById('windSelectLabel');
+      const clearBtn = document.getElementById('windClearBtn');
+      if (permittedWindDirs.size === 0) {
+        label.innerText = 'Any Dir';
+        clearBtn.style.display = 'none';
+      } else {
+        const arr = Array.from(permittedWindDirs);
+        label.innerText = (arr.length <= 3) ? arr.join(',') : `${arr.length} Selected`;
+        clearBtn.style.display = 'inline';
+      }
+    }
+
+    document.addEventListener('click', (e) => {
+      const field = document.getElementById('windField');
+      if (field && !field.contains(e.target)) {
+        document.getElementById('windMenu').style.display = 'none';
+      }
+    });
+
+    /* =========================================================
+       5. EXACT POLYGON QUERY + NWS GRID SCANNER
+       ========================================================= */
+    async function queryBurnUnits(paramsObj) {
+      const formBody = new URLSearchParams(paramsObj);
+      try {
+        const res = await fetch(`${FEATURE_SERVICE_URL}/query`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formBody.toString()
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (!json.error) return json;
+        }
+      } catch (e) {
+        console.warn("POST query fallback to JSONP");
+      }
+      return await jsonpRequest(`${FEATURE_SERVICE_URL}/query?${formBody.toString()}`);
+    }
+
+    function handleScanButtonClick() {
+      if (scannedUnits.length > 0 && currentBoundaryRings) {
+        // Just re-evaluate thresholds if boundary hasn't changed
+        evaluateAllScannedUnits();
+      } else {
+        // Run full geographic scan
+        executeAreaScan();
+      }
+    }
+
+    async function executeAreaScan() {
+      const agency = document.getElementById('agencySelect').value;
+      const district = document.getElementById('districtSelect').value;
+      const scanBtn = document.getElementById('scanBtn');
+      const statusEl = document.getElementById('status');
+      
+      if (!agency || !district) return;
+
+      scanBtn.disabled = true;
+      document.getElementById('results-card').style.display = 'none';
+      
+      try {
+        // 1. FETCH THE DISTRICT'S EXACT POLYGON BOUNDARY
+        if (!currentBoundaryRings) {
+          scanBtn.innerText = "Downloading District Boundary...";
+          statusEl.innerText = `Connecting to ${agency} database for ${district}...`;
+          
+          const config = AGENCY_CONFIG[agency];
+          const escDist = district.replace(/'/g, "''");
+          const boundaryUrl = `${config.url}/query?where=${config.nameField}%3D'${escDist}'&outFields=*&returnGeometry=true&outSR=4326&f=json`;
+          
+          const bData = await jsonpRequest(boundaryUrl);
+          if (!bData.features || bData.features.length === 0) {
+             throw new Error(`Could not locate geometry for ${district}.`);
+          }
+          
+          const geom = bData.features[0].geometry;
+          if (geom && geom.rings) {
+            currentBoundaryRings = normalizeRingsToWgs84(geom.rings);
+            currentEnvelope = getRingsBounds(currentBoundaryRings);
+          } else {
+            throw new Error(`Invalid polygon data returned for ${district}.`);
+          }
+        }
+
+        activeAreaLabel = district;
+        document.getElementById('area-title').innerText = activeAreaLabel;
+
+        // 2. QUERY BURN UNITS INSIDE THAT BOUNDARY
+        scanBtn.innerText = "Querying Burn Units...";
+        statusEl.innerText = `Finding planned burn units inside ${activeAreaLabel}...`;
+
+        const simplifiedRings = simplifyRings(currentBoundaryRings, 0.003);
+        let queryParams = {
+          where: '1=1',
+          outFields: '*',
+          geometry: JSON.stringify({ rings: simplifiedRings, spatialReference: { wkid: 4326 } }),
+          geometryType: 'esriGeometryPolygon',
+          inSR: '4326',
+          spatialRel: 'esriSpatialRelIntersects',
+          returnGeometry: 'true',
+          maxAllowableOffset: '0.001',
+          outSR: '4326',
+          resultRecordCount: '150',
+          f: 'json'
+        };
+
+        const featData = await queryBurnUnits(queryParams);
+        const features = featData.features || [];
+
+        if (features.length === 0) {
+          scannedUnits = [];
+          statusEl.innerText = `No planned burn units found inside ${activeAreaLabel}.`;
+          scanBtn.disabled = false;
+          scanBtn.innerText = `Scan Units in ${district}`;
+          return;
+        }
+
+        // 3. GROUP UNITS INTO NWS 2.5KM GRID CELLS
+        const rawUnits = [];
+        const gridBuckets = {};
+
+        features.forEach((f, idx) => {
+          const attrs = f.attributes || {};
+          const geom = f.geometry || {};
+          const id = attrs.OBJECTID || attrs.objectid || (idx + 1);
+          const rawName = attrs.Name || attrs.name || attrs.NAME || attrs.unit_name || attrs.UnitName || attrs.UNIT_NAME || attrs.unit || attrs.Unit;
+          const name = (rawName && String(rawName).trim() !== '' && String(rawName).toLowerCase() !== 'null') ? String(rawName).trim() : `Unit #${id}`;
+          const acres = Math.round(attrs.GIS_ACRES || attrs.TREATMENT_ACRES || attrs.acres || attrs.ACRES || 0);
+
+          let centroid = null;
+          let rings = null;
+          if (geom.rings && geom.rings.length > 0) {
+            rings = normalizeRingsToWgs84(geom.rings);
+            centroid = calculateRingsCentroid(rings);
+          } else if (geom.x !== undefined && geom.y !== undefined) {
+            centroid = normalizePoint(geom.x, geom.y);
+          }
+
+          if (!centroid) return;
+
+          const cellLat = (Math.round(centroid.lat * 40) / 40).toFixed(4);
+          const cellLon = (Math.round(centroid.lon * 30) / 30).toFixed(4);
+          const cellKey = `${cellLat},${cellLon}`;
+
+          if (!gridBuckets[cellKey]) {
+            gridBuckets[cellKey] = { lat: centroid.lat, lon: centroid.lon, unitIndices: [] };
+          }
+          gridBuckets[cellKey].unitIndices.push(rawUnits.length);
+
+          rawUnits.push({ id, name, acres, lat: centroid.lat, lon: centroid.lon, rings, cellKey, stateCode: 'CO', hourlyRecords: [] });
+        });
+
+        // 4. FETCH WEATHER DATA FOR EACH CELL
+        const bucketKeys = Object.keys(gridBuckets);
+        const gridCacheByUrl = {};
+        let completedCells = 0;
+
+        for (const key of bucketKeys) {
+          completedCells++;
+          scanBtn.innerText = `Fetching NWS Forecasts (${completedCells}/${bucketKeys.length})...`;
+          statusEl.innerText = `Evaluating ${rawUnits.length} units across ${bucketKeys.length} NWS micro-climate cells...`;
+
+          const b = gridBuckets[key];
+          try {
+            const ptRes = await fetch(`https://api.weather.gov/points/${b.lat.toFixed(4)},${b.lon.toFixed(4)}`);
+            if (!ptRes.ok) continue;
+            const ptData = await ptRes.json();
+            const stateCode = (ptData.properties?.relativeLocation?.properties?.state || 'CO').toUpperCase();
+            const hourlyUrl = ptData.properties.forecastHourly;
+            const gridUrl = ptData.properties.forecastGridData;
+
+            let weatherPayload = gridCacheByUrl[gridUrl];
+            if (!weatherPayload) {
+              const [fRes, gRes] = await Promise.all([fetch(hourlyUrl), fetch(gridUrl)]);
+              if (fRes.ok && gRes.ok) {
+                const fData = await fRes.json();
+                const gData = await gRes.json();
+                weatherPayload = parseNwsHourlyRecords(fData, gData);
+                gridCacheByUrl[gridUrl] = weatherPayload;
+              }
+            }
+
+            if (weatherPayload) {
+              b.unitIndices.forEach(uIdx => {
+                rawUnits[uIdx].stateCode = STATE_VENT_RULES[stateCode] ? stateCode : 'CO';
+                rawUnits[uIdx].hourlyRecords = weatherPayload.map(rec => ({ ...rec }));
+              });
+            }
+          } catch (cellErr) {
+            console.warn("Skipped NWS cell:", key, cellErr);
+          }
+          if (completedCells < bucketKeys.length) await new Promise(r => setTimeout(r, 160));
+        }
+
+        scannedUnits = rawUnits.filter(u => u.hourlyRecords.length > 0);
+        activeDayFilter = null;
+
+        if (scannedUnits.length === 0) {
+          statusEl.innerText = "Found units, but NWS forecast data could not be retrieved right now.";
+          return;
+        }
+
+        statusEl.innerText = `Successfully synced ${scannedUnits.length} units with NWS forecasts.`;
+        evaluateAllScannedUnits();
+        document.getElementById('results-card').style.display = 'block';
+        updateAreaMapPreview();
+
+      } catch (err) {
+        statusEl.innerText = "Scan Error: " + err.message;
+      } finally {
+        scanBtn.disabled = false;
+        scanBtn.innerText = `Update Scan for ${district}`;
+      }
+    }
+
+    function parseNwsHourlyRecords(forecastData, gridData) {
+      const periods = forecastData.properties?.periods || [];
+      const mixingHeightVals = gridData.properties?.mixingHeight?.values || [];
+      const transportWindVals = gridData.properties?.transportWindSpeed?.values || [];
+
+      return periods.map(p => {
+        const pTime = new Date(p.startTime);
+        const temp = p.temperature;
+        const wind = parseInt(p.windSpeed);
+        const windDirSector = to8PointSector(p.windDirection || '');
+        const rh = p.relativeHumidity ? p.relativeHumidity.value : null;
+        const gust = p.windGust ? parseInt(p.windGust) : wind;
+
+        let ventRate = null;
+        const mHeightMeters = getValueForTime(mixingHeightVals, pTime);
+        const tWindKmh = getValueForTime(transportWindVals, pTime);
+
+        if (mHeightMeters !== null && tWindKmh !== null) {
+          const mHeightFt = mHeightMeters * 3.28084;
+          const tWindKt = tWindKmh * 0.539957;
+          ventRate = Math.round((mHeightFt * tWindKt) / 1000);
+        }
+
+        return { pTime, temp, wind, windDirSector, gust, rh, ventRate };
+      });
+    }
+
+    /* =========================================================
+       6. PRESCRIPTION EVALUATION LOGIC
+       ========================================================= */
+    function getNumOrNull(id) {
+      const val = document.getElementById(id).value.trim();
+      return (val !== "" && !isNaN(val)) ? parseFloat(val) : null;
+    }
+
+    function evaluateAllScannedUnits() {
+      const minTemp = getNumOrNull('minTemp');
+      const maxTemp = getNumOrNull('maxTemp');
+      const minRH   = getNumOrNull('minRH');
+      const maxRH   = getNumOrNull('maxRH');
+      const maxWind = getNumOrNull('maxWind');
+      const maxGust = getNumOrNull('maxGust');
+      const minVent = getNumOrNull('minVent');
+      const hasWindDir = permittedWindDirs.size > 0;
+
+      const hasAnyConstraint = (minTemp !== null || maxTemp !== null || minRH !== null || maxRH !== null || maxWind !== null || maxGust !== null || minVent !== null || hasWindDir);
+
+      const globalDayTotals = {};
+
+      scannedUnits.forEach(unit => {
+        const dayMap = {};
+
+        unit.hourlyRecords.forEach(r => {
+          const dayKey = getLocalDayKey(r.pTime);
+          if (!dayMap[dayKey]) {
+            dayMap[dayKey] = { dayKey, dateObj: r.pTime, inRxHours: 0, limiters: {} };
+          }
+
+          const tempOk = (minTemp === null || r.temp >= minTemp) && (maxTemp === null || r.temp <= maxTemp);
+          const rhOk   = (minRH === null || (r.rh !== null && r.rh >= minRH)) && (maxRH === null || (r.rh !== null && r.rh <= maxRH));
+          const windSpeedOk = (maxWind === null || r.wind <= maxWind);
+          const gustOk = (maxGust === null || r.gust <= maxGust);
+          const windDirOk = (!hasWindDir || permittedWindDirs.has(r.windDirSector));
+          const windOk = windSpeedOk && gustOk && windDirOk;
+          const minVentOk = (minVent === null || (r.ventRate !== null && r.ventRate >= minVent));
+
+          const isGo = hasAnyConstraint ? (tempOk && rhOk && windOk && minVentOk) : false;
+          r.isGo = isGo;
+
+          if (isGo) {
+            dayMap[dayKey].inRxHours++;
+          } else {
+            const hr = r.pTime.getHours();
+            if (hr >= 10 && hr <= 17) {
+              if (!tempOk) dayMap[dayKey].limiters["Temp"] = (dayMap[dayKey].limiters["Temp"] || 0) + 1;
+              if (!rhOk) dayMap[dayKey].limiters["RH"] = (dayMap[dayKey].limiters["RH"] || 0) + 1;
+              if (!windSpeedOk || !gustOk || !windDirOk) dayMap[dayKey].limiters["Wind"] = (dayMap[dayKey].limiters["Wind"] || 0) + 1;
+              if (!minVentOk) dayMap[dayKey].limiters["Vent"] = (dayMap[dayKey].limiters["Vent"] || 0) + 1;
+            }
+          }
+        });
+
+        const daysList = Object.values(dayMap).slice(0, 7);
+        unit.daysList = daysList;
+        unit.totalInRxHours = daysList.reduce((s, d) => s + d.inRxHours, 0);
+        unit.qualifyingDays = daysList.filter(d => d.inRxHours > 0);
+        unit.isGo = activeDayFilter
+          ? (dayMap[activeDayFilter]?.inRxHours > 0)
+          : (unit.qualifyingDays.length > 0);
+
+        daysList.forEach((d, idx) => {
+          if (!globalDayTotals[d.dayKey]) {
+            const dName = idx === 0 ? 'Today' : d.dateObj.toLocaleDateString([], { weekday: 'short' });
+            const dNum = d.dateObj.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
+            globalDayTotals[d.dayKey] = { dayKey: d.dayKey, label: `${dName} ${dNum}`, count: 0 };
+          }
+          if (d.inRxHours > 0) globalDayTotals[d.dayKey].count++;
+        });
+
+        const aggLimiters = {};
+        daysList.forEach(d => {
+          Object.entries(d.limiters).forEach(([k, v]) => { aggLimiters[k] = (aggLimiters[k] || 0) + v; });
+        });
+        const sortedLim = Object.entries(aggLimiters).sort((a, b) => b[1] - a[1]);
+        unit.primaryLimiter = sortedLim.length > 0 ? sortedLim[0][0] : "Out of Rx";
+      });
+
+      renderDashboard(globalDayTotals, hasAnyConstraint);
+      renderSvgPolygons();
+    }
+
+    function renderDashboard(globalDayTotals, hasAnyConstraint) {
+      const inRxUnits = scannedUnits.filter(u => u.isGo).sort((a, b) => b.totalInRxHours - a.totalInRxHours);
+      const outRxUnits = scannedUnits.filter(u => !u.isGo);
+
+      document.getElementById('stat-total').innerText = `${scannedUnits.length} units`;
+      const inRxAcres = inRxUnits.reduce((s, u) => s + (u.acres || 0), 0);
+      document.getElementById('stat-inrx').innerText = hasAnyConstraint ? `${inRxUnits.length} (${inRxAcres.toLocaleString()} ac)` : 'Set Rx Above';
+
+      const dayEntries = Object.values(globalDayTotals);
+      const bestDay = [...dayEntries].sort((a, b) => b.count - a.count)[0];
+      document.getElementById('stat-bestday').innerText = (hasAnyConstraint && bestDay && bestDay.count > 0) ? `${bestDay.label} (${bestDay.count})` : 'None';
+
+      const filterBar = document.getElementById('day-filter-bar');
+      filterBar.innerHTML = '';
+      if (hasAnyConstraint && dayEntries.length > 0) {
+        const allBtn = document.createElement('button');
+        allBtn.className = `day-chip ${activeDayFilter === null ? 'active' : ''}`;
+        allBtn.innerText = 'All 7 Days';
+        allBtn.onclick = () => { activeDayFilter = null; evaluateAllScannedUnits(); };
+        filterBar.appendChild(allBtn);
+
+        dayEntries.forEach(d => {
+          const btn = document.createElement('button');
+          btn.className = `day-chip ${d.count > 0 ? 'has-win' : ''} ${activeDayFilter === d.dayKey ? 'active' : ''}`;
+          btn.innerText = `${d.label} (${d.count})`;
+          btn.onclick = () => { activeDayFilter = d.dayKey; evaluateAllScannedUnits(); };
+          filterBar.appendChild(btn);
+        });
+      }
+
+      document.getElementById('inrx-heading').innerText = `Windows Identified (${inRxUnits.length})`;
+      const inRxContainer = document.getElementById('inrx-list');
+      inRxContainer.innerHTML = '';
+
+      if (!hasAnyConstraint) {
+        inRxContainer.innerHTML = `<div style="font-size:12px; color:#666; padding:6px 0;">Enter at least one prescription threshold above to highlight burn windows.</div>`;
+      } else if (inRxUnits.length === 0) {
+        inRxContainer.innerHTML = `<div style="font-size:12px; color:#666; padding:6px 0;">No units meet all active thresholds for the selected window.</div>`;
+      } else {
+        inRxUnits.forEach(u => {
+          const dayBadges = u.qualifyingDays.map(d => `${d.dateObj.toLocaleDateString([], { weekday: 'short' })} (${d.inRxHours}h)`).join(', ');
+          const row = document.createElement('div');
+          row.className = 'unit-row in-rx';
+          row.innerHTML = `
+            <div class="unit-row-top">
+              <div><div class="unit-name">${u.name}</div><div class="unit-meta">${u.acres > 0 ? u.acres.toLocaleString() + ' acres • ' : ''}Windows: <strong>${dayBadges}</strong></div></div>
+              <span class="status-pill pass">${u.totalInRxHours}h IN-RX</span>
+            </div>
+            <div class="mini-days">
+              ${u.daysList.map((d, idx) => `<div class="mini-day ${d.inRxHours > 0 ? 'pass' : ''}"><div>${idx === 0 ? 'Today' : d.dateObj.toLocaleDateString([], { weekday: 'short' })}</div><div>${d.inRxHours > 0 ? d.inRxHours + 'h' : '--'}</div></div>`).join('')}
+            </div>`;
+          inRxContainer.appendChild(row);
+        });
+      }
+
+      document.getElementById('outrx-heading').innerText = `Out of Prescription (${outRxUnits.length})`;
+      const outRxContainer = document.getElementById('outrx-list');
+      outRxContainer.innerHTML = '';
+
+      if (!hasAnyConstraint) {
+        outRxContainer.innerHTML = `<div style="font-size:12px; color:#666;">${scannedUnits.length} units loaded and ready to evaluate.</div>`;
+      } else if (outRxUnits.length > 0) {
+        const grouped = {};
+        outRxUnits.forEach(u => { const key = u.primaryLimiter || 'Other'; if (!grouped[key]) grouped[key] = []; grouped[key].push(u); });
+        Object.entries(grouped).sort((a, b) => b[1].length - a[1].length).forEach(([limiter, units]) => {
+          const det = document.createElement('details');
+          det.className = 'limiter-group';
+          det.innerHTML = `<summary>Limited by ${limiter} (${units.length} unit${units.length === 1 ? '' : 's'})</summary>
+            <div class="limiter-list">${units.map(u => `<div class="limiter-item"><span><strong>${u.name}</strong>${u.acres > 0 ? ' (' + u.acres.toLocaleString() + ' ac)' : ''}</span><span style="color:#6c757d;">${u.lat.toFixed(2)}, ${u.lon.toFixed(2)}</span></div>`).join('')}</div>`;
+          outRxContainer.appendChild(det);
+        });
+      }
+    }
+
+    /* =========================================================
+       7. MAP & SVG RENDERING
+       ========================================================= */
+    function setBasemap(type) {
+      currentBasemap = type;
+      document.getElementById('btnSat').classList.toggle('active', type === 'sat');
+      document.getElementById('btnTopo').classList.toggle('active', type === 'topo');
+      updateAreaMapPreview();
+    }
+
+    function updateAreaMapPreview() {
+      if (scannedUnits.length === 0) return;
+      let lons = [], lats = [];
+      scannedUnits.forEach(u => {
+        if (u.rings && u.rings.length) { u.rings.forEach(r => r.forEach(pt => { lons.push(pt[0]); lats.push(pt[1]); })); } 
+        else { lons.push(u.lon); lats.push(u.lat); }
+      });
+      if (currentBoundaryRings && currentBoundaryRings.length) {
+        currentBoundaryRings.forEach(r => r.forEach(pt => { lons.push(pt[0]); lats.push(pt[1]); }));
+      }
+      let minLon = Math.min(...lons), maxLon = Math.max(...lons), minLat = Math.min(...lats), maxLat = Math.max(...lats);
+      const lonPad = ((maxLon - minLon) || 0.05) * 0.12, latPad = ((maxLat - minLat) || 0.05) * 0.12;
+      currentBboxStr = `${(minLon - lonPad).toFixed(5)},${(minLat - latPad).toFixed(5)},${(maxLon + lonPad).toFixed(5)},${(maxLat + latPad).toFixed(5)}`;
+      document.getElementById('map-img').src = currentBasemap === 'sat'
+        ? `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,350&f=image`
+        : `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
+      document.getElementById('map-preview').style.display = 'block';
+      document.getElementById('legBoundary').style.display = currentBoundaryRings ? 'inline' : 'none';
+      renderSvgPolygons();
+    }
+
+    function renderSvgPolygons() {
+      if (!currentBboxStr || scannedUnits.length === 0) return;
+      const [minLon, minLat, maxLon, maxLat] = currentBboxStr.split(',').map(parseFloat);
+      const svg = document.getElementById('map-svg');
+      let html = '';
+
+      if (currentBoundaryRings && currentBoundaryRings.length) {
+        let bd = '';
+        currentBoundaryRings.forEach(ring => {
+          ring.forEach((pt, idx) => {
+            const x = (((pt[0] - minLon) / (maxLon - minLon)) * 600).toFixed(1);
+            const y = ((1 - (pt[1] - minLat) / (maxLat - minLat)) * 350).toFixed(1);
+            bd += (idx === 0 ? `M ${x} ${y} ` : `L ${x} ${y} `);
+          }); bd += 'Z ';
+        });
+        html += `<path d="${bd}" fill="none" stroke="#0078d4" stroke-width="2" stroke-dasharray="5,3" />`;
+      }
+
+      scannedUnits.forEach(u => {
+        const fill = u.isGo ? 'rgba(40, 167, 69, 0.55)' : 'rgba(108, 117, 125, 0.35)';
+        const stroke = u.isGo ? '#28a745' : '#6c757d';
+        if (u.rings && u.rings.length) {
+          let d = '';
+          u.rings.forEach(ring => {
+            ring.forEach((pt, idx) => {
+              const x = (((pt[0] - minLon) / (maxLon - minLon)) * 600).toFixed(1);
+              const y = ((1 - (pt[1] - minLat) / (maxLat - minLat)) * 350).toFixed(1);
+              d += (idx === 0 ? `M ${x} ${y} ` : `L ${x} ${y} `);
+            }); d += 'Z ';
+          });
+          html += `<path d="${d}" fill="${fill}" stroke="${stroke}" stroke-width="1.5" />`;
+        } else {
+          const cx = (((u.lon - minLon) / (maxLon - minLon)) * 600).toFixed(1);
+          const cy = ((1 - (u.lat - minLat) / (maxLat - minLat)) * 350).toFixed(1);
+          html += `<circle cx="${cx}" cy="${cy}" r="5" fill="${stroke}" stroke="#fff" stroke-width="1.5" />`;
+        }
+      });
+      svg.innerHTML = html;
+    }
+
+    /* =========================================================
+       8. UTILS & GEOMETRY
+       ========================================================= */
+    function normalizePoint(n1, n2) {
+      if (Math.abs(n1) > 180 || Math.abs(n2) > 90) {
+        const lon = (n1 / 20037508.34) * 180;
+        let lat = (n2 / 20037508.34) * 180;
+        lat = (180 / Math.PI) * (2 * Math.atan(Math.exp((lat * Math.PI) / 180)) - Math.PI / 2);
+        return { lat, lon };
+      }
+      let lat, lon;
+      if (Math.abs(n1) > 50 && Math.abs(n2) <= 50) { lon = n1; lat = n2; }
+      else if (Math.abs(n2) > 50 && Math.abs(n1) <= 50) { lat = n1; lon = n2; }
+      else { lon = n1; lat = n2; }
+      if (lon > 0 && lon < 180) lon = -lon;
+      return { lat, lon };
+    }
+    function normalizeRingsToWgs84(rings) { return rings.map(ring => ring.map(pt => { const norm = normalizePoint(pt[0], pt[1]); return [norm.lon, norm.lat]; })); }
+    function getRingsBounds(wgsRings) {
+      let lons = [], lats = [];
+      wgsRings.forEach(r => r.forEach(pt => { lons.push(pt[0]); lats.push(pt[1]); }));
+      return { xmin: Math.min(...lons), ymin: Math.min(...lats), xmax: Math.max(...lons), ymax: Math.max(...lats) };
+    }
+    function simplifyRings(wgsRings, tolerance = 0.003) {
+      function sqSegDist(p, p1, p2) {
+        let x = p1[0], y = p1[1], dx = p2[0] - x, dy = p2[1] - y;
+        if (dx !== 0 || dy !== 0) {
+          const t = ((p[0] - x) * dx + (p[1] - y) * dy) / (dx * dx + dy * dy);
+          if (t > 1) { x = p2[0]; y = p2[1]; } else if (t > 0) { x += dx * t; y += dy * t; }
+        }
+        dx = p[0] - x; dy = p[1] - y; return dx * dx + dy * dy;
+      }
+      function dp(pts, sqTol) {
+        if (pts.length <= 4) return pts;
+        const markers = new Uint8Array(pts.length);
+        let first = 0, last = pts.length - 1, stack = [[first, last]];
+        markers[first] = markers[last] = 1;
+        while (stack.length) {
+          const [f, l] = stack.pop();
+          let maxSqDist = 0, index = 0;
+          for (let i = f + 1; i < l; i++) {
+            const sqDist = sqSegDist(pts[i], pts[f], pts[l]);
+            if (sqDist > maxSqDist) { index = i; maxSqDist = sqDist; }
+          }
+          if (maxSqDist > sqTol) { markers[index] = 1; stack.push([f, index], [index, l]); }
+        }
+        const out = []; for (let i = 0; i < pts.length; i++) { if (markers[i]) out.push([Number(pts[i][0].toFixed(5)), Number(pts[i][1].toFixed(5))]); }
+        return out;
+      }
+      return wgsRings.map(r => dp(r, tolerance * tolerance));
+    }
+    function calculateRingsCentroid(wgsRings) {
+      if (!wgsRings?.length) return null;
+      let sumLat = 0, sumLon = 0, count = 0;
+      wgsRings.forEach(ring => ring.forEach(pt => { const norm = normalizePoint(pt[0], pt[1]); sumLat += norm.lat; sumLon += norm.lon; count++; }));
+      return count ? { lat: sumLat / count, lon: sumLon / count } : null;
+    }
+    function getLocalDayKey(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+    function to8PointSector(dirStr) {
+      if (!dirStr) return '';
+      const d = dirStr.toUpperCase();
+      if (['N', 'NNE', 'NNW'].includes(d)) return 'N'; if (['NE', 'ENE'].includes(d)) return 'NE';
+      if (['E', 'ESE'].includes(d)) return 'E'; if (['SE', 'SSE'].includes(d)) return 'SE';
+      if (['S', 'SSW'].includes(d)) return 'S'; if (['SW', 'WSW'].includes(d)) return 'SW';
+      if (['W', 'WNW'].includes(d)) return 'W'; if (['NW'].includes(d)) return 'NW';
+      return d;
+    }
+    function getValueForTime(valuesArray, targetTime) {
+      if (!valuesArray?.length) return null;
+      const targetMs = targetTime.getTime();
+      for (const item of valuesArray) {
+        const [timeStr, durationStr] = item.validTime.split('/');
+        const startMs = new Date(timeStr).getTime();
+        const durationMs = durationStr?.startsWith('PT') ? (parseInt(durationStr.replace('PT', '').replace('H', '')) || 1) * 3600000 : 3600000;
+        if (targetMs >= startMs && targetMs < (startMs + durationMs)) return item.value;
+      }
+      return null;
+    }
+
+    /* =========================================================
+       9. PDF EXPORT
+       ========================================================= */
+    function exportSummaryPdf() {
+      const printWin = window.open('', '_blank');
+      if (!printWin) { alert("Please allow pop-ups."); return; }
+      const inRxUnits = scannedUnits.filter(u => u.isGo).sort((a, b) => b.totalInRxHours - a.totalInRxHours);
+      const mapUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
+      const svgHtml = document.getElementById('map-svg').outerHTML;
+      const rowsHtml = inRxUnits.length > 0
+        ? inRxUnits.map(u => `<tr><td><strong>${u.name}</strong></td><td>${u.acres > 0 ? u.acres.toLocaleString() : '--'}</td><td>${u.qualifyingDays.map(d => `${d.dateObj.toLocaleDateString([], { weekday: 'short', month: 'numeric', day: 'numeric' })} (${d.inRxHours}h)`).join(', ')}</td><td>${u.totalInRxHours} hrs</td></tr>`).join('')
+        : `<tr><td colspan="4" style="font-style:italic; color:#666;">No units met criteria.</td></tr>`;
+      printWin.document.open();
+      printWin.document.write(`
+        <!DOCTYPE html><html><head><title>Area Burn Window Summary - ${activeAreaLabel}</title>
+        <style>
+          body { font-family: sans-serif; padding: 24px; color: #222; max-width: 800px; margin: 0 auto; font-size: 13px; }
+          h2 { margin: 0 0 4px 0; font-size: 20px; } .meta { font-size: 12px; color: #555; margin-bottom: 14px; border-bottom: 2px solid #222; padding-bottom: 6px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 12px; } th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; } th { background: #f2f2f2; }
+          .map-wrap { position: relative; width: 100%; max-width: 600px; margin: 12px auto; } .map-wrap img { width: 100%; display: block; border: 1px solid #ccc; } .map-wrap svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        </style></head><body>
+          <h2>${activeAreaLabel} — Burn Window Scan</h2>
+          <div class="meta">Units Scanned: ${scannedUnits.length} | Units In-Rx: ${inRxUnits.length} | Generated: ${new Date().toLocaleString()}</div>
+          <table><thead><tr><th>Unit Name</th><th>Acres</th><th>Qualifying Burn Days</th><th>Total Rx Hours</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+          <div class="map-wrap"><img src="${mapUrl}">${svgHtml}</div>
+          <script>window.onload = function() { window.focus(); setTimeout(function() { window.print(); }, 400); };<\/script>
+        </body></html>`);
+      printWin.document.close();
+    }
+  </script>
+</body>
+</html>
