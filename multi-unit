@@ -1,4 +1,4 @@
-<!DOCTYPE html>  
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -256,7 +256,6 @@
        ========================================================= */
     const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0";
     
-    // The dictionary that maps each agency to its live web layer and correct column name
     const AGENCY_CONFIG = {
       "USFS": {
         url: "https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/Forest_Service_Ranger_Districts/FeatureServer/0",
@@ -275,7 +274,6 @@
         nameField: "ORGNAME"
       },
       "BIA": {
-        // Appended /0 to the MapServer URL you provided to target the specific layer
         url: "https://biamaps.geoplatform.gov/server/rest/services/DivLTR/BIA_AIAN_National_LAR/MapServer/0",
         nameField: "LARName"
       }
@@ -297,7 +295,7 @@
     let currentBboxStr = '';
 
     /* =========================================================
-       2. NETWORK HELPERS
+       2. NETWORK HELPERS (CORS FETCH + JSONP FALLBACK)
        ========================================================= */
     function jsonpRequest(url) {
       return new Promise((resolve, reject) => {
@@ -320,6 +318,19 @@
       });
     }
 
+    async function fetchArcGisJson(url) {
+      try {
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && !data.error) return data;
+        }
+      } catch (e) {
+        // Fall back to JSONP if CORS is restricted
+      }
+      return await jsonpRequest(url);
+    }
+
     /* =========================================================
        3. CASCADING DROPDOWN LOGIC
        ========================================================= */
@@ -328,7 +339,6 @@
       const distSelect = document.getElementById('districtSelect');
       const scanBtn = document.getElementById('scanBtn');
       
-      // Reset District dropdown and map cache
       distSelect.innerHTML = '<option value="">-- Select District / Unit --</option>';
       distSelect.disabled = true;
       scanBtn.disabled = true;
@@ -342,20 +352,34 @@
       distSelect.innerHTML = '<option value="">Loading districts...</option>';
       
       try {
-        // Query the live layer for all unique district names
-        const url = `${config.url}/query?where=1%3D1&outFields=${config.nameField}&returnGeometry=false&returnDistinctValues=true&orderByFields=${config.nameField}&f=json`;
-        const data = await jsonpRequest(url);
+        let data;
+        try {
+          const distinctUrl = `${config.url}/query?where=1%3D1&outFields=${config.nameField}&returnGeometry=false&returnDistinctValues=true&orderByFields=${config.nameField}&f=json`;
+          data = await fetchArcGisJson(distinctUrl);
+        } catch (distinctErr) {
+          const fallbackUrl = `${config.url}/query?where=1%3D1&outFields=${config.nameField}&returnGeometry=false&f=json`;
+          data = await fetchArcGisJson(fallbackUrl);
+        }
         
-        distSelect.innerHTML = '<option value="">-- Select District / Unit --</option>';
+        const uniqueNames = new Set();
         if (data && data.features) {
           data.features.forEach(f => {
-            const val = f.attributes[config.nameField];
-            if (val && String(val).trim() !== '') {
-              const opt = document.createElement('option');
-              opt.value = val;
-              opt.innerText = val;
-              distSelect.appendChild(opt);
+            const val = f.attributes?.[config.nameField];
+            if (val && String(val).trim() !== '' && String(val).toLowerCase() !== 'null') {
+              uniqueNames.add(String(val).trim());
             }
+          });
+        }
+
+        const sortedNames = Array.from(uniqueNames).sort((a, b) => a.localeCompare(b));
+        distSelect.innerHTML = '<option value="">-- Select District / Unit --</option>';
+
+        if (sortedNames.length > 0) {
+          sortedNames.forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.innerText = name;
+            distSelect.appendChild(opt);
           });
           distSelect.disabled = false;
         } else {
@@ -371,7 +395,6 @@
       const district = document.getElementById('districtSelect').value;
       const scanBtn = document.getElementById('scanBtn');
       
-      // Clear old cached geometry so a new scan fetches the new polygon
       currentBoundaryRings = null;
       currentEnvelope = null;
 
@@ -461,10 +484,8 @@
 
     function handleScanButtonClick() {
       if (scannedUnits.length > 0 && currentBoundaryRings) {
-        // Just re-evaluate thresholds if boundary hasn't changed
         evaluateAllScannedUnits();
       } else {
-        // Run full geographic scan
         executeAreaScan();
       }
     }
@@ -481,23 +502,29 @@
       document.getElementById('results-card').style.display = 'none';
       
       try {
-        // 1. FETCH THE DISTRICT'S EXACT POLYGON BOUNDARY
+        // 1. FETCH ALL POLYGON FEATURES FOR THE SELECTED DISTRICT / UNIT
         if (!currentBoundaryRings) {
           scanBtn.innerText = "Downloading District Boundary...";
           statusEl.innerText = `Connecting to ${agency} database for ${district}...`;
           
           const config = AGENCY_CONFIG[agency];
-          const escDist = district.replace(/'/g, "''");
-          const boundaryUrl = `${config.url}/query?where=${config.nameField}%3D'${escDist}'&outFields=*&returnGeometry=true&outSR=4326&f=json`;
+          const escDist = encodeURIComponent(district.replace(/'/g, "''"));
+          const boundaryUrl = `${config.url}/query?where=${config.nameField}%3D'${escDist}'&outFields=${config.nameField}&returnGeometry=true&outSR=4326&f=json`;
           
-          const bData = await jsonpRequest(boundaryUrl);
+          const bData = await fetchArcGisJson(boundaryUrl);
           if (!bData.features || bData.features.length === 0) {
-             throw new Error(`Could not locate geometry for ${district}.`);
+            throw new Error(`Could not locate geometry for ${district}.`);
           }
           
-          const geom = bData.features[0].geometry;
-          if (geom && geom.rings) {
-            currentBoundaryRings = normalizeRingsToWgs84(geom.rings);
+          let allRawRings = [];
+          bData.features.forEach(f => {
+            if (f.geometry && f.geometry.rings) {
+              allRawRings.push(...f.geometry.rings);
+            }
+          });
+
+          if (allRawRings.length > 0) {
+            currentBoundaryRings = normalizeRingsToWgs84(allRawRings);
             currentEnvelope = getRingsBounds(currentBoundaryRings);
           } else {
             throw new Error(`Invalid polygon data returned for ${district}.`);
@@ -511,7 +538,12 @@
         scanBtn.innerText = "Querying Burn Units...";
         statusEl.innerText = `Finding planned burn units inside ${activeAreaLabel}...`;
 
-        const simplifiedRings = simplifyRings(currentBoundaryRings, 0.003);
+        let simplifiedRings = simplifyRings(currentBoundaryRings, 0.003);
+        const totalPts = simplifiedRings.reduce((sum, r) => sum + r.length, 0);
+        if (totalPts > 300) {
+          simplifiedRings = simplifyRings(currentBoundaryRings, 0.01);
+        }
+
         let queryParams = {
           where: '1=1',
           outFields: '*',
@@ -955,7 +987,7 @@
       if (['N', 'NNE', 'NNW'].includes(d)) return 'N'; if (['NE', 'ENE'].includes(d)) return 'NE';
       if (['E', 'ESE'].includes(d)) return 'E'; if (['SE', 'SSE'].includes(d)) return 'SE';
       if (['S', 'SSW'].includes(d)) return 'S'; if (['SW', 'WSW'].includes(d)) return 'SW';
-      if (['W', 'WNW'].includes(d)) return 'W'; if (['NW'].includes(d)) return 'NW';
+      if (['W', 'WNW'].includes(d)) return 'W'; if (['NW', 'NNW'].includes(d)) return 'NW';
       return d;
     }
     function getValueForTime(valuesArray, targetTime) {
