@@ -28,12 +28,12 @@
       border-radius: 4px;
       background: #fff;
       color: #333;
-      min-width: 130px;
+      min-width: 135px;
       cursor: pointer;
     }
     .area-bar select#stateSelect {
-      flex: 0.75;
-      min-width: 115px;
+      flex: 0.85;
+      min-width: 130px;
     }
     .area-bar select:disabled {
       background: #e9ecef;
@@ -104,18 +104,6 @@
     button.export-btn { background: #28a745; margin-top: 14px; font-size: 13px; }
     button.export-btn:hover { background: #218838; }
 
-    /* Narrative Summary */
-    .narrative-summary {
-      background: #f8fafc;
-      border-left: 3px solid #0078d4;
-      padding: 9px 12px;
-      border-radius: 4px;
-      font-size: 12.5px;
-      line-height: 1.45;
-      color: #333;
-      margin-bottom: 12px;
-    }
-
     /* Day Filter Strip */
     .day-filter-bar { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 12px; }
     .day-chip { padding: 4px 9px; font-size: 11px; font-weight: 600; border: 1px solid #ced4da; background: #fff; color: #444; border-radius: 12px; cursor: pointer; width: auto !important; margin: 0 !important; }
@@ -129,11 +117,8 @@
     .unit-row { border: 1px solid #dee2e6; border-radius: 6px; padding: 9px 11px; margin-bottom: 6px; background: #fff; transition: border-color 0.15s; cursor: pointer; }
     .unit-row.in-rx { background: #f4fbf6; border-color: #b7e4c7; }
     .unit-row:hover { border-color: #0078d4; }
-    .unit-row-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
     .unit-name { font-weight: bold; font-size: 13px; color: #222; }
     .unit-meta { font-size: 11px; color: #666; margin-top: 2px; }
-    .status-pill { font-size: 10px; font-weight: bold; padding: 2px 7px; border-radius: 10px; background: #6c757d; color: white; white-space: nowrap; }
-    .status-pill.pass { background: #28a745; }
 
     /* Expandable Unit Forecast Drawer */
     .unit-details {
@@ -197,11 +182,11 @@
 
       <select id="agencySelect" onchange="handleAgencyChange()">
         <option value="">-- Select Agency --</option>
-        <option value="USFS">USFS (Forest Service)</option>
-        <option value="BLM">BLM (Bureau of Land Management)</option>
-        <option value="NPS">NPS (National Park Service)</option>
-        <option value="FWS">FWS (Fish & Wildlife Service)</option>
-        <option value="BIA">BIA (Tribal Lands)</option>
+        <option value="USFS">Forest Service</option>
+        <option value="BLM">Bureau of Land Management</option>
+        <option value="NPS">National Park Service</option>
+        <option value="FWS">Fish & Wildlife Service</option>
+        <option value="BIA">Bureau of Indian Affairs</option>
       </select>
 
       <select id="districtSelect" onchange="handleDistrictChange()" disabled>
@@ -246,8 +231,6 @@
 
   <!-- Results Dashboard Card -->
   <div id="results-card" class="card" style="display:none;">
-    <div id="narrative-summary" class="narrative-summary"></div>
-
     <div class="day-filter-bar" id="day-filter-bar"></div>
 
     <div class="section-subhead">
@@ -372,7 +355,7 @@
       Object.entries(STATE_BBOXES).forEach(([abbr, [name]]) => {
         const opt = document.createElement('option');
         opt.value = abbr;
-        opt.textContent = `${abbr} — ${name}`;
+        opt.textContent = name;
         sel.appendChild(opt);
       });
     })();
@@ -442,7 +425,10 @@
 
     async function handleAgencyChange() {
       const stateCode = document.getElementById('stateSelect').value;
-      const agency = document.getElementById('agencySelect').value;
+      const agencySelect = document.getElementById('agencySelect');
+      const agency = agencySelect.value;
+      const agencyLabel = agency ? agencySelect.options[agencySelect.selectedIndex].text : '';
+      const stateLabel = stateCode && STATE_BBOXES[stateCode] ? STATE_BBOXES[stateCode][0] : '';
       const distSelect = document.getElementById('districtSelect');
       const scanBtn = document.getElementById('scanBtn');
 
@@ -460,7 +446,7 @@
 
       const config = AGENCY_CONFIG[agency];
       distSelect.innerHTML = '<option value="">Loading districts...</option>';
-      setStatus(`Loading ${stateCode ? stateCode + ' ' : ''}${agency} jurisdictions...`);
+      setStatus(`Loading ${stateLabel ? stateLabel + ' ' : ''}${agencyLabel} jurisdictions...`);
 
       try {
         let data;
@@ -476,7 +462,7 @@
         }
 
         const features = data.features || [];
-        if (features.length === 0) throw new Error(`No ${agency} units found${stateCode ? ' in ' + stateCode : ''}.`);
+        if (features.length === 0) throw new Error(`No ${agencyLabel} units found${stateLabel ? ' in ' + stateLabel : ''}.`);
 
         const sampleAttrs = features[0].attributes || {};
         let field = config.nameField;
@@ -508,7 +494,7 @@
         });
 
         distSelect.disabled = false;
-        setStatus(`Loaded ${sortedNames.length} ${stateCode ? stateCode + ' ' : ''}${agency} units. Choose one above.`);
+        setStatus(`Loaded ${sortedNames.length} ${stateLabel ? stateLabel + ' ' : ''}${agencyLabel} units. Choose one above.`);
       } catch (err) {
         distSelect.innerHTML = '<option value="">No units available</option>';
         setStatus(err.message, true);
@@ -596,7 +582,9 @@
 
     async function executeAreaScan() {
       const stateCode = document.getElementById('stateSelect').value;
-      const agency = document.getElementById('agencySelect').value;
+      const agencySelect = document.getElementById('agencySelect');
+      const agency = agencySelect.value;
+      const agencyLabel = agency ? agencySelect.options[agencySelect.selectedIndex].text : '';
       const district = document.getElementById('districtSelect').value;
       const scanBtn = document.getElementById('scanBtn');
 
@@ -609,7 +597,7 @@
         // 1. Fetch boundary polygon(s) in WGS84 (4326)
         if (!currentBoundaryRings) {
           scanBtn.innerText = "Downloading District Boundary...";
-          setStatus(`Fetching ${agency} boundary for ${district}...`);
+          setStatus(`Fetching ${agencyLabel} boundary for ${district}...`);
 
           const config = AGENCY_CONFIG[agency];
           const field = activeNameField || config.nameField;
@@ -910,25 +898,7 @@
     function renderDashboard(globalDayTotals, hasAnyConstraint) {
       const inRxUnits = scannedUnits.filter(u => u.isGo).sort((a, b) => b.totalInRxHours - a.totalInRxHours);
       const outRxUnits = scannedUnits.filter(u => !u.isGo);
-
-      const totalAcres = scannedUnits.reduce((s, u) => s + (u.acres || 0), 0);
-      const inRxAcres = inRxUnits.reduce((s, u) => s + (u.acres || 0), 0);
       const dayEntries = Object.values(globalDayTotals);
-
-      // Narrative summary replacing the 3 stat boxes
-      const narrativeEl = document.getElementById('narrative-summary');
-      const totalAcresStr = totalAcres > 0 ? ` (${totalAcres.toLocaleString()} total acres)` : '';
-      const inRxAcresStr = inRxAcres > 0 ? ` (${inRxAcres.toLocaleString()} acres)` : '';
-
-      if (!hasAnyConstraint) {
-        narrativeEl.innerHTML = `Loaded <strong>${scannedUnits.length} planned burn units</strong>${totalAcresStr} in ${activeAreaLabel}. Enter at least one prescription threshold above to evaluate burn windows.`;
-      } else if (activeDayFilter) {
-        const activeDayObj = dayEntries.find(d => d.dayKey === activeDayFilter);
-        const dayLabel = activeDayObj ? activeDayObj.label : activeDayFilter;
-        narrativeEl.innerHTML = `On <strong>${dayLabel}</strong>, <strong>${inRxUnits.length} of ${scannedUnits.length} scanned units</strong>${inRxAcresStr} in ${activeAreaLabel} meet your active prescription thresholds.`;
-      } else {
-        narrativeEl.innerHTML = `Scanned <strong>${scannedUnits.length} planned units</strong>${totalAcresStr} in ${activeAreaLabel}; <strong>${inRxUnits.length} units</strong>${inRxAcresStr} have at least one qualifying window over the next 7 days.`;
-      }
 
       // Day filter chips
       const filterBar = document.getElementById('day-filter-bar');
@@ -964,7 +934,6 @@
             : u.qualifyingDays;
 
           const dayBadges = visibleDays.map(d => `${d.dateObj.toLocaleDateString([], { weekday: 'short' })} (${d.inRxHours}h)`).join(', ');
-          const displayHours = activeDayFilter ? (visibleDays[0]?.inRxHours || 0) : u.totalInRxHours;
 
           const detailsHtml = visibleDays.map(d => {
             const dLabel = d.dateObj.toLocaleDateString([], { weekday: 'short', month: 'numeric', day: 'numeric' });
@@ -979,9 +948,9 @@
           row.className = 'unit-row in-rx';
           row.onclick = () => row.classList.toggle('expanded');
           row.innerHTML = `
-            <div class="unit-row-top">
-              <div><div class="unit-name">${u.name}</div><div class="unit-meta">${u.acres > 0 ? u.acres.toLocaleString() + ' acres • ' : ''}Windows: <strong>${dayBadges}</strong></div></div>
-              <span class="status-pill pass">${displayHours}h IN-RX</span>
+            <div>
+              <div class="unit-name">${u.name}</div>
+              <div class="unit-meta">${u.acres > 0 ? u.acres.toLocaleString() + ' acres • ' : ''}Windows: <strong>${dayBadges}</strong></div>
             </div>
             <div class="mini-days">
               ${u.daysList.map((d, idx) => `<div class="mini-day ${d.inRxHours > 0 ? 'pass' : ''}"><div>${idx === 0 ? 'Today' : d.dateObj.toLocaleDateString([], { weekday: 'short' })}</div><div>${d.inRxHours > 0 ? d.inRxHours + 'h' : '--'}</div></div>`).join('')}
@@ -1156,26 +1125,67 @@
     /* =========================================================
        9. PDF EXPORT
        ========================================================= */
+    function getRxSummaryHtml() {
+      const minTemp = getNumOrNull('minTemp');
+      const maxTemp = getNumOrNull('maxTemp');
+      const minRH   = getNumOrNull('minRH');
+      const maxRH   = getNumOrNull('maxRH');
+      const maxWind = getNumOrNull('maxWind');
+      const maxGust = getNumOrNull('maxGust');
+      const minVent = getNumOrNull('minVent');
+
+      const items = [];
+      if (minTemp !== null || maxTemp !== null) {
+        items.push(`Temp: ${minTemp !== null ? minTemp : 'Any'}–${maxTemp !== null ? maxTemp : 'Any'} °F`);
+      }
+      if (minRH !== null || maxRH !== null) {
+        items.push(`RH: ${minRH !== null ? minRH : 'Any'}–${maxRH !== null ? maxRH : 'Any'}%`);
+      }
+      if (maxWind !== null) items.push(`Max Wind: ${maxWind} mph`);
+      if (maxGust !== null) items.push(`Max Gust: ${maxGust} mph`);
+      if (minVent !== null) items.push(`Min Vent: ${minVent} kt-ft`);
+      if (permittedWindDirs.size > 0) items.push(`Wind Dir: ${Array.from(permittedWindDirs).join(', ')}`);
+
+      return items.length > 0 ? items.join(' &nbsp;|&nbsp; ') : 'None specified';
+    }
+
     function exportSummaryPdf() {
       const printWin = window.open('', '_blank');
       if (!printWin) { alert("Please allow pop-ups."); return; }
+
       const inRxUnits = scannedUnits.filter(u => u.isGo).sort((a, b) => b.totalInRxHours - a.totalInRxHours);
       const mapUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
       const svgHtml = document.getElementById('map-svg').outerHTML;
+
       const rowsHtml = inRxUnits.length > 0
-        ? inRxUnits.map(u => `<tr><td><strong>${u.name}</strong></td><td>${u.acres > 0 ? u.acres.toLocaleString() : '--'}</td><td>${u.qualifyingDays.map(d => `${d.dateObj.toLocaleDateString([], { weekday: 'short', month: 'numeric', day: 'numeric' })} (${d.inRxHours}h)`).join(', ')}</td><td>${u.totalInRxHours} hrs</td></tr>`).join('')
+        ? inRxUnits.map(u => {
+            const visibleDays = activeDayFilter
+              ? u.qualifyingDays.filter(d => d.dayKey === activeDayFilter)
+              : u.qualifyingDays;
+            const totalHrs = visibleDays.reduce((s, d) => s + d.inRxHours, 0);
+            const daysText = visibleDays.map(d => `${d.dateObj.toLocaleDateString([], { weekday: 'short', month: 'numeric', day: 'numeric' })} (${d.inRxHours}h)`).join(', ');
+            return `<tr><td><strong>${u.name}</strong></td><td>${u.acres > 0 ? u.acres.toLocaleString() : '--'}</td><td>${daysText}</td><td>${totalHrs} hrs</td></tr>`;
+          }).join('')
         : `<tr><td colspan="4" style="font-style:italic; color:#666;">No units met criteria.</td></tr>`;
+
       printWin.document.open();
       printWin.document.write(`
         <!DOCTYPE html><html><head><title>Area Burn Window Summary - ${activeAreaLabel}</title>
         <style>
           body { font-family: sans-serif; padding: 24px; color: #222; max-width: 800px; margin: 0 auto; font-size: 13px; }
-          h2 { margin: 0 0 4px 0; font-size: 20px; } .meta { font-size: 12px; color: #555; margin-bottom: 14px; border-bottom: 2px solid #222; padding-bottom: 6px; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 12px; } th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; } th { background: #f2f2f2; }
-          .map-wrap { position: relative; width: 100%; max-width: 600px; margin: 12px auto; } .map-wrap img { width: 100%; display: block; border: 1px solid #ccc; } .map-wrap svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+          h2 { margin: 0 0 4px 0; font-size: 20px; }
+          .meta { font-size: 12px; color: #555; margin-bottom: 10px; border-bottom: 2px solid #222; padding-bottom: 6px; }
+          .rx-box { background: #f8fafc; border: 1px solid #cbd5e1; border-left: 3px solid #0078d4; padding: 8px 10px; margin-bottom: 14px; font-size: 12px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 12px; }
+          th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+          th { background: #f2f2f2; }
+          .map-wrap { position: relative; width: 100%; max-width: 600px; margin: 12px auto; }
+          .map-wrap img { width: 100%; display: block; border: 1px solid #ccc; }
+          .map-wrap svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
         </style></head><body>
           <h2>${activeAreaLabel} — Burn Window Scan</h2>
           <div class="meta">Units Scanned: ${scannedUnits.length} | Units In-Rx: ${inRxUnits.length} | Generated: ${new Date().toLocaleString()}</div>
+          <div class="rx-box"><strong>Prescription Thresholds:</strong> ${getRxSummaryHtml()}</div>
           <table><thead><tr><th>Unit Name</th><th>Acres</th><th>Qualifying Burn Days</th><th>Total Rx Hours</th></tr></thead><tbody>${rowsHtml}</tbody></table>
           <div class="map-wrap"><img src="${mapUrl}">${svgHtml}</div>
           <script>window.onload = function() { window.focus(); setTimeout(function() { window.print(); }, 400); };<\/script>
