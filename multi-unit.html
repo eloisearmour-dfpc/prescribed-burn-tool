@@ -642,7 +642,7 @@
           returnGeometry: 'true',
           maxAllowableOffset: '0.001',
           outSR: '4326',
-          resultRecordCount: '150',
+          resultRecordCount: '500',
           f: 'json'
         });
 
@@ -662,16 +662,18 @@
           return;
         }
 
-        // 3. Group units into ~2.5 km NWS grid cells
+        // 3. Deduplicate multi-activity rows & group units into ~2.5 km NWS grid cells
         const rawUnits = [];
         const gridBuckets = {};
+        const seenUnits = new Map();
 
         features.forEach((f, idx) => {
           const attrs = f.attributes || {};
           const geom = f.geometry || {};
           const id = attrs.OBJECTID || attrs.objectid || (idx + 1);
           const rawName = attrs.Name || attrs.name || attrs.NAME || attrs.unit_name || attrs.UnitName || attrs.UNIT_NAME || attrs.unit || attrs.Unit;
-          const name = (rawName && String(rawName).trim() !== '' && String(rawName).toLowerCase() !== 'null') ? String(rawName).trim() : `Unit #${id}`;
+          const hasExplicitName = rawName && String(rawName).trim() !== '' && String(rawName).toLowerCase() !== 'null';
+          const name = hasExplicitName ? String(rawName).trim() : `Unit #${id}`;
           const acres = Math.round(attrs.GIS_ACRES || attrs.TREATMENT_ACRES || attrs.acres || attrs.ACRES || 0);
 
           let centroid = null;
@@ -683,12 +685,26 @@
           if (!centroid) return;
 
           const cellKey = `${(Math.round(centroid.lat * 40) / 40).toFixed(4)},${(Math.round(centroid.lon * 30) / 30).toFixed(4)}`;
+          const dedupKey = hasExplicitName
+            ? `${name.toLowerCase()}|${acres}|${cellKey}`
+            : `${acres}|${centroid.lat.toFixed(4)}|${centroid.lon.toFixed(4)}`;
+
+          if (seenUnits.has(dedupKey)) {
+            const existing = seenUnits.get(dedupKey);
+            if (geom.rings?.length) {
+              existing.rings = (existing.rings || []).concat(geom.rings);
+            }
+            return;
+          }
+
           if (!gridBuckets[cellKey]) {
             gridBuckets[cellKey] = { lat: centroid.lat, lon: centroid.lon, unitIndices: [] };
           }
           gridBuckets[cellKey].unitIndices.push(rawUnits.length);
 
-          rawUnits.push({ id, name, acres, lat: centroid.lat, lon: centroid.lon, rings: geom.rings || null, hourlyRecords: [] });
+          const unitObj = { id, name, acres, lat: centroid.lat, lon: centroid.lon, rings: geom.rings ? [...geom.rings] : null, hourlyRecords: [] };
+          seenUnits.set(dedupKey, unitObj);
+          rawUnits.push(unitObj);
         });
 
         // 4. Fetch NWS forecasts for each grid cell
@@ -1125,7 +1141,7 @@
     /* =========================================================
        9. PDF EXPORT
        ========================================================= */
-    function getRxSummaryHtml() {
+    function getRxGridHtml() {
       const minTemp = getNumOrNull('minTemp');
       const maxTemp = getNumOrNull('maxTemp');
       const minRH   = getNumOrNull('minRH');
@@ -1133,27 +1149,38 @@
       const maxWind = getNumOrNull('maxWind');
       const maxGust = getNumOrNull('maxGust');
       const minVent = getNumOrNull('minVent');
+      const windDirs = permittedWindDirs.size > 0 ? Array.from(permittedWindDirs).join(', ') : 'Any';
 
-      const items = [];
-      if (minTemp !== null || maxTemp !== null) {
-        items.push(`Temp: ${minTemp !== null ? minTemp : 'Any'}–${maxTemp !== null ? maxTemp : 'Any'} °F`);
-      }
-      if (minRH !== null || maxRH !== null) {
-        items.push(`RH: ${minRH !== null ? minRH : 'Any'}–${maxRH !== null ? maxRH : 'Any'}%`);
-      }
-      if (maxWind !== null) items.push(`Max Wind: ${maxWind} mph`);
-      if (maxGust !== null) items.push(`Max Gust: ${maxGust} mph`);
-      if (minVent !== null) items.push(`Min Vent: ${minVent} kt-ft`);
-      if (permittedWindDirs.size > 0) items.push(`Wind Dir: ${Array.from(permittedWindDirs).join(', ')}`);
+      const params = [
+        ['Min Temp', minTemp !== null ? `${minTemp} °F` : 'None'],
+        ['Max Temp', maxTemp !== null ? `${maxTemp} °F` : 'None'],
+        ['Min RH', minRH !== null ? `${minRH}%` : 'None'],
+        ['Max RH', maxRH !== null ? `${maxRH}%` : 'None'],
+        ['Max Wind', maxWind !== null ? `${maxWind} mph` : 'None'],
+        ['Max Gust', maxGust !== null ? `${maxGust} mph` : 'None'],
+        ['Min Vent', minVent !== null ? `${minVent} kt-ft` : 'None'],
+        ['Wind Dir', windDirs]
+      ];
 
-      return items.length > 0 ? items.join(' &nbsp;|&nbsp; ') : 'None specified';
+      return params.map(([label, val]) => `<div><strong>${label}:</strong> ${val}</div>`).join('');
     }
 
     function exportSummaryPdf() {
       const printWin = window.open('', '_blank');
       if (!printWin) { alert("Please allow pop-ups."); return; }
 
+      const stateCode = document.getElementById('stateSelect').value;
+      const stateLabel = stateCode && STATE_BBOXES[stateCode] ? STATE_BBOXES[stateCode][0] : '';
+      const agencySelect = document.getElementById('agencySelect');
+      const agencyLabel = agencySelect.value ? agencySelect.options[agencySelect.selectedIndex].text : '';
+      const jurisdictionLine = [agencyLabel, stateLabel].filter(Boolean).join(' • ');
+
       const inRxUnits = scannedUnits.filter(u => u.isGo).sort((a, b) => b.totalInRxHours - a.totalInRxHours);
+      const inRxAcres = inRxUnits.reduce((s, u) => s + (u.acres || 0), 0);
+      const windowLabel = activeDayFilter
+        ? (inRxUnits[0]?.qualifyingDays.find(d => d.dayKey === activeDayFilter)?.dateObj.toLocaleDateString([], { weekday: 'short', month: 'numeric', day: 'numeric' }) || activeDayFilter)
+        : 'All 7 Days';
+
       const mapUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
       const svgHtml = document.getElementById('map-svg').outerHTML;
 
@@ -1173,9 +1200,12 @@
         <!DOCTYPE html><html><head><title>Area Burn Window Summary - ${activeAreaLabel}</title>
         <style>
           body { font-family: sans-serif; padding: 24px; color: #222; max-width: 800px; margin: 0 auto; font-size: 13px; }
-          h2 { margin: 0 0 4px 0; font-size: 20px; }
+          h2 { margin: 0 0 2px 0; font-size: 20px; }
+          .sub { font-size: 12px; color: #0078d4; font-weight: bold; margin-bottom: 4px; }
           .meta { font-size: 12px; color: #555; margin-bottom: 10px; border-bottom: 2px solid #222; padding-bottom: 6px; }
           .rx-box { background: #f8fafc; border: 1px solid #cbd5e1; border-left: 3px solid #0078d4; padding: 8px 10px; margin-bottom: 14px; font-size: 12px; }
+          .rx-box-title { font-weight: bold; text-transform: uppercase; font-size: 11px; color: #0078d4; margin-bottom: 6px; }
+          .rx-param-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 12px; }
           table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 12px; }
           th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
           th { background: #f2f2f2; }
@@ -1184,8 +1214,12 @@
           .map-wrap svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
         </style></head><body>
           <h2>${activeAreaLabel} — Burn Window Scan</h2>
-          <div class="meta">Units Scanned: ${scannedUnits.length} | Units In-Rx: ${inRxUnits.length} | Generated: ${new Date().toLocaleString()}</div>
-          <div class="rx-box"><strong>Prescription Thresholds:</strong> ${getRxSummaryHtml()}</div>
+          ${jurisdictionLine ? `<div class="sub">${jurisdictionLine}</div>` : ''}
+          <div class="meta">Units Scanned: ${scannedUnits.length} | Units In-Rx: ${inRxUnits.length}${inRxAcres > 0 ? ` (${inRxAcres.toLocaleString()} ac)` : ''} | Window: ${windowLabel} | Generated: ${new Date().toLocaleString()}</div>
+          <div class="rx-box">
+            <div class="rx-box-title">Prescription Thresholds</div>
+            <div class="rx-param-grid">${getRxGridHtml()}</div>
+          </div>
           <table><thead><tr><th>Unit Name</th><th>Acres</th><th>Qualifying Burn Days</th><th>Total Rx Hours</th></tr></thead><tbody>${rowsHtml}</tbody></table>
           <div class="map-wrap"><img src="${mapUrl}">${svgHtml}</div>
           <script>window.onload = function() { window.focus(); setTimeout(function() { window.print(); }, 400); };<\/script>
