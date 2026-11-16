@@ -151,9 +151,9 @@
 <body>
 
   <div class="card">
-    <h3 id="area-title" style="margin:0 0 2px 0; font-size:17px;">District Burn Window Scanner</h3>
+    <h3 id="area-title" style="margin:0 0 2px 0; font-size:17px;">Multi-Unit Burn Window Scanner</h3>
     <div id="status" style="font-size: 12px; color: #666; margin-bottom: 12px;">
-      Select an agency and district to check multiple units at once.
+      Select an agency and district to scan multiple burn units at once.
     </div>
 
     <!-- CASCADING DROPDOWNS -->
@@ -279,7 +279,8 @@
       }
     };
 
-    let activeAreaLabel = "District Burn Window Scanner";
+    let activeAreaLabel = "Multi-Unit Burn Window Scanner";
+    let activeNameField = null;
     let currentBoundaryRings = null;
     let permittedWindDirs = new Set();
     let scannedUnits = [];
@@ -288,69 +289,115 @@
     let currentBboxStr = '';
 
     /* =========================================================
-       2. CASCADING DROPDOWN LOGIC
+       2. NETWORK HELPER (CORS FETCH WITH JSONP FALLBACK)
        ========================================================= */
+    function jsonpGet(url) {
+      return new Promise((resolve, reject) => {
+        const cb = 'cb_' + Math.random().toString(36).slice(2);
+        const script = document.createElement('script');
+        script.src = `${url}${url.includes('?') ? '&' : '?'}callback=${cb}`;
+        window[cb] = data => {
+          delete window[cb];
+          script.remove();
+          data?.error ? reject(new Error(data.error.message)) : resolve(data);
+        };
+        script.onerror = () => {
+          delete window[cb];
+          script.remove();
+          reject(new Error("Network or CORS block"));
+        };
+        document.head.appendChild(script);
+      });
+    }
+
+    async function arcgisGet(url) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+        return data;
+      } catch (fetchErr) {
+        return await jsonpGet(url);
+      }
+    }
+
+    /* =========================================================
+       3. CASCADING DROPDOWN LOGIC
+       ========================================================= */
+    function setStatus(msg, isError = false) {
+      const el = document.getElementById('status');
+      el.style.color = isError ? '#c92a2a' : '#666';
+      el.innerText = msg;
+    }
+
     async function handleAgencyChange() {
       const agency = document.getElementById('agencySelect').value;
       const distSelect = document.getElementById('districtSelect');
       const scanBtn = document.getElementById('scanBtn');
-      const statusEl = document.getElementById('status');
 
       distSelect.innerHTML = '<option value="">-- Select District / Unit --</option>';
       distSelect.disabled = true;
       scanBtn.disabled = true;
       scanBtn.innerText = "Select a District to Scan";
       currentBoundaryRings = null;
+      activeNameField = null;
 
-      if (!agency) return;
+      if (!agency) {
+        setStatus("Select an agency and district to scan multiple burn units at once.");
+        return;
+      }
 
       const config = AGENCY_CONFIG[agency];
       distSelect.innerHTML = '<option value="">Loading districts...</option>';
-      statusEl.innerText = `Loading ${agency} jurisdictions...`;
+      setStatus(`Loading ${agency} jurisdictions...`);
 
       try {
-        const uniqueNames = new Set();
-        let offset = 0;
-        let hasMore = true;
-
-        while (hasMore) {
-          const queryUrl = `${config.url}/query?where=1%3D1&outFields=${config.nameField}&returnGeometry=false&resultOffset=${offset}&resultRecordCount=2000&f=json`;
-          const res = await fetch(queryUrl);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = await res.json();
-          if (data.error) throw new Error(data.error.message);
-
-          const features = data.features || [];
-          features.forEach(f => {
-            const val = f.attributes?.[config.nameField];
-            if (val && String(val).trim() !== '' && String(val).toLowerCase() !== 'null') {
-              uniqueNames.add(String(val).trim());
-            }
-          });
-
-          hasMore = Boolean(data.exceededTransferLimit) && features.length > 0;
-          offset += features.length;
+        let data;
+        try {
+          data = await arcgisGet(`${config.url}/query?where=1%3D1&outFields=*&returnGeometry=false&returnDistinctValues=true&f=json`);
+        } catch (e) {
+          data = await arcgisGet(`${config.url}/query?where=1%3D1&outFields=*&returnGeometry=false&resultRecordCount=2000&f=json`);
         }
+
+        const features = data.features || [];
+        if (features.length === 0) throw new Error("Service returned 0 records.");
+
+        // Use configured field, or auto-detect a NAME column if the service schema differs
+        const sampleAttrs = features[0].attributes || {};
+        let field = config.nameField;
+        if (!(field in sampleAttrs)) {
+          const keys = Object.keys(sampleAttrs);
+          field = keys.find(k => k.toLowerCase() === config.nameField.toLowerCase())
+               || keys.find(k => /name/i.test(k) && !/shape|state|county/i.test(k))
+               || keys.find(k => /name/i.test(k));
+          if (!field) throw new Error(`Name field not found (columns: ${keys.join(', ')})`);
+        }
+        activeNameField = field;
+
+        const uniqueNames = new Set();
+        features.forEach(f => {
+          const val = f.attributes?.[field];
+          if (val && String(val).trim() !== '' && String(val).toLowerCase() !== 'null') {
+            uniqueNames.add(String(val).trim());
+          }
+        });
 
         const sortedNames = Array.from(uniqueNames).sort((a, b) => a.localeCompare(b));
         distSelect.innerHTML = '<option value="">-- Select District / Unit --</option>';
 
-        if (sortedNames.length > 0) {
-          sortedNames.forEach(name => {
-            const opt = document.createElement('option');
-            opt.value = name;
-            opt.textContent = name;
-            distSelect.appendChild(opt);
-          });
-          distSelect.disabled = false;
-          statusEl.innerText = `Loaded ${sortedNames.length} ${agency} units. Choose one below.`;
-        } else {
-          distSelect.innerHTML = '<option value="">No districts found</option>';
-          statusEl.innerText = `No records returned for ${agency}.`;
-        }
+        sortedNames.forEach(name => {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          distSelect.appendChild(opt);
+        });
+
+        distSelect.disabled = false;
+        setStatus(`Loaded ${sortedNames.length} ${agency} units. Choose one below.`);
       } catch (err) {
         distSelect.innerHTML = '<option value="">Error loading districts</option>';
-        statusEl.innerText = `${agency} load error: ${err.message}`;
+        setStatus(`${agency} error: ${err.message}`, true);
       }
     }
 
@@ -369,7 +416,7 @@
     }
 
     /* =========================================================
-       3. THRESHOLD INPUT LISTENERS
+       4. THRESHOLD INPUT LISTENERS
        ========================================================= */
     ['minTemp', 'maxTemp', 'minRH', 'maxRH', 'maxWind', 'maxGust', 'minVent'].forEach(id => {
       document.getElementById(id).addEventListener('input', () => {
@@ -423,7 +470,7 @@
     });
 
     /* =========================================================
-       4. POLYGON INTERSECTION + NWS GRID SCANNER
+       5. POLYGON INTERSECTION + NWS GRID SCANNER
        ========================================================= */
     function handleScanButtonClick() {
       if (scannedUnits.length > 0 && currentBoundaryRings) {
@@ -437,7 +484,6 @@
       const agency = document.getElementById('agencySelect').value;
       const district = document.getElementById('districtSelect').value;
       const scanBtn = document.getElementById('scanBtn');
-      const statusEl = document.getElementById('status');
 
       if (!agency || !district) return;
 
@@ -445,19 +491,17 @@
       document.getElementById('results-card').style.display = 'none';
 
       try {
-        // 1. Fetch all polygon pieces for the selected district/unit in WGS84 (4326)
+        // 1. Fetch boundary polygon(s) in WGS84 (4326)
         if (!currentBoundaryRings) {
           scanBtn.innerText = "Downloading District Boundary...";
-          statusEl.innerText = `Fetching ${agency} boundary for ${district}...`;
+          setStatus(`Fetching ${agency} boundary for ${district}...`);
 
           const config = AGENCY_CONFIG[agency];
+          const field = activeNameField || config.nameField;
           const escDist = encodeURIComponent(district.replace(/'/g, "''"));
-          const boundaryUrl = `${config.url}/query?where=${config.nameField}%3D'${escDist}'&outFields=${config.nameField}&returnGeometry=true&outSR=4326&f=json`;
+          const boundaryUrl = `${config.url}/query?where=${field}%3D'${escDist}'&outFields=${field}&returnGeometry=true&outSR=4326&f=json`;
 
-          const bRes = await fetch(boundaryUrl);
-          if (!bRes.ok) throw new Error(`Boundary HTTP ${bRes.status}`);
-          const bData = await bRes.json();
-          if (bData.error) throw new Error(bData.error.message);
+          const bData = await arcgisGet(boundaryUrl);
           if (!bData.features || bData.features.length === 0) {
             throw new Error(`No boundary polygon found for ${district}.`);
           }
@@ -476,7 +520,7 @@
 
         // 2. Query burn units intersecting the boundary
         scanBtn.innerText = "Querying Burn Units...";
-        statusEl.innerText = `Finding planned burn units inside ${activeAreaLabel}...`;
+        setStatus(`Finding planned burn units inside ${activeAreaLabel}...`);
 
         let queryRings = simplifyRings(currentBoundaryRings, 0.003);
         const totalVertices = queryRings.reduce((sum, r) => sum + r.length, 0);
@@ -508,7 +552,7 @@
         const features = featData.features || [];
         if (features.length === 0) {
           scannedUnits = [];
-          statusEl.innerText = `No planned burn units found inside ${activeAreaLabel}.`;
+          setStatus(`No planned burn units found inside ${activeAreaLabel}.`);
           return;
         }
 
@@ -549,7 +593,7 @@
         for (const key of bucketKeys) {
           completedCells++;
           scanBtn.innerText = `Fetching NWS Forecasts (${completedCells}/${bucketKeys.length})...`;
-          statusEl.innerText = `Evaluating ${rawUnits.length} units across ${bucketKeys.length} NWS grid cells...`;
+          setStatus(`Evaluating ${rawUnits.length} units across ${bucketKeys.length} NWS grid cells...`);
 
           const b = gridBuckets[key];
           try {
@@ -583,17 +627,17 @@
         activeDayFilter = null;
 
         if (scannedUnits.length === 0) {
-          statusEl.innerText = "Found units, but NWS forecast data could not be retrieved right now.";
+          setStatus("Found units, but NWS forecast data could not be retrieved right now.", true);
           return;
         }
 
-        statusEl.innerText = `Synced ${scannedUnits.length} units with NWS micro-climate forecasts.`;
+        setStatus(`Synced ${scannedUnits.length} units with NWS micro-climate forecasts.`);
         evaluateAllScannedUnits();
         document.getElementById('results-card').style.display = 'block';
         updateAreaMapPreview();
 
       } catch (err) {
-        statusEl.innerText = "Scan Error: " + err.message;
+        setStatus(`Scan Error: ${err.message}`, true);
       } finally {
         scanBtn.disabled = false;
         scanBtn.innerText = `Update Scan for ${district}`;
@@ -626,7 +670,7 @@
     }
 
     /* =========================================================
-       5. PRESCRIPTION EVALUATION LOGIC
+       6. PRESCRIPTION EVALUATION LOGIC
        ========================================================= */
     function getNumOrNull(id) {
       const val = document.getElementById(id).value.trim();
@@ -783,7 +827,7 @@
     }
 
     /* =========================================================
-       6. MAP & SVG RENDERING
+       7. MAP & SVG RENDERING
        ========================================================= */
     function setBasemap(type) {
       currentBasemap = type;
@@ -856,7 +900,7 @@
     }
 
     /* =========================================================
-       7. GEOMETRY & TIME HELPERS
+       8. GEOMETRY & TIME HELPERS
        ========================================================= */
     function simplifyRings(wgsRings, tolerance = 0.003) {
       function sqSegDist(p, p1, p2) {
@@ -909,7 +953,7 @@
       if (['S', 'SSW'].includes(d)) return 'S';
       if (['SW', 'WSW'].includes(d)) return 'SW';
       if (['W', 'WNW'].includes(d)) return 'W';
-      if (['NW', 'NNW'].includes(d)) return 'NW';
+      if (['NW', 'WNW'].includes(d)) return 'NW';
       return d;
     }
 
@@ -926,7 +970,7 @@
     }
 
     /* =========================================================
-       8. PDF EXPORT
+       9. PDF EXPORT
        ========================================================= */
     function exportSummaryPdf() {
       const printWin = window.open('', '_blank');
