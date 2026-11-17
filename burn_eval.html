@@ -33,7 +33,8 @@
     .input-header { font-size: 12px; font-weight: bold; color: #0078d4; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 8px 0; border-bottom: 1px solid #0078d4; padding-bottom: 4px; }
     .rx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
     .rx-field { display: flex; flex-direction: column; font-size: 12px; font-weight: bold; color: #444; position: relative; }
-    .rx-field input { padding: 7px; font-size: 13px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 4px; background: #fff; box-sizing: border-box; }
+    .rx-field input, .rx-field select { padding: 7px; font-size: 13px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 4px; background: #fff; box-sizing: border-box; }
+    .rx-field select { padding: 6px 7px; cursor: pointer; }
     
     /* Compact Multi-Select Dropdown */
     .custom-select-btn {
@@ -266,7 +267,13 @@
       <div class="rx-field">Max RH (%)<input type="number" id="maxRH" placeholder="None"></div>
       <div class="rx-field">Max Wind (mph)<input type="number" id="maxWind" placeholder="None"></div>
       <div class="rx-field">Max Gust (mph)<input type="number" id="maxGust" placeholder="None"></div>
-      <div class="rx-field">Min Vent (kt-ft)<input type="number" id="minVent" placeholder="None"></div>
+      
+      <!-- State-Aware Vent Dropdown -->
+      <div class="rx-field">Min Vent
+        <select id="minVent">
+          <option value="">Any (None)</option>
+        </select>
+      </div>
       
       <!-- Wind Direction Multi-Select Dropdown in Grid -->
       <div class="rx-field" id="windField">
@@ -400,9 +407,9 @@
     let cleanUnitId = rawId.replace(/[^0-9]/g, '');
 
     const STATE_VENT_RULES = {
-      CO: { name: 'Colorado (CDPHE Standards)', defaultMinVent: 40, poorLimit: 40, fairLimit: 60, goodLimit: 100 },
-      MT: { name: 'Montana (Daily Call)', defaultMinVent: 25, poorLimit: 25, fairLimit: 45, goodLimit: 75 },
-      ID: { name: 'Idaho (Daily Call)', defaultMinVent: 25, poorLimit: 25, fairLimit: 45, goodLimit: 75 }
+      CO: { name: 'Colorado', defaultMinVent: 40, poorLimit: 40, fairLimit: 60, goodLimit: 100 },
+      MT: { name: 'Montana', defaultMinVent: 25, poorLimit: 25, fairLimit: 45, goodLimit: 75 },
+      ID: { name: 'Idaho', defaultMinVent: 25, poorLimit: 25, fairLimit: 45, goodLimit: 75 }
     };
 
     const explicitState = (urlParams.get('state') || '').toUpperCase();
@@ -422,14 +429,48 @@
 
     document.getElementById('unit-title').innerText = activeUnitLabel;
 
-    // Seed URL parameters if present (without forcing defaults)
+    // Dynamic State-Aware Vent Dropdown Loader
+    function updateVentDropdown(stateCode, forceValue = null) {
+      const sel = document.getElementById('minVent');
+      const currentVal = forceValue !== null ? forceValue : sel.value;
+      const rules = STATE_VENT_RULES[stateCode] || STATE_VENT_RULES.CO;
+      
+      sel.innerHTML = '<option value="">Any (None)</option>';
+      
+      const options = [
+        { val: rules.poorLimit, label: `Fair or better (≥${rules.poorLimit}k)` },
+        { val: rules.fairLimit, label: `Good or better (≥${rules.fairLimit}k)` },
+        { val: rules.goodLimit, label: `Excellent (≥${rules.goodLimit}k)` }
+      ];
+
+      let customNeeded = (currentVal !== "" && currentVal !== null);
+
+      options.forEach(opt => {
+        const el = document.createElement('option');
+        el.value = opt.val;
+        el.textContent = opt.label;
+        sel.appendChild(el);
+        if (String(currentVal) === String(opt.val)) customNeeded = false;
+      });
+
+      if (customNeeded) {
+        const customOpt = document.createElement('option');
+        customOpt.value = currentVal;
+        customOpt.textContent = `Custom (≥${currentVal}k)`;
+        sel.appendChild(customOpt);
+      }
+
+      sel.value = currentVal !== null ? currentVal : "";
+    }
+
+    // Initialize inputs from URL params
+    updateVentDropdown(activeStateCode, urlParams.get('minVent') || "");
     if (urlParams.get('minTemp')) document.getElementById('minTemp').value = urlParams.get('minTemp');
     if (urlParams.get('maxTemp')) document.getElementById('maxTemp').value = urlParams.get('maxTemp');
     if (urlParams.get('minRH')) document.getElementById('minRH').value = urlParams.get('minRH');
     if (urlParams.get('maxRH')) document.getElementById('maxRH').value = urlParams.get('maxRH');
     if (urlParams.get('maxWind')) document.getElementById('maxWind').value = urlParams.get('maxWind');
     if (urlParams.get('maxGust')) document.getElementById('maxGust').value = urlParams.get('maxGust');
-    if (urlParams.get('minVent')) document.getElementById('minVent').value = urlParams.get('minVent');
 
     if (urlParams.get('windDirs')) {
       const dirs = urlParams.get('windDirs').split(',');
@@ -591,7 +632,8 @@
       document.getElementById('maxRH').value = u.maxRH || '';
       document.getElementById('maxWind').value = u.maxWind || '';
       document.getElementById('maxGust').value = u.maxGust || '';
-      document.getElementById('minVent').value = u.minVent || '';
+      
+      updateVentDropdown(activeStateCode, u.minVent || "");
 
       permittedWindDirs = new Set(u.windDirs || []);
       updateWindSelectUI();
@@ -1124,6 +1166,9 @@
           activeStateCode = detectedState;
         }
 
+        // Dynamically update ventilation categories for the scanned state
+        updateVentDropdown(activeStateCode, document.getElementById('minVent').value);
+
         const hourlyUrl = pointData.properties.forecastHourly;
         const gridUrl   = pointData.properties.forecastGridData;
 
@@ -1540,7 +1585,11 @@
       const maxRH = document.getElementById('maxRH').value.trim();
       const maxWind = document.getElementById('maxWind').value.trim();
       const maxGust = document.getElementById('maxGust').value.trim();
-      const minVent = document.getElementById('minVent').value.trim();
+      
+      const minVentEl = document.getElementById('minVent');
+      const minVentVal = minVentEl.value;
+      const minVentText = minVentVal ? minVentEl.options[minVentEl.selectedIndex].text : 'None';
+      
       const windDirText = permittedWindDirs.size > 0 ? Array.from(permittedWindDirs).join(', ') : 'Any Direction';
 
       let tempDisplay = 'None';
@@ -1655,7 +1704,7 @@
             <div class="classic-text-item"><span class="lbl">Max 20ft Wind</span><span class="val">${maxWind ? maxWind + ' mph' : 'None'}</span></div>
             <div class="classic-text-item"><span class="lbl">Max Wind Gust</span><span class="val">${maxGust ? maxGust + ' mph' : 'None'}</span></div>
             <div class="classic-text-item"><span class="lbl">Acceptable Wind Dirs</span><span class="val">${windDirText}</span></div>
-            <div class="classic-text-item"><span class="lbl">Min Ventilation</span><span class="val">${minVent ? minVent + ' kt-ft' : 'None'}</span></div>
+            <div class="classic-text-item"><span class="lbl">Min Ventilation</span><span class="val">${minVentText}</span></div>
           </div>
       `;
 
