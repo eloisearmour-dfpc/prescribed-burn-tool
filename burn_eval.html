@@ -342,13 +342,14 @@
   </div>
 
   <div id="raws-box" class="data-box" style="display:none;">
-    <div style="font-weight:bold; color:#0078d4; margin-bottom:6px; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;" id="raws-header">RAWS Station & Live Fuel Moisture</div>
+    <div style="font-weight:bold; color:#0078d4; margin-bottom:6px; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;" id="raws-header">RAWS Station, Fuel Moisture & Ground Conditions</div>
     <div class="data-grid">
       <div class="data-item"><div class="label">Observed Temp</div><div class="val" id="raws-temp">--</div></div>
       <div class="data-item"><div class="label">Observed RH</div><div class="val" id="raws-rh">--</div></div>
       <div class="data-item"><div class="label">Observed Wind</div><div class="val" id="raws-wind">--</div></div>
       <div class="data-item"><div class="label">Est. 10-Hr Fuel Moisture</div><div class="val" id="raws-fm10">--</div></div>
       <div class="data-item"><div class="label">Est. 1-Hr Fuel Moisture</div><div class="val" id="raws-fm1">--</div></div>
+      <div class="data-item"><div class="label">NOAA Est. Snow Depth</div><div class="val" id="raws-snow">--</div></div>
       <div class="data-item"><div class="label">Observed At</div><div class="val" id="raws-time">--</div></div>
     </div>
   </div>
@@ -385,7 +386,7 @@
       </label>
       <label class="modal-option"><input type="checkbox" id="chk7DaySummary" checked> 7-Day Outlook Cards Summary</label>
       <label class="modal-option"><input type="checkbox" id="chkMatrix" checked> Hourly Forecast Matrix</label>
-      <label class="modal-option"><input type="checkbox" id="chkRaws" checked> Live RAWS Station & Fuel Moisture</label>
+      <label class="modal-option"><input type="checkbox" id="chkRaws" checked> Live RAWS, Fuel Moisture & NOAA Snow Depth</label>
       <label class="modal-option"><input type="checkbox" id="chkSatMap" checked> Satellite Map Preview</label>
       <label class="modal-option"><input type="checkbox" id="chkTopoMap" checked> Topographic Map Preview</label>
 
@@ -827,7 +828,7 @@
       if (['S', 'SSW'].includes(d)) return 'S';
       if (['SW', 'WSW'].includes(d)) return 'SW';
       if (['W', 'WNW'].includes(d)) return 'W';
-      if (['NW'].includes(d)) return 'NW';
+      if (['NW', 'WNW'].includes(d)) return 'NW';
       return d;
     }
 
@@ -982,7 +983,7 @@
     }
 
     /* =========================================================
-       8. RAWS & MAP PREVIEW
+       8. RAWS, NOAA SNOW DEPTH & MAP PREVIEW
        ========================================================= */
     async function fetchRawsData(lat, lon) {
       try {
@@ -1030,6 +1031,47 @@
         document.getElementById('raws-box').style.display = 'block';
       } catch (e) {
         console.warn("Could not load RAWS observation:", e);
+      }
+    }
+
+    async function fetchNoaaSnowDepth(lat, lon) {
+      const snowEl = document.getElementById('raws-snow');
+      snowEl.innerText = 'Loading...';
+      try {
+        const params = new URLSearchParams({
+          geometry: `${lon.toFixed(5)},${lat.toFixed(5)}`,
+          geometryType: 'esriGeometryPoint',
+          sr: '4326',
+          layers: 'all:3',
+          tolerance: '1',
+          mapExtent: `${(lon - 0.1).toFixed(4)},${(lat - 0.1).toFixed(4)},${(lon + 0.1).toFixed(4)},${(lat + 0.1).toFixed(4)}`,
+          imageDisplay: '400,400,96',
+          returnGeometry: 'false',
+          f: 'json'
+        });
+
+        const url = `https://mapservices.weather.noaa.gov/raster/rest/services/snow/NOHRSC_Snow_Analysis/MapServer/identify?${params.toString()}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('NOHRSC service unavailable');
+        const data = await res.json();
+
+        const result = data.results?.[0];
+        const rawVal = result?.attributes?.['Pixel Value'] ?? result?.attributes?.PixelValue ?? result?.value;
+
+        if (rawVal === undefined || rawVal === null || String(rawVal).toLowerCase() === 'nodata') {
+          snowEl.innerText = '0 in';
+        } else {
+          const depthIn = parseFloat(rawVal);
+          if (isNaN(depthIn) || depthIn <= 0.05) {
+            snowEl.innerText = '0 in';
+          } else {
+            snowEl.innerText = `${depthIn.toFixed(1)} in`;
+          }
+        }
+        document.getElementById('raws-box').style.display = 'block';
+      } catch (e) {
+        console.warn("Could not load NOAA snow depth:", e);
+        snowEl.innerText = 'NO DATA';
       }
     }
 
@@ -1101,7 +1143,7 @@
     /* =========================================================
        9. EVALUATION & DATA ENGINE (Soft Constraints / Empty = None)
        ========================================================= */
-   function handleEvaluateClick() {
+    function handleEvaluateClick() {
       if (cachedHourlyRecords && cachedHourlyRecords.length > 0) {
         reEvaluateAllData(); 
       } else {
@@ -1155,6 +1197,7 @@
 
         updateMapPreview(lat, lon);
         fetchRawsData(lat, lon);
+        fetchNoaaSnowDepth(lat, lon);
 
         const pointRes = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`);
         if (!pointRes.ok) throw new Error("Could not reach NWS grid point.");
