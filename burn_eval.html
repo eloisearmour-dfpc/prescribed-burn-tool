@@ -1034,41 +1034,94 @@
       }
     }
 
+    function extractSnowRasterValue(results) {
+      if (!Array.isArray(results) || results.length === 0) return null;
+      const imageResults = results.filter(r => r.layerId === 3);
+      const candidates = imageResults.length > 0 ? imageResults : results;
+
+      for (const res of candidates) {
+        const attrs = res.attributes || {};
+        for (const [k, v] of Object.entries(attrs)) {
+          if (/pixel\s*value/i.test(k) || k.toLowerCase() === 'value') {
+            if (v === null || v === undefined || String(v).toLowerCase() === 'nodata') return 0;
+            const num = parseFloat(v);
+            if (!isNaN(num)) return num;
+          }
+        }
+        if (res.value !== undefined && res.value !== null && String(res.value).toLowerCase() !== 'nodata') {
+          const num = parseFloat(res.value);
+          if (!isNaN(num)) return num;
+        }
+      }
+      return null;
+    }
+
+    async function queryNoaaPointSnow(lat, lon) {
+      const params = new URLSearchParams({
+        geometry: `${lon.toFixed(5)},${lat.toFixed(5)}`,
+        geometryType: 'esriGeometryPoint',
+        sr: '4326',
+        layers: 'all:3',
+        tolerance: '1',
+        mapExtent: `${(lon - 0.15).toFixed(4)},${(lat - 0.15).toFixed(4)},${(lon + 0.15).toFixed(4)},${(lat + 0.15).toFixed(4)}`,
+        imageDisplay: '400,400,96',
+        returnGeometry: 'false',
+        f: 'json'
+      });
+      const url = `https://mapservices.weather.noaa.gov/raster/rest/services/snow/NOHRSC_Snow_Analysis/MapServer/identify?${params.toString()}`;
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return extractSnowRasterValue(data.results);
+    }
+
     async function fetchNoaaSnowDepth(lat, lon) {
       const snowEl = document.getElementById('raws-snow');
       snowEl.innerText = 'Loading...';
+      document.getElementById('raws-box').style.display = 'block';
+
       try {
-        const params = new URLSearchParams({
-          geometry: `${lon.toFixed(5)},${lat.toFixed(5)}`,
-          geometryType: 'esriGeometryPoint',
-          sr: '4326',
-          layers: 'all:3',
-          tolerance: '1',
-          mapExtent: `${(lon - 0.1).toFixed(4)},${(lat - 0.1).toFixed(4)},${(lon + 0.1).toFixed(4)},${(lat + 0.1).toFixed(4)}`,
-          imageDisplay: '400,400,96',
-          returnGeometry: 'false',
-          f: 'json'
-        });
+        const samplePoints = [{ lat, lon }];
 
-        const url = `https://mapservices.weather.noaa.gov/raster/rest/services/snow/NOHRSC_Snow_Analysis/MapServer/identify?${params.toString()}`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error('NOHRSC service unavailable');
-        const data = await res.json();
-
-        const result = data.results?.[0];
-        const rawVal = result?.attributes?.['Pixel Value'] ?? result?.attributes?.PixelValue ?? result?.value;
-
-        if (rawVal === undefined || rawVal === null || String(rawVal).toLowerCase() === 'nodata') {
-          snowEl.innerText = '0 in';
-        } else {
-          const depthIn = parseFloat(rawVal);
-          if (isNaN(depthIn) || depthIn <= 0.05) {
-            snowEl.innerText = '0 in';
-          } else {
-            snowEl.innerText = `${depthIn.toFixed(1)} in`;
+        // Add interior quadrant midpoints so units straddling the snow line report the full range
+        if (currentRings && currentRings.length > 0) {
+          const pts = [];
+          currentRings.forEach(ring => ring.forEach(pt => pts.push(normalizePoint(pt[0], pt[1]))));
+          if (pts.length > 0) {
+            const extremes = [
+              pts.reduce((a, b) => (b.lat > a.lat ? b : a), pts[0]),
+              pts.reduce((a, b) => (b.lat < a.lat ? b : a), pts[0]),
+              pts.reduce((a, b) => (b.lon > a.lon ? b : a), pts[0]),
+              pts.reduce((a, b) => (b.lon < a.lon ? b : a), pts[0])
+            ];
+            extremes.forEach(ex => {
+              const midLat = (lat + ex.lat) / 2;
+              const midLon = (lon + ex.lon) / 2;
+              if (!samplePoints.some(p => Math.abs(p.lat - midLat) < 0.005 && Math.abs(p.lon - midLon) < 0.005)) {
+                samplePoints.push({ lat: midLat, lon: midLon });
+              }
+            });
           }
         }
-        document.getElementById('raws-box').style.display = 'block';
+
+        const readings = await Promise.all(samplePoints.map(p => queryNoaaPointSnow(p.lat, p.lon)));
+        const valid = readings.filter(v => v !== null && !isNaN(v));
+
+        if (valid.length === 0) {
+          snowEl.innerText = 'NO DATA';
+          return;
+        }
+
+        const minIn = Math.min(...valid);
+        const maxIn = Math.max(...valid);
+
+        if (maxIn <= 0.05) {
+          snowEl.innerText = '0 in';
+        } else if (maxIn - minIn < 0.3) {
+          snowEl.innerText = `${maxIn.toFixed(1)} in`;
+        } else {
+          snowEl.innerText = `${minIn.toFixed(1)}–${maxIn.toFixed(1)} in`;
+        }
       } catch (e) {
         console.warn("Could not load NOAA snow depth:", e);
         snowEl.innerText = 'NO DATA';
