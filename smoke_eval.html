@@ -357,6 +357,15 @@
 
     const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
 
+    const STATE_VENT_RULES = {
+      CO: { name: 'Colorado', poorLimit: 40000, fairLimit: 60000, goodLimit: 100000 },
+      MT: { name: 'Montana', poorLimit: 25000, fairLimit: 45000, goodLimit: 75000 },
+      ID: { name: 'Idaho', poorLimit: 25000, fairLimit: 45000, goodLimit: 75000 }
+    };
+
+    const explicitState = (urlParams.get('state') || '').toUpperCase();
+    let activeStateCode = STATE_VENT_RULES[explicitState] ? explicitState : 'CO';
+
     let cachedCoords = null;
     let currentRings = null;
     let isUploadedUnit = false;
@@ -384,6 +393,14 @@
       if (!name) return null;
       const s = String(name).trim();
       return (s === '' || s === '{Name}' || s.toLowerCase() === 'none' || s.toLowerCase() === 'null') ? null : s;
+    }
+
+    function classifyVentilationIndex(vi, stateCode) {
+      const rules = STATE_VENT_RULES[stateCode] || STATE_VENT_RULES.CO;
+      if (vi < rules.poorLimit) return "Poor";
+      if (vi < rules.fairLimit) return "Fair";
+      if (vi < rules.goodLimit) return "Good";
+      return "Excellent";
     }
 
     function toggleSizeLabel() {
@@ -557,7 +574,7 @@
         const url = `https://hydro.nationalmap.gov/arcgis/rest/services/nhd/MapServer/6/query?geometry=${lon-0.02},${lat-0.02},${lon+0.02},${lat+0.02}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=GNIS_Name,FlowDir,LengthKM&returnGeometry=true&outSR=4326&f=json`;
         const res = await fetch(url);
         if (!res.ok) throw new Error("NHD endpoint unreachable");
-        const json = await res.json();
+        const json = await jsonRes(res);
         
         if (json.features?.length) {
           const feat = json.features[0];
@@ -577,6 +594,10 @@
         console.warn("NHD automated trace fallback:", e);
       }
       return { name: "Valley Corridor", bearing: 165 };
+    }
+
+    async function jsonRes(res) {
+      return await res.json();
     }
 
     async function runSmokeModel() {
@@ -604,12 +625,19 @@
         if (!pointRes.ok) throw new Error("Could not reach NWS point endpoint.");
         const pointData = await pointRes.json();
 
+        const loc = pointData.properties?.relativeLocation?.properties || {};
+        const detectedState = (loc.state || '').toUpperCase();
+        if (!explicitState && STATE_VENT_RULES[detectedState]) {
+          activeStateCode = detectedState;
+        }
+
         calcBtn.innerText = "Tracing Drainages (2/3)...";
         const [gridRes, drainageInfo] = await Promise.all([
           fetch(pointData.properties.forecastGridData),
           fetchDownstreamDrainageVector(lat, lon)
         ]);
 
+        if (!gridRes.ok) throw new Error("NWS gridded dispersion forecast is currently unreachable.");
         const gridData = await gridRes.json();
         const twSpeedVals = gridData.properties?.transportWindSpeed?.values || [];
         const twDirVals = gridData.properties?.transportWindDirection?.values || [];
@@ -648,8 +676,14 @@
           }
         }
 
-        let twSpeedMph = count ? Math.round(sumSpeed / count) : 12;
-        let mixHeightFt = count ? Math.round(sumMix / count) : 4500;
+        if (hourlyRecords.length === 0) {
+          document.getElementById('results-box').style.display = 'none';
+          document.getElementById('map-preview').style.display = 'none';
+          throw new Error("Local NWS office did not publish gridded Transport Wind / Mixing Height for this forecast window.");
+        }
+
+        let twSpeedMph = Math.round(sumSpeed / count);
+        let mixHeightFt = sumMix > 0 ? Math.round(sumMix / count) : 4500;
         if (firstHourMixFt === null) firstHourMixFt = mixHeightFt;
 
         // Model Screening Distance
@@ -670,7 +704,7 @@
         latestDrainageBearing = drainageInfo.bearing;
 
         // Calculate Wind Shift & Dynamic Plume Sweep
-        let refBearing = hourlyRecords[0]?.downwind || 0;
+        let refBearing = hourlyRecords[0].downwind;
         let relativeAngles = hourlyRecords.map(r => ((r.downwind - refBearing + 540) % 360) - 180);
         let minRel = Math.min(...relativeAngles);
         let maxRel = Math.max(...relativeAngles);
@@ -693,12 +727,10 @@
           };
         });
 
-        // Ventilation Index
+        // State-Aware Ventilation Index
         let twSpeedKts = twSpeedMph * 0.868976;
         let vi = Math.round(twSpeedKts * mixHeightFt);
-        let viCategory = "Poor";
-        if (vi > 40000) viCategory = "Good";
-        else if (vi >= 20000) viCategory = "Fair";
+        let viCategory = classifyVentilationIndex(vi, activeStateCode);
 
         latestConeCoords = generateDynamicSmokeCone(lat, lon, screeningDistanceMiles, coneStartAngle, coneSpread);
         latestNightCorridorCoords = generateDrainageRibbon(lat, lon, latestNightDist, latestDrainageBearing, 0.6);
@@ -710,6 +742,8 @@
           latestConfidenceInfo = { text: "Low (Light & variable winds < 9 mph)", color: "#d97706" };
         } else if (twSpeedMph > 25) {
           latestConfidenceInfo = { text: "Moderate (High winds > 25 mph)", color: "#2563eb" };
+        } else if (windShiftSpread > 15) {
+          latestConfidenceInfo = { text: `Moderate (Winds shift ${windShiftSpread}° over window)`, color: "#2563eb" };
         } else if (viCategory === "Poor") {
           latestConfidenceInfo = { text: "Moderate (Poor air clearing)", color: "#2563eb" };
         } else {
@@ -775,13 +809,24 @@
       }
     }
 
+    function parseIsoDurationHours(durationStr) {
+      if (!durationStr) return 1;
+      const match = durationStr.match(/^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?)?$/);
+      if (!match) return 1;
+      const days = parseInt(match[1] || '0', 10);
+      const hours = parseInt(match[2] || '0', 10);
+      const mins = parseInt(match[3] || '0', 10);
+      const total = (days * 24) + hours + (mins / 60);
+      return total > 0 ? total : 1;
+    }
+
     function getValueForTime(valuesArray, targetTime) {
       if (!valuesArray?.length) return null;
       const targetMs = targetTime.getTime();
       for (const item of valuesArray) {
         const [timeStr, durationStr] = item.validTime.split('/');
         const startMs = new Date(timeStr).getTime();
-        const durationMs = durationStr?.startsWith('PT') ? (parseInt(durationStr.replace('PT', '').replace('H', '')) || 1) * 3600000 : 3600000;
+        const durationMs = parseIsoDurationHours(durationStr) * 3600000;
         if (targetMs >= startMs && targetMs < (startMs + durationMs)) return item.value;
       }
       return null;
