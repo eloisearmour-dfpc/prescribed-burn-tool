@@ -45,7 +45,8 @@
     .input-header { font-size: 12px; font-weight: bold; color: #0078d4; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 8px 0; border-bottom: 1px solid #0078d4; padding-bottom: 4px; }
     .rx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
     .rx-field { display: flex; flex-direction: column; font-size: 12px; font-weight: bold; color: #444; position: relative; }
-    .rx-field input { padding: 7px; font-size: 13px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 4px; background: #fff; box-sizing: border-box; }
+    .rx-field input, .rx-field select { padding: 7px; font-size: 13px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 4px; background: #fff; box-sizing: border-box; }
+    .rx-field select { padding: 6px 7px; cursor: pointer; }
     
     /* Compact Multi-Select Dropdown */
     .custom-select-btn {
@@ -203,7 +204,13 @@
       <div class="rx-field">Max RH (%)<input type="number" id="maxRH" placeholder="None"></div>
       <div class="rx-field">Max Wind (mph)<input type="number" id="maxWind" placeholder="None"></div>
       <div class="rx-field">Max Gust (mph)<input type="number" id="maxGust" placeholder="None"></div>
-      <div class="rx-field">Min Vent (kt-ft)<input type="number" id="minVent" placeholder="None"></div>
+      
+      <!-- State-Aware Vent Dropdown -->
+      <div class="rx-field">Min Vent
+        <select id="minVent">
+          <option value="">Any (None)</option>
+        </select>
+      </div>
       
       <div class="rx-field" id="windField">
         <span style="display:flex; justify-content:space-between; align-items:center;">
@@ -231,6 +238,7 @@
 
   <!-- Results Dashboard Card -->
   <div id="results-card" class="card" style="display:none;">
+    <div id="vent-unavailable-note" style="display:none; font-size:11px; color:#856404; background:#fff3cd; border:1px solid #ffeeba; padding:6px 10px; border-radius:4px; margin-bottom:10px;"></div>
     <div class="day-filter-bar" id="day-filter-bar"></div>
 
     <div class="section-subhead">
@@ -272,6 +280,12 @@
        1. LIVE AGENCY SERVICE & STATE CONFIGURATION
        ========================================================= */
     const BURN_UNITS_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0";
+
+    const STATE_VENT_RULES = {
+      CO: { name: 'Colorado', poorLimit: 40, fairLimit: 60, goodLimit: 100 },
+      MT: { name: 'Montana', poorLimit: 25, fairLimit: 45, goodLimit: 75 },
+      ID: { name: 'Idaho', poorLimit: 25, fairLimit: 45, goodLimit: 75 }
+    };
 
     const AGENCY_CONFIG = {
       USFS: {
@@ -360,6 +374,7 @@
       });
     })();
 
+    let activeStateCode = 'CO';
     let activeAreaLabel = "Multi-Unit Burn Window Scanner";
     let activeNameField = null;
     let currentBoundaryRings = null;
@@ -368,6 +383,34 @@
     let activeDayFilter = null;
     let currentBasemap = 'sat';
     let currentBboxStr = '';
+
+    function updateVentDropdown(stateCode, preserveTier = true) {
+      const sel = document.getElementById('minVent');
+      const prevIndex = preserveTier ? sel.selectedIndex : 0;
+      const rules = STATE_VENT_RULES[stateCode] || STATE_VENT_RULES.CO;
+
+      sel.innerHTML = '<option value="">Any (None)</option>';
+      const options = [
+        { val: rules.poorLimit, label: `Fair or better (≥${rules.poorLimit}k)` },
+        { val: rules.fairLimit, label: `Good or better (≥${rules.fairLimit}k)` },
+        { val: rules.goodLimit, label: `Excellent (≥${rules.goodLimit}k)` }
+      ];
+
+      options.forEach(opt => {
+        const el = document.createElement('option');
+        el.value = opt.val;
+        el.textContent = opt.label;
+        sel.appendChild(el);
+      });
+
+      if (prevIndex > 0 && prevIndex < sel.options.length) {
+        sel.selectedIndex = prevIndex;
+      } else {
+        sel.value = "";
+      }
+    }
+
+    updateVentDropdown(activeStateCode, false);
 
     /* =========================================================
        2. NETWORK HELPER (CORS FETCH WITH JSONP FALLBACK)
@@ -415,6 +458,14 @@
 
     function handleStateChange() {
       currentBoundaryRings = null;
+      const selectedState = document.getElementById('stateSelect').value;
+      activeStateCode = STATE_VENT_RULES[selectedState] ? selectedState : 'CO';
+      updateVentDropdown(activeStateCode, true);
+
+      if (scannedUnits.length > 0) {
+        evaluateAllScannedUnits();
+      }
+
       const agency = document.getElementById('agencySelect').value;
       if (agency) {
         handleAgencyChange();
@@ -518,10 +569,14 @@
     /* =========================================================
        4. THRESHOLD INPUT LISTENERS
        ========================================================= */
-    ['minTemp', 'maxTemp', 'minRH', 'maxRH', 'maxWind', 'maxGust', 'minVent'].forEach(id => {
+    ['minTemp', 'maxTemp', 'minRH', 'maxRH', 'maxWind', 'maxGust'].forEach(id => {
       document.getElementById(id).addEventListener('input', () => {
         if (scannedUnits.length > 0) evaluateAllScannedUnits();
       });
+    });
+
+    document.getElementById('minVent').addEventListener('change', () => {
+      if (scannedUnits.length > 0) evaluateAllScannedUnits();
     });
 
     function toggleWindMenu(e) {
@@ -722,6 +777,14 @@
             const ptRes = await fetch(`https://api.weather.gov/points/${b.lat.toFixed(4)},${b.lon.toFixed(4)}`);
             if (!ptRes.ok) continue;
             const ptData = await ptRes.json();
+
+            // Auto-detect state ventilation rules if "All States" was left selected
+            const detectedState = (ptData.properties?.relativeLocation?.properties?.state || '').toUpperCase();
+            if (!stateCode && STATE_VENT_RULES[detectedState] && activeStateCode !== detectedState) {
+              activeStateCode = detectedState;
+              updateVentDropdown(activeStateCode, true);
+            }
+
             const hourlyUrl = ptData.properties.forecastHourly;
             const gridUrl = ptData.properties.forecastGridData;
 
@@ -811,9 +874,14 @@
 
       const hasAnyConstraint = (minTemp !== null || maxTemp !== null || minRH !== null || maxRH !== null || maxWind !== null || maxGust !== null || minVent !== null || hasWindDir);
       const globalDayTotals = {};
+      let missingVentUnitsCount = 0;
 
       scannedUnits.forEach(unit => {
         const dayMap = {};
+        const unitHasAnyVent = unit.hourlyRecords.some(r => r.ventRate !== null);
+        if (minVent !== null && !unitHasAnyVent) {
+          missingVentUnitsCount++;
+        }
 
         unit.hourlyRecords.forEach(r => {
           const dayKey = getLocalDayKey(r.pTime);
@@ -841,7 +909,10 @@
               if (!tempOk) dayMap[dayKey].limiters["Temp"] = (dayMap[dayKey].limiters["Temp"] || 0) + 1;
               if (!rhOk) dayMap[dayKey].limiters["RH"] = (dayMap[dayKey].limiters["RH"] || 0) + 1;
               if (!windSpeedOk || !gustOk || !windDirOk) dayMap[dayKey].limiters["Wind"] = (dayMap[dayKey].limiters["Wind"] || 0) + 1;
-              if (!minVentOk) dayMap[dayKey].limiters["Vent"] = (dayMap[dayKey].limiters["Vent"] || 0) + 1;
+              if (!minVentOk) {
+                const ventKey = r.ventRate === null ? "Vent Data N/A (NWS grid offline)" : "Vent";
+                dayMap[dayKey].limiters[ventKey] = (dayMap[dayKey].limiters[ventKey] || 0) + 1;
+              }
             }
           }
         });
@@ -871,8 +942,26 @@
         unit.primaryLimiter = sortedLim.length > 0 ? sortedLim[0][0] : "Out of Rx";
       });
 
+      const ventNoteEl = document.getElementById('vent-unavailable-note');
+      if (ventNoteEl) {
+        if (minVent !== null && missingVentUnitsCount > 0) {
+          ventNoteEl.style.display = 'block';
+          ventNoteEl.innerText = `Local NWS office did not publish gridded Mixing Height / Transport Wind (Vent Rate = N/A) for ${missingVentUnitsCount} of ${scannedUnits.length} units. Check state DEQ dispersion separately, or set Min Vent to "Any (None)" to evaluate Temp, RH, and Wind.`;
+        } else {
+          ventNoteEl.style.display = 'none';
+        }
+      }
+
       renderDashboard(globalDayTotals, hasAnyConstraint);
       renderSvgPolygons();
+    }
+
+function getVentTierName(rate, stateCode) {
+      const rules = STATE_VENT_RULES[stateCode] || STATE_VENT_RULES.CO;
+      if (rate < rules.poorLimit) return 'Poor';
+      if (rate < rules.fairLimit) return 'Fair';
+      if (rate < rules.goodLimit) return 'Good';
+      return 'Excellent';
     }
 
     function formatPassingSummary(recs) {
@@ -895,17 +984,30 @@
         timeText = blocks.join(', ');
       }
 
+      const fmtRange = (min, max, suffix = '') => (min === max ? `${min}${suffix}` : `${min}–${max}${suffix}`);
+
       const temps = recs.map(r => r.temp);
       const rhs = recs.map(r => r.rh).filter(v => v !== null);
       const winds = recs.map(r => r.wind);
       const gusts = recs.map(r => r.gust);
       const vents = recs.map(r => r.ventRate).filter(v => v !== null);
 
+      let ventText = null;
+      if (vents.length) {
+        const minV = Math.min(...vents);
+        const maxV = Math.max(...vents);
+        const minCat = getVentTierName(minV, activeStateCode);
+        const maxCat = getVentTierName(maxV, activeStateCode);
+        const rangeStr = minV === maxV ? `${minV}k` : `${minV}k–${maxV}k`;
+        const catStr = minCat === maxCat ? minCat : `${minCat}–${maxCat}`;
+        ventText = `Vent ${rangeStr} (${catStr})`;
+      }
+
       const parts = [
-        `${Math.min(...temps)}–${Math.max(...temps)}°F`,
-        rhs.length ? `RH ${Math.min(...rhs)}–${Math.max(...rhs)}%` : null,
-        `Wind ${Math.min(...winds)}–${Math.max(...winds)} mph (gusts ${Math.max(...gusts)})`,
-        vents.length ? `Vent ${Math.min(...vents)}–${Math.max(...vents)}` : null
+        fmtRange(Math.min(...temps), Math.max(...temps), '°F'),
+        rhs.length ? `RH ${fmtRange(Math.min(...rhs), Math.max(...rhs), '%')}` : null,
+        `Wind ${fmtRange(Math.min(...winds), Math.max(...winds), ' mph')} (gusts ${Math.max(...gusts)})`,
+        ventText
       ].filter(Boolean);
 
       return { timeText, metricsText: parts.join(' • ') };
@@ -1126,13 +1228,24 @@
       return d;
     }
 
+    function parseIsoDurationHours(durationStr) {
+      if (!durationStr) return 1;
+      const match = durationStr.match(/^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?)?$/);
+      if (!match) return 1;
+      const days = parseInt(match[1] || '0', 10);
+      const hours = parseInt(match[2] || '0', 10);
+      const mins = parseInt(match[3] || '0', 10);
+      const total = (days * 24) + hours + (mins / 60);
+      return total > 0 ? total : 1;
+    }
+
     function getValueForTime(valuesArray, targetTime) {
       if (!valuesArray?.length) return null;
       const targetMs = targetTime.getTime();
       for (const item of valuesArray) {
         const [timeStr, durationStr] = item.validTime.split('/');
         const startMs = new Date(timeStr).getTime();
-        const durationMs = durationStr?.startsWith('PT') ? (parseInt(durationStr.replace('PT', '').replace('H', '')) || 1) * 3600000 : 3600000;
+        const durationMs = parseIsoDurationHours(durationStr) * 3600000;
         if (targetMs >= startMs && targetMs < (startMs + durationMs)) return item.value;
       }
       return null;
@@ -1148,7 +1261,8 @@
       const maxRH   = getNumOrNull('maxRH');
       const maxWind = getNumOrNull('maxWind');
       const maxGust = getNumOrNull('maxGust');
-      const minVent = getNumOrNull('minVent');
+      const minVentEl = document.getElementById('minVent');
+      const minVentText = minVentEl.value ? minVentEl.options[minVentEl.selectedIndex].text : 'None';
       const windDirs = permittedWindDirs.size > 0 ? Array.from(permittedWindDirs).join(', ') : 'Any';
 
       const params = [
@@ -1158,7 +1272,7 @@
         ['Max RH', maxRH !== null ? `${maxRH}%` : 'None'],
         ['Max Wind', maxWind !== null ? `${maxWind} mph` : 'None'],
         ['Max Gust', maxGust !== null ? `${maxGust} mph` : 'None'],
-        ['Min Vent', minVent !== null ? `${minVent} kt-ft` : 'None'],
+        ['Min Vent', minVentText],
         ['Wind Dir', windDirs]
       ];
 
@@ -1180,6 +1294,11 @@
       const windowLabel = activeDayFilter
         ? (inRxUnits[0]?.qualifyingDays.find(d => d.dayKey === activeDayFilter)?.dateObj.toLocaleDateString([], { weekday: 'short', month: 'numeric', day: 'numeric' }) || activeDayFilter)
         : 'All 7 Days';
+
+      const ventNoteEl = document.getElementById('vent-unavailable-note');
+      const ventNoteHtml = (ventNoteEl && ventNoteEl.style.display !== 'none')
+        ? `<div style="font-size:11px; color:#856404; background:#fff9e6; border:1px solid #ffeeba; padding:6px 8px; border-radius:4px; margin-bottom:10px;">${ventNoteEl.innerText}</div>`
+        : '';
 
       const mapUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
       const svgHtml = document.getElementById('map-svg').outerHTML;
@@ -1216,6 +1335,7 @@
           <h2>${activeAreaLabel} — Burn Window Scan</h2>
           ${jurisdictionLine ? `<div class="sub">${jurisdictionLine}</div>` : ''}
           <div class="meta">Units Scanned: ${scannedUnits.length} | Units In-Rx: ${inRxUnits.length}${inRxAcres > 0 ? ` (${inRxAcres.toLocaleString()} ac)` : ''} | Window: ${windowLabel} | Generated: ${new Date().toLocaleString()}</div>
+          ${ventNoteHtml}
           <div class="rx-box">
             <div class="rx-box-title">Prescription Thresholds</div>
             <div class="rx-param-grid">${getRxGridHtml()}</div>
