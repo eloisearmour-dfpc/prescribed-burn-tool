@@ -602,7 +602,7 @@
         <option value="">-- Saved Units Watchlist --</option>
       </select>
       <button type="button" class="inline-btn secondary-btn" onclick="saveCurrentToWatchlist()">Save Unit</button>
-      <button type="button" class="inline-btn secondary-btn del-btn" onclick="deleteFromWatchlist()">Delete</button>
+      <button type="button" id="deleteUnitBtn" class="inline-btn secondary-btn del-btn" onclick="deleteFromWatchlist()">Delete</button>
       <span id="saveConfirmMsg" style="color:#16a34a; font-weight:600; font-size:12px; margin-left:4px; opacity:0; transition:opacity 0.3s;">Saved</span>
     </div>
 
@@ -786,7 +786,8 @@
     const STATE_VENT_RULES = {
       CO: { name: 'Colorado', defaultMinVent: 40, poorLimit: 40, fairLimit: 60, goodLimit: 100 },
       MT: { name: 'Montana', defaultMinVent: 25, poorLimit: 25, fairLimit: 45, goodLimit: 75 },
-      ID: { name: 'Idaho', defaultMinVent: 25, poorLimit: 25, fairLimit: 45, goodLimit: 75 }
+      ID: { name: 'Idaho', defaultMinVent: 25, poorLimit: 25, fairLimit: 45, goodLimit: 75 },
+      NV: { name: 'Nevada', defaultMinVent: 30, poorLimit: 30, fairLimit: 60, goodLimit: 100 }
     };
 
     const explicitState = (urlParams.get('state') || '').toUpperCase();
@@ -911,9 +912,11 @@
     }
 
     /* =========================================================
-       3. SAVED UNITS WATCHLIST (localStorage)
+       3. SAVED UNITS WATCHLIST (localStorage + Iframe-Safe Delete)
        ========================================================= */
     const STORAGE_KEY = 'rx_weather_unit_watchlist';
+    let pendingDeleteUnit = null;
+    let deleteConfirmTimer = null;
 
     function getWatchlist() {
       try {
@@ -944,7 +947,23 @@
       });
     }
 
+    function resetDeleteButton() {
+      pendingDeleteUnit = null;
+      if (deleteConfirmTimer) {
+        clearTimeout(deleteConfirmTimer);
+        deleteConfirmTimer = null;
+      }
+      const btn = document.getElementById('deleteUnitBtn');
+      if (btn) {
+        btn.innerText = 'Delete';
+        btn.style.background = '';
+        btn.style.color = '';
+        btn.style.borderColor = '';
+      }
+    }
+
     function saveCurrentToWatchlist() {
+      resetDeleteButton();
       const currentName = activeUnitLabel && activeUnitLabel !== 'Unit Weather Forecast' ? activeUnitLabel : 'Custom Unit';
       const list = getWatchlist();
       list[currentName] = {
@@ -965,6 +984,8 @@
       if (getWatchlist()[currentName]) {
         document.getElementById('watchlistSelect').value = currentName;
         const msg = document.getElementById('saveConfirmMsg');
+        msg.innerText = 'Saved';
+        msg.style.color = '#16a34a';
         msg.style.opacity = 1;
         setTimeout(() => msg.style.opacity = 0, 2000);
       }
@@ -973,14 +994,41 @@
     function deleteFromWatchlist() {
       const selName = document.getElementById('watchlistSelect').value;
       if (!selName) return;
-      if (confirm(`Delete "${selName}" from your Watchlist?`)) {
-        const list = getWatchlist();
-        delete list[selName];
-        saveWatchlist(list);
+
+      const btn = document.getElementById('deleteUnitBtn');
+      if (pendingDeleteUnit !== selName) {
+        pendingDeleteUnit = selName;
+        btn.innerText = 'Confirm?';
+        btn.style.background = '#fef2f2';
+        btn.style.color = '#b91c1c';
+        btn.style.borderColor = '#f87171';
+        if (deleteConfirmTimer) clearTimeout(deleteConfirmTimer);
+        deleteConfirmTimer = setTimeout(() => {
+          resetDeleteButton();
+        }, 3000);
+        return;
       }
+
+      resetDeleteButton();
+      const list = getWatchlist();
+      delete list[selName];
+      saveWatchlist(list);
+
+      const msg = document.getElementById('saveConfirmMsg');
+      msg.innerText = 'Deleted';
+      msg.style.color = '#b91c1c';
+      msg.style.opacity = 1;
+      setTimeout(() => {
+        msg.style.opacity = 0;
+        setTimeout(() => {
+          msg.innerText = 'Saved';
+          msg.style.color = '#16a34a';
+        }, 300);
+      }, 1800);
     }
 
     function loadFromWatchlist(unitName) {
+      resetDeleteButton();
       if (!unitName) return;
       const list = getWatchlist();
       const u = list[unitName];
