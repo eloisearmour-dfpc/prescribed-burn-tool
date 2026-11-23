@@ -211,6 +211,8 @@
           <option value="">Any (None)</option>
         </select>
       </div>
+
+      <div class="rx-field">Min Snow (in)<input type="number" id="minSnow" placeholder="None"></div>
       
       <div class="rx-field" id="windField">
         <span style="display:flex; justify-content:space-between; align-items:center;">
@@ -446,6 +448,52 @@
       }
     }
 
+    // NOAA NOHRSC Snow Depth Query
+    function extractSnowRasterValue(results) {
+      if (!Array.isArray(results) || results.length === 0) return null;
+      const imageResults = results.filter(r => r.layerId === 3);
+      const candidates = imageResults.length > 0 ? imageResults : results;
+
+      for (const res of candidates) {
+        const attrs = res.attributes || {};
+        for (const [k, v] of Object.entries(attrs)) {
+          if (/pixel\s*value/i.test(k) || k.toLowerCase() === 'value') {
+            if (v === null || v === undefined || String(v).toLowerCase() === 'nodata') return 0;
+            const num = parseFloat(v);
+            if (!isNaN(num)) return num;
+          }
+        }
+        if (res.value !== undefined && res.value !== null && String(res.value).toLowerCase() !== 'nodata') {
+          const num = parseFloat(res.value);
+          if (!isNaN(num)) return num;
+        }
+      }
+      return null;
+    }
+
+    async function queryNoaaPointSnow(lat, lon) {
+      const params = new URLSearchParams({
+        geometry: `${lon.toFixed(5)},${lat.toFixed(5)}`,
+        geometryType: 'esriGeometryPoint',
+        sr: '4326',
+        layers: 'all:3',
+        tolerance: '1',
+        mapExtent: `${(lon - 0.15).toFixed(4)},${(lat - 0.15).toFixed(4)},${(lon + 0.15).toFixed(4)},${(lat + 0.15).toFixed(4)}`,
+        imageDisplay: '400,400,96',
+        returnGeometry: 'false',
+        f: 'json'
+      });
+      const url = `https://mapservices.weather.noaa.gov/raster/rest/services/snow/NOHRSC_Snow_Analysis/MapServer/identify?${params.toString()}`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const data = await res.json();
+        return extractSnowRasterValue(data.results);
+      } catch (e) {
+        return null;
+      }
+    }
+
     /* =========================================================
        3. CASCADING DROPDOWN LOGIC (STATE -> AGENCY -> DISTRICT)
        ========================================================= */
@@ -569,7 +617,7 @@
     /* =========================================================
        4. THRESHOLD INPUT LISTENERS
        ========================================================= */
-    ['minTemp', 'maxTemp', 'minRH', 'maxRH', 'maxWind', 'maxGust'].forEach(id => {
+    ['minTemp', 'maxTemp', 'minRH', 'maxRH', 'maxWind', 'maxGust', 'minSnow'].forEach(id => {
       document.getElementById(id).addEventListener('input', () => {
         if (scannedUnits.length > 0) evaluateAllScannedUnits();
       });
@@ -757,7 +805,7 @@
           }
           gridBuckets[cellKey].unitIndices.push(rawUnits.length);
 
-          const unitObj = { id, name, acres, lat: centroid.lat, lon: centroid.lon, rings: geom.rings ? [...geom.rings] : null, hourlyRecords: [] };
+          const unitObj = { id, name, acres, lat: centroid.lat, lon: centroid.lon, rings: geom.rings ? [...geom.rings] : null, hourlyRecords: [], currentSnow: null };
           seenUnits.set(dedupKey, unitObj);
           rawUnits.push(unitObj);
         });
@@ -770,7 +818,7 @@
         for (const key of bucketKeys) {
           completedCells++;
           scanBtn.innerText = `Fetching NWS Forecasts (${completedCells}/${bucketKeys.length})...`;
-          setStatus(`Checking forecasts for ${rawUnits.length} units across ${bucketKeys.length} NWS grid cells...`);
+          setStatus(`Checking forecasts for ${rawUnits.length} units across ${bucketKeys.length} 2.5km NWS grid cells...`);
 
           const b = gridBuckets[key];
           try {
@@ -789,8 +837,12 @@
             const gridUrl = ptData.properties.forecastGridData;
 
             let weatherPayload = gridCacheByUrl[gridUrl];
+            
             if (!weatherPayload) {
-              const [fRes, gRes] = await Promise.all([fetch(hourlyUrl), fetch(gridUrl)]);
+              const [fRes, gRes] = await Promise.all([
+                fetch(hourlyUrl), 
+                fetch(gridUrl)
+              ]);
               if (fRes.ok && gRes.ok) {
                 weatherPayload = parseNwsHourlyRecords(await fRes.json(), await gRes.json());
                 gridCacheByUrl[gridUrl] = weatherPayload;
@@ -803,16 +855,27 @@
               });
             }
           } catch (cellErr) {
-            console.warn("Skipped NWS cell:", key, cellErr);
+            console.warn("Skipped Grid cell:", key, cellErr);
           }
-          if (completedCells < bucketKeys.length) await new Promise(r => setTimeout(r, 150));
+          if (completedCells < bucketKeys.length) await new Promise(r => setTimeout(r, 100));
+        }
+
+        // 5. Fetch NOHRSC snow depth for EACH individual unit
+        scanBtn.innerText = `Checking Snow Depth...`;
+        setStatus(`Querying individual NOAA snow depth for ${rawUnits.length} units...`);
+        const batchSize = 15;
+        for (let i = 0; i < rawUnits.length; i += batchSize) {
+          const batch = rawUnits.slice(i, i + batchSize);
+          await Promise.all(batch.map(async (u) => {
+            u.currentSnow = await queryNoaaPointSnow(u.lat, u.lon);
+          }));
         }
 
         scannedUnits = rawUnits.filter(u => u.hourlyRecords.length > 0);
         activeDayFilter = null;
 
         if (scannedUnits.length === 0) {
-          setStatus("Found units, but NWS forecast data could not be retrieved right now.", true);
+          setStatus("Found units, but grid data could not be retrieved right now.", true);
           return;
         }
 
@@ -870,9 +933,10 @@
       const maxWind = getNumOrNull('maxWind');
       const maxGust = getNumOrNull('maxGust');
       const minVent = getNumOrNull('minVent');
+      const minSnow = getNumOrNull('minSnow');
       const hasWindDir = permittedWindDirs.size > 0;
 
-      const hasAnyConstraint = (minTemp !== null || maxTemp !== null || minRH !== null || maxRH !== null || maxWind !== null || maxGust !== null || minVent !== null || hasWindDir);
+      const hasAnyConstraint = (minTemp !== null || maxTemp !== null || minRH !== null || maxRH !== null || maxWind !== null || maxGust !== null || minVent !== null || minSnow !== null || hasWindDir);
       const globalDayTotals = {};
       let missingVentUnitsCount = 0;
 
@@ -882,6 +946,8 @@
         if (minVent !== null && !unitHasAnyVent) {
           missingVentUnitsCount++;
         }
+
+        const snowOk = (minSnow === null || (unit.currentSnow !== null && unit.currentSnow >= minSnow));
 
         unit.hourlyRecords.forEach(r => {
           const dayKey = getLocalDayKey(r.pTime);
@@ -897,7 +963,7 @@
           const windOk = windSpeedOk && gustOk && windDirOk;
           const minVentOk = (minVent === null || (r.ventRate !== null && r.ventRate >= minVent));
 
-          const isGo = hasAnyConstraint ? (tempOk && rhOk && windOk && minVentOk) : false;
+          const isGo = hasAnyConstraint ? (tempOk && rhOk && windOk && minVentOk && snowOk) : false;
           r.isGo = isGo;
 
           if (isGo) {
@@ -909,6 +975,7 @@
               if (!tempOk) dayMap[dayKey].limiters["Temp"] = (dayMap[dayKey].limiters["Temp"] || 0) + 1;
               if (!rhOk) dayMap[dayKey].limiters["RH"] = (dayMap[dayKey].limiters["RH"] || 0) + 1;
               if (!windSpeedOk || !gustOk || !windDirOk) dayMap[dayKey].limiters["Wind"] = (dayMap[dayKey].limiters["Wind"] || 0) + 1;
+              if (!snowOk) dayMap[dayKey].limiters["Snow Cover"] = (dayMap[dayKey].limiters["Snow Cover"] || 0) + 1;
               if (!minVentOk) {
                 const ventKey = r.ventRate === null ? "Vent Data N/A (NWS grid offline)" : "Vent";
                 dayMap[dayKey].limiters[ventKey] = (dayMap[dayKey].limiters[ventKey] || 0) + 1;
@@ -956,7 +1023,7 @@
       renderSvgPolygons();
     }
 
-function getVentTierName(rate, stateCode) {
+    function getVentTierName(rate, stateCode) {
       const rules = STATE_VENT_RULES[stateCode] || STATE_VENT_RULES.CO;
       if (rate < rules.poorLimit) return 'Poor';
       if (rate < rules.fairLimit) return 'Fair';
@@ -1052,6 +1119,9 @@ function getVentTierName(rate, stateCode) {
             : u.qualifyingDays;
 
           const dayBadges = visibleDays.map(d => `${d.dateObj.toLocaleDateString([], { weekday: 'short' })} (${d.inRxHours}h)`).join(', ');
+          
+          // Print snow depth directly on passing unit cards
+          const snowText = u.currentSnow !== null ? ` • Snow: ${u.currentSnow < 0.1 ? '0' : u.currentSnow.toFixed(1)} in` : '';
 
           const detailsHtml = visibleDays.map(d => {
             const dLabel = d.dateObj.toLocaleDateString([], { weekday: 'short', month: 'numeric', day: 'numeric' });
@@ -1068,7 +1138,7 @@ function getVentTierName(rate, stateCode) {
           row.innerHTML = `
             <div>
               <div class="unit-name">${u.name}</div>
-              <div class="unit-meta">${u.acres > 0 ? u.acres.toLocaleString() + ' acres • ' : ''}Windows: <strong>${dayBadges}</strong></div>
+              <div class="unit-meta">${u.acres > 0 ? u.acres.toLocaleString() + ' acres • ' : ''}Windows: <strong>${dayBadges}</strong>${snowText}</div>
             </div>
             <div class="mini-days">
               ${u.daysList.map((d, idx) => `<div class="mini-day ${d.inRxHours > 0 ? 'pass' : ''}"><div>${idx === 0 ? 'Today' : d.dateObj.toLocaleDateString([], { weekday: 'short' })}</div><div>${d.inRxHours > 0 ? d.inRxHours + 'h' : '--'}</div></div>`).join('')}
@@ -1091,7 +1161,10 @@ function getVentTierName(rate, stateCode) {
           const det = document.createElement('details');
           det.className = 'limiter-group';
           det.innerHTML = `<summary>Limited by ${limiter} (${units.length} unit${units.length === 1 ? '' : 's'})</summary>
-            <div class="limiter-list">${units.map(u => `<div class="limiter-item"><span><strong>${u.name}</strong>${u.acres > 0 ? ' (' + u.acres.toLocaleString() + ' ac)' : ''}</span><span style="color:#6c757d;">${u.lat.toFixed(2)}, ${u.lon.toFixed(2)}</span></div>`).join('')}</div>`;
+            <div class="limiter-list">${units.map(u => {
+              const snowTag = u.currentSnow !== null ? u.currentSnow.toFixed(1) + ' in snow • ' : '';
+              return `<div class="limiter-item"><span><strong>${u.name}</strong>${u.acres > 0 ? ' (' + u.acres.toLocaleString() + ' ac)' : ''}</span><span style="color:#6c757d;">${snowTag}${u.lat.toFixed(2)}, ${u.lon.toFixed(2)}</span></div>`;
+            }).join('')}</div>`;
           outRxContainer.appendChild(det);
         });
       }
@@ -1263,6 +1336,7 @@ function getVentTierName(rate, stateCode) {
       const maxGust = getNumOrNull('maxGust');
       const minVentEl = document.getElementById('minVent');
       const minVentText = minVentEl.value ? minVentEl.options[minVentEl.selectedIndex].text : 'None';
+      const minSnow = getNumOrNull('minSnow');
       const windDirs = permittedWindDirs.size > 0 ? Array.from(permittedWindDirs).join(', ') : 'Any';
 
       const params = [
@@ -1273,6 +1347,7 @@ function getVentTierName(rate, stateCode) {
         ['Max Wind', maxWind !== null ? `${maxWind} mph` : 'None'],
         ['Max Gust', maxGust !== null ? `${maxGust} mph` : 'None'],
         ['Min Vent', minVentText],
+        ['Min Snow', minSnow !== null ? `${minSnow} in` : 'None'],
         ['Wind Dir', windDirs]
       ];
 
