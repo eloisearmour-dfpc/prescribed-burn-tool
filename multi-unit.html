@@ -4,174 +4,289 @@
   <meta charset="UTF-8">
   <title>Multi-Unit Burn Window Scanner</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 14px; background: #f8f9fa; color: #333; margin: 0; font-size: 13px; }
-    .card { background: white; padding: 16px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); margin-bottom: 12px; border: 1px solid #dee2e6; }
-    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 16px;
+      background: #f1f5f9;
+      color: #1e293b;
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    /* Unified Card Container */
+    .card {
+      background: #ffffff;
+      padding: 18px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+      margin-bottom: 16px;
+    }
+
     /* Area Search Toolbar */
     .area-bar {
       display: flex;
-      gap: 6px;
+      gap: 8px;
       align-items: center;
-      background: #f0f7fc;
-      border: 1px solid #b6dcfb;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
       border-radius: 6px;
       padding: 8px 10px;
-      margin-bottom: 12px;
+      margin-bottom: 16px;
       flex-wrap: wrap;
     }
     .area-bar select {
       flex: 1;
-      padding: 7px 8px;
-      font-size: 13px;
-      font-weight: 600;
-      border: 1px solid #0078d4;
-      border-radius: 4px;
-      background: #fff;
-      color: #333;
+      padding: 7px 9px;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+      border-radius: 5px;
+      background: #ffffff;
       min-width: 135px;
       cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .area-bar select:focus {
+      outline: none;
+      border-color: #0078d4;
     }
     .area-bar select#stateSelect {
       flex: 0.85;
       min-width: 130px;
     }
     .area-bar select:disabled {
-      background: #e9ecef;
-      color: #6c757d;
-      border-color: #ced4da;
+      background: #f1f5f9;
+      color: #94a3b8;
+      border-color: #e2e8f0;
       cursor: not-allowed;
     }
 
-    .input-header { font-size: 12px; font-weight: bold; color: #0078d4; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 8px 0; border-bottom: 1px solid #0078d4; padding-bottom: 4px; }
-    .rx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
-    .rx-field { display: flex; flex-direction: column; font-size: 12px; font-weight: bold; color: #444; position: relative; }
-    .rx-field input, .rx-field select { padding: 7px; font-size: 13px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 4px; background: #fff; box-sizing: border-box; }
-    .rx-field select { padding: 6px 7px; cursor: pointer; }
+    /* Section Headers */
+    .section-header {
+      font-size: 11px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin: 16px 0 10px 0;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .section-header span.hint {
+      font-size: 10px;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: none;
+      letter-spacing: normal;
+    }
+
+    /* Calm Inputs */
+    .rx-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
+      gap: 10px;
+    }
+    .rx-field {
+      display: flex;
+      flex-direction: column;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: #475569;
+      position: relative;
+    }
+    .rx-field input, .rx-field select {
+      padding: 7px 8px;
+      font-size: 13px;
+      color: #0f172a;
+      border: 1px solid #cbd5e1;
+      border-radius: 5px;
+      margin-top: 4px;
+      background: #ffffff;
+      box-sizing: border-box;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .rx-field select {
+      padding: 6px 8px;
+      cursor: pointer;
+    }
+    .rx-field input::placeholder { color: #94a3b8; }
+    .rx-field input:focus, .rx-field select:focus {
+      outline: none;
+      border-color: #0078d4;
+      box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.12);
+    }
     
     /* Compact Multi-Select Dropdown */
     .custom-select-btn {
       padding: 7px 8px;
-      font-size: 12px;
-      border: 1px solid #0078d4;
-      border-radius: 4px;
+      font-size: 12.5px;
+      border: 1px solid #cbd5e1;
+      border-radius: 5px;
       margin-top: 4px;
-      background: #fff;
+      background: #ffffff;
       cursor: pointer;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-weight: normal;
-      color: #333;
+      font-weight: 400;
+      color: #0f172a;
       user-select: none;
       box-sizing: border-box;
       height: 31px;
+      transition: border-color 0.15s;
     }
+    .custom-select-btn:hover { border-color: #94a3b8; }
     .custom-dropdown-menu {
       position: absolute;
       top: 100%;
       left: 0;
-      width: 140px;
-      background: white;
-      border: 1px solid #0078d4;
-      border-radius: 4px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      width: 144px;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
       z-index: 1000;
       padding: 6px;
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 4px;
       box-sizing: border-box;
+      margin-top: 2px;
     }
-    .wind-chk-item { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; cursor: pointer; color: #333; padding: 2px 4px; border-radius: 3px; }
-    .wind-chk-item:hover { background: #f0f7fc; }
+    .wind-chk-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+      color: #334155;
+      padding: 3px 5px;
+      border-radius: 4px;
+    }
+    .wind-chk-item:hover { background: #f1f5f9; }
 
     /* Unified Button Styles */
-    button { background: #0078d4; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; margin-top: 10px; width: 100%; transition: background 0.2s, color 0.2s, border-color 0.2s; }
-    button:hover { background: #005a9e; }
-    button:disabled { cursor: not-allowed; background: #e9ecef; color: #6c757d; border: 1px solid #ced4da; }
+    button {
+      background: #0078d4; color: #ffffff; border: none; padding: 10px 14px;
+      border-radius: 5px; font-weight: 600; font-size: 13px; cursor: pointer;
+      margin-top: 14px; width: 100%; transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    button:hover { background: #0063b1; }
     
     #scanBtn {
-      background: #f8fafc;
-      color: #0078d4;
-      border: 1.5px solid #0078d4;
-      padding: 10px 14px;
-      font-size: 14px;
-      font-weight: bold;
-      border-radius: 4px;
-      margin-top: 14px;
+      background: #f8fafc; color: #334155; border: 1px solid #cbd5e1;
+      padding: 10px 14px; font-size: 13.5px; font-weight: 600; border-radius: 5px; margin-top: 16px;
     }
-    #scanBtn:hover:not(:disabled) { background: #0078d4; color: #fff; }
+    #scanBtn:not(:disabled) {
+      background: #0078d4; color: #ffffff; border-color: #0078d4;
+    }
+    #scanBtn:not(:disabled):hover {
+      background: #0063b1; border-color: #0063b1;
+    }
+    #scanBtn:disabled {
+      background: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; cursor: not-allowed;
+    }
 
-    button.export-btn { background: #28a745; margin-top: 14px; font-size: 13px; }
-    button.export-btn:hover { background: #218838; }
+    button.export-btn { background: #198754; margin-top: 14px; font-size: 13px; }
+    button.export-btn:hover { background: #157347; }
 
     /* Day Filter Strip */
-    .day-filter-bar { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 12px; }
-    .day-chip { padding: 4px 9px; font-size: 11px; font-weight: 600; border: 1px solid #ced4da; background: #fff; color: #444; border-radius: 12px; cursor: pointer; width: auto !important; margin: 0 !important; }
-    .day-chip:hover { border-color: #0078d4; color: #0078d4; }
-    .day-chip.active { background: #0078d4; color: #fff; border-color: #0078d4; }
-    .day-chip.has-win { border-color: #28a745; }
-    .day-chip.has-win.active { background: #28a745; border-color: #28a745; color: #fff; }
+    .day-filter-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+    .day-chip {
+      padding: 5px 12px; font-size: 11.5px; font-weight: 600; border: 1px solid #cbd5e1;
+      background: #ffffff; color: #475569; border-radius: 14px; cursor: pointer;
+      width: auto !important; margin: 0 !important; transition: all 0.15s;
+    }
+    .day-chip:hover { border-color: #94a3b8; color: #0f172a; }
+    .day-chip.active { background: #0078d4; color: #ffffff; border-color: #0078d4; }
+    .day-chip.has-win { border-color: #10b981; }
+    .day-chip.has-win.active { background: #10b981; border-color: #10b981; color: #ffffff; }
 
     /* Unit Result Rows */
-    .section-subhead { font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 6px 0; display: flex; justify-content: space-between; align-items: center; }
-    .unit-row { border: 1px solid #dee2e6; border-radius: 6px; padding: 9px 11px; margin-bottom: 6px; background: #fff; transition: border-color 0.15s; cursor: pointer; }
-    .unit-row.in-rx { background: #f4fbf6; border-color: #b7e4c7; }
-    .unit-row:hover { border-color: #0078d4; }
-    .unit-name { font-weight: bold; font-size: 13px; color: #222; }
-    .unit-meta { font-size: 11px; color: #666; margin-top: 2px; }
+    .unit-row {
+      border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px;
+      background: #ffffff; transition: border-color 0.15s, box-shadow 0.15s; cursor: pointer;
+    }
+    .unit-row:hover { border-color: #cbd5e1; box-shadow: 0 2px 4px rgba(15,23,42,0.03); }
+    .unit-row.in-rx { background: #f0fdf4; border-color: #86efac; }
+    .unit-row.in-rx:hover { border-color: #4ade80; }
+    .unit-name { font-weight: 600; font-size: 13px; color: #0f172a; }
+    .unit-meta { font-size: 11px; color: #64748b; margin-top: 3px; }
 
     /* Expandable Unit Forecast Drawer */
     .unit-details {
-      display: none;
-      margin-top: 8px;
-      padding-top: 8px;
-      border-top: 1px dashed #b7e4c7;
-      font-size: 11.5px;
-      color: #333;
-      cursor: default;
+      display: none; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #bbf7d0;
+      font-size: 11.5px; color: #334155; cursor: default;
     }
     .unit-row.expanded .unit-details { display: block; }
     .detail-day-line {
-      display: flex;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 6px;
-      padding: 4px 6px;
-      background: #fff;
-      border: 1px solid #d8f3dc;
-      border-radius: 4px;
-      margin-bottom: 4px;
+      display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; padding: 6px 8px;
+      background: #ffffff; border: 1px solid #bbf7d0; border-radius: 5px; margin-bottom: 5px;
     }
 
     /* Grouped Out-of-Rx Accordions */
-    details.limiter-group { border: 1px solid #dee2e6; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; background: #f8f9fa; }
-    details.limiter-group summary { font-size: 12px; font-weight: 600; color: #495057; cursor: pointer; outline: none; }
-    .limiter-list { margin-top: 8px; padding-top: 6px; border-top: 1px solid #dee2e6; display: flex; flex-direction: column; gap: 4px; }
-    .limiter-item { font-size: 12px; color: #444; display: flex; justify-content: space-between; padding: 3px 4px; background: #fff; border-radius: 4px; border: 1px solid #e9ecef; }
+    details.limiter-group {
+      border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; background: #f8fafc;
+    }
+    details.limiter-group summary {
+      font-size: 12px; font-weight: 600; color: #475569; cursor: pointer; outline: none;
+    }
+    details.limiter-group summary:hover { color: #0078d4; }
+    .limiter-list {
+      margin-top: 8px; padding-top: 8px; border-top: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 6px;
+    }
+    .limiter-item {
+      font-size: 11.5px; color: #334155; display: flex; justify-content: space-between;
+      padding: 5px 8px; background: #ffffff; border-radius: 5px; border: 1px solid #e2e8f0;
+    }
 
     /* Mini 7-Day Strip */
-    .mini-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #d8f3dc; }
-    .mini-day { text-align: center; padding: 4px 2px; border-radius: 4px; background: #f1f3f5; font-size: 10px; border: 1px solid #dee2e6; }
-    .mini-day.pass { background: #d4edda; border-color: #28a745; color: #155724; font-weight: bold; }
+    .mini-days {
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 10px;
+      padding-top: 10px; border-top: 1px solid #e2e8f0;
+    }
+    .mini-day {
+      text-align: center; padding: 4px 2px; border-radius: 4px; background: #f8fafc;
+      font-size: 10px; border: 1px solid #e2e8f0; color: #475569;
+    }
+    .mini-day.pass {
+      background: #dcfce7; border-color: #86efac; color: #166534; font-weight: 600;
+    }
 
     /* Map Preview */
-    .map-controls-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; font-weight: bold; }
+    .map-controls-row {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+      padding-bottom: 6px; border-bottom: 1px solid #e2e8f0;
+    }
     .map-btn-group { display: flex; gap: 6px; }
-    .map-toggle-btn { padding: 4px 10px; font-size: 12px; font-weight: 600; border: 1px solid #0078d4; background: #fff; color: #0078d4; border-radius: 4px; cursor: pointer; width: auto !important; margin: 0 !important; }
-    .map-toggle-btn.active { background: #0078d4; color: #fff; }
-    .map-container { position: relative; width: 100%; max-width: 600px; margin: 12px auto 0 auto; display: none; text-align: center; }
-    .map-container img { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; display: block; }
+    .map-toggle-btn {
+      padding: 4px 10px; font-size: 12px; font-weight: 500; border: 1px solid #cbd5e1;
+      background: #ffffff; color: #334155; border-radius: 5px; cursor: pointer;
+      width: auto !important; margin: 0 !important;
+    }
+    .map-toggle-btn:hover { background: #f8fafc; }
+    .map-toggle-btn.active { background: #0078d4; border-color: #0078d4; color: #ffffff; }
+
+    .map-container { position: relative; width: 100%; max-width: 600px; margin: 16px auto 0 auto; display: none; text-align: center; }
+    .map-container img { width: 100%; height: auto; border: 1px solid #cbd5e1; border-radius: 6px; display: block; }
     .map-container svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-    .legend-row { display: flex; gap: 14px; justify-content: center; font-size: 11px; color: #555; margin-top: 6px; font-weight: 600; flex-wrap: wrap; }
+    
+    .legend-row { display: flex; gap: 14px; justify-content: center; font-size: 11px; color: #475569; margin-top: 8px; font-weight: 600; flex-wrap: wrap; }
     .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
   </style>
 </head>
 <body>
 
   <div class="card">
-    <h3 id="area-title" style="margin:0 0 2px 0; font-size:17px;">Multi-Unit Burn Window Scanner</h3>
-    <div id="status" style="font-size: 12px; color: #666; margin-bottom: 12px;">
+    <h3 id="area-title" style="margin:0 0 3px 0; font-size:17px; color:#0f172a;">Multi-Unit Burn Window Scanner</h3>
+    <div id="status" style="font-size: 12px; color: #64748b; margin-bottom: 14px;">
       Select a state, agency, and district to scan planned burn units.
     </div>
 
@@ -195,7 +310,7 @@
       </select>
     </div>
 
-    <div class="input-header">Prescription Thresholds</div>
+    <div class="section-header">Prescription Thresholds</div>
 
     <div class="rx-grid">
       <div class="rx-field">Min Temp (°F)<input type="number" id="minTemp" placeholder="None"></div>
@@ -217,7 +332,7 @@
       <div class="rx-field" id="windField">
         <span style="display:flex; justify-content:space-between; align-items:center;">
           Wind Dir
-          <span id="windClearBtn" onclick="clearWindDirs(event)" style="cursor:pointer; color:#0078d4; font-size:10px; display:none;">Clear</span>
+          <span id="windClearBtn" onclick="clearWindDirs(event)" style="cursor:pointer; color:#0078d4; font-size:10.5px; display:none;">Clear</span>
         </span>
         <div id="windSelectBtn" class="custom-select-btn" onclick="toggleWindMenu(event)">
           <span id="windSelectLabel">Any Dir</span>
@@ -240,24 +355,24 @@
 
   <!-- Results Dashboard Card -->
   <div id="results-card" class="card" style="display:none;">
-    <div id="vent-unavailable-note" style="display:none; font-size:11px; color:#856404; background:#fff3cd; border:1px solid #ffeeba; padding:6px 10px; border-radius:4px; margin-bottom:10px;"></div>
+    <div id="vent-unavailable-note" style="display:none; font-size:11.5px; color:#92400e; background:#fef3c7; border:1px solid #fde68a; padding:6px 10px; border-radius:5px; margin-bottom:12px;"></div>
     <div class="day-filter-bar" id="day-filter-bar"></div>
 
-    <div class="section-subhead">
-      <span style="color:#28a745;" id="inrx-heading">Windows Identified (0)</span>
-      <span style="font-size:10px; color:#666; font-weight:normal; text-transform:none;">Click a unit to view passing window details</span>
+    <div class="section-header">
+      <span style="color:#16a34a;" id="inrx-heading">Windows Identified (0)</span>
+      <span class="hint">Click a unit to view passing window details</span>
     </div>
     <div id="inrx-list"></div>
 
-    <div class="section-subhead" style="margin-top:16px;">
-      <span style="color:#6c757d;" id="outrx-heading">Out of Prescription (0)</span>
+    <div class="section-header" style="margin-top:20px;">
+      <span style="color:#64748b;" id="outrx-heading">Out of Prescription (0)</span>
     </div>
     <div id="outrx-list"></div>
 
     <!-- Area Map Preview -->
     <div id="map-preview" class="map-container">
       <div class="map-controls-row">
-        <span style="text-transform:uppercase; font-size:11px; color:#555;">Scanned Units Overview</span>
+        <span style="font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.6px;">Scanned Units Overview</span>
         <div class="map-btn-group">
           <button class="map-toggle-btn active" id="btnSat" onclick="setBasemap('sat')">Satellite</button>
           <button class="map-toggle-btn" id="btnTopo" onclick="setBasemap('topo')">Topo</button>
@@ -268,8 +383,8 @@
         <svg id="map-svg" viewBox="0 0 600 350" preserveAspectRatio="none"></svg>
       </div>
       <div class="legend-row">
-        <span><span class="legend-dot" style="background:rgba(40,167,69,0.55); border:1px solid #28a745;"></span>In-Rx Unit</span>
-        <span><span class="legend-dot" style="background:rgba(108,117,125,0.35); border:1px solid #6c757d;"></span>Out-of-Rx Unit</span>
+        <span><span class="legend-dot" style="background:rgba(22,163,74,0.55); border:1px solid #16a34a;"></span>In-Rx Unit</span>
+        <span><span class="legend-dot" style="background:rgba(100,116,139,0.35); border:1px solid #64748b;"></span>Out-of-Rx Unit</span>
         <span id="legBoundary" style="display:none;"><span class="legend-dot" style="background:transparent; border:1.5px solid #0078d4;"></span>District / Unit Boundary</span>
       </div>
     </div>
@@ -286,7 +401,8 @@
     const STATE_VENT_RULES = {
       CO: { name: 'Colorado', poorLimit: 40, fairLimit: 60, goodLimit: 100 },
       MT: { name: 'Montana', poorLimit: 25, fairLimit: 45, goodLimit: 75 },
-      ID: { name: 'Idaho', poorLimit: 25, fairLimit: 45, goodLimit: 75 }
+      ID: { name: 'Idaho', poorLimit: 25, fairLimit: 45, goodLimit: 75 },
+      NV: { name: 'Nevada', poorLimit: 30, fairLimit: 60, goodLimit: 100 }
     };
 
     const AGENCY_CONFIG = {
@@ -500,7 +616,7 @@
     function setStatus(msg, isError = false) {
       const el = document.getElementById('status');
       el.style.display = msg ? 'block' : 'none';
-      el.style.color = isError ? '#c92a2a' : '#666';
+      el.style.color = isError ? '#b91c1c' : '#64748b';
       el.innerText = msg;
     }
 
@@ -975,9 +1091,9 @@
               if (!tempOk) dayMap[dayKey].limiters["Temp"] = (dayMap[dayKey].limiters["Temp"] || 0) + 1;
               if (!rhOk) dayMap[dayKey].limiters["RH"] = (dayMap[dayKey].limiters["RH"] || 0) + 1;
               if (!windSpeedOk || !gustOk || !windDirOk) dayMap[dayKey].limiters["Wind"] = (dayMap[dayKey].limiters["Wind"] || 0) + 1;
-              if (!snowOk) dayMap[dayKey].limiters["Snow Cover"] = (dayMap[dayKey].limiters["Snow Cover"] || 0) + 1;
+              if (!snowOk) dayMap[dayKey].limiters["Snow Depth"] = (dayMap[dayKey].limiters["Snow Depth"] || 0) + 1;
               if (!minVentOk) {
-                const ventKey = r.ventRate === null ? "Vent Data N/A (NWS grid offline)" : "Vent";
+                const ventKey = r.ventRate === null ? "Vent Data N/A" : "Vent";
                 dayMap[dayKey].limiters[ventKey] = (dayMap[dayKey].limiters[ventKey] || 0) + 1;
               }
             }
@@ -1013,7 +1129,7 @@
       if (ventNoteEl) {
         if (minVent !== null && missingVentUnitsCount > 0) {
           ventNoteEl.style.display = 'block';
-          ventNoteEl.innerText = `Local NWS office did not publish gridded Mixing Height / Transport Wind (Vent Rate = N/A) for ${missingVentUnitsCount} of ${scannedUnits.length} units. Check state DEQ dispersion separately, or set Min Vent to "Any (None)" to evaluate Temp, RH, and Wind.`;
+          ventNoteEl.innerText = `Local NWS office did not publish gridded Mixing Height / Transport Wind for ${missingVentUnitsCount} of ${scannedUnits.length} units. Check DEQ dispersion separately, or set Min Vent to "Any (None)" to evaluate Temp, RH, and Wind.`;
         } else {
           ventNoteEl.style.display = 'none';
         }
@@ -1085,7 +1201,6 @@
       const outRxUnits = scannedUnits.filter(u => !u.isGo);
       const dayEntries = Object.values(globalDayTotals);
 
-      // Day filter chips
       const filterBar = document.getElementById('day-filter-bar');
       filterBar.innerHTML = '';
       if (hasAnyConstraint && dayEntries.length > 0) {
@@ -1109,9 +1224,9 @@
       inRxContainer.innerHTML = '';
 
       if (!hasAnyConstraint) {
-        inRxContainer.innerHTML = `<div style="font-size:12px; color:#666; padding:6px 0;">Enter at least one prescription threshold above to highlight burn windows.</div>`;
+        inRxContainer.innerHTML = `<div style="font-size:12px; color:#64748b; padding:6px 0;">Enter at least one prescription threshold above to highlight burn windows.</div>`;
       } else if (inRxUnits.length === 0) {
-        inRxContainer.innerHTML = `<div style="font-size:12px; color:#666; padding:6px 0;">No units meet all active thresholds for the selected window.</div>`;
+        inRxContainer.innerHTML = `<div style="font-size:12px; color:#64748b; padding:6px 0;">No units meet all active thresholds for the selected window.</div>`;
       } else {
         inRxUnits.forEach(u => {
           const visibleDays = activeDayFilter
@@ -1119,8 +1234,6 @@
             : u.qualifyingDays;
 
           const dayBadges = visibleDays.map(d => `${d.dateObj.toLocaleDateString([], { weekday: 'short' })} (${d.inRxHours}h)`).join(', ');
-          
-          // Print snow depth directly on passing unit cards
           const snowText = u.currentSnow !== null ? ` • Snow: ${u.currentSnow < 0.1 ? '0' : u.currentSnow.toFixed(1)} in` : '';
 
           const detailsHtml = visibleDays.map(d => {
@@ -1128,7 +1241,7 @@
             const { timeText, metricsText } = formatPassingSummary(d.passingRecs);
             return `<div class="detail-day-line">
               <span><strong>${dLabel}</strong> (${timeText})</span>
-              <span style="color:#444;">${metricsText}</span>
+              <span style="color:#475569;">${metricsText}</span>
             </div>`;
           }).join('');
 
@@ -1153,7 +1266,7 @@
       outRxContainer.innerHTML = '';
 
       if (!hasAnyConstraint) {
-        outRxContainer.innerHTML = `<div style="font-size:12px; color:#666;">${scannedUnits.length} units loaded and ready to evaluate.</div>`;
+        outRxContainer.innerHTML = `<div style="font-size:12px; color:#64748b;">${scannedUnits.length} units loaded and ready to evaluate.</div>`;
       } else if (outRxUnits.length > 0) {
         const grouped = {};
         outRxUnits.forEach(u => { const key = u.primaryLimiter || 'Other'; if (!grouped[key]) grouped[key] = []; grouped[key].push(u); });
@@ -1163,7 +1276,7 @@
           det.innerHTML = `<summary>Limited by ${limiter} (${units.length} unit${units.length === 1 ? '' : 's'})</summary>
             <div class="limiter-list">${units.map(u => {
               const snowTag = u.currentSnow !== null ? u.currentSnow.toFixed(1) + ' in snow • ' : '';
-              return `<div class="limiter-item"><span><strong>${u.name}</strong>${u.acres > 0 ? ' (' + u.acres.toLocaleString() + ' ac)' : ''}</span><span style="color:#6c757d;">${snowTag}${u.lat.toFixed(2)}, ${u.lon.toFixed(2)}</span></div>`;
+              return `<div class="limiter-item"><span><strong>${u.name}</strong>${u.acres > 0 ? ' (' + u.acres.toLocaleString() + ' ac)' : ''}</span><span style="color:#64748b;">${snowTag}${u.lat.toFixed(2)}, ${u.lon.toFixed(2)}</span></div>`;
             }).join('')}</div>`;
           outRxContainer.appendChild(det);
         });
@@ -1221,8 +1334,8 @@
       }
 
       scannedUnits.forEach(u => {
-        const fill = u.isGo ? 'rgba(40, 167, 69, 0.55)' : 'rgba(108, 117, 125, 0.35)';
-        const stroke = u.isGo ? '#28a745' : '#6c757d';
+        const fill = u.isGo ? 'rgba(22, 163, 74, 0.55)' : 'rgba(100, 116, 139, 0.35)';
+        const stroke = u.isGo ? '#16a34a' : '#64748b';
         if (u.rings?.length) {
           let d = '';
           u.rings.forEach(ring => {
@@ -1237,7 +1350,7 @@
         } else {
           const cx = (((u.lon - minLon) / (maxLon - minLon)) * 600).toFixed(1);
           const cy = ((1 - (u.lat - minLat) / (maxLat - minLat)) * 350).toFixed(1);
-          html += `<circle cx="${cx}" cy="${cy}" r="5" fill="${stroke}" stroke="#fff" stroke-width="1.5" />`;
+          html += `<circle cx="${cx}" cy="${cy}" r="5" fill="${stroke}" stroke="#ffffff" stroke-width="1.5" />`;
         }
       });
       svg.innerHTML = html;
@@ -1347,11 +1460,11 @@
         ['Max Wind', maxWind !== null ? `${maxWind} mph` : 'None'],
         ['Max Gust', maxGust !== null ? `${maxGust} mph` : 'None'],
         ['Min Vent', minVentText],
-        ['Min Snow', minSnow !== null ? `${minSnow} in` : 'None'],
+        ['Min Snow Depth', minSnow !== null ? `${minSnow} in` : 'None'],
         ['Wind Dir', windDirs]
       ];
 
-      return params.map(([label, val]) => `<div><strong>${label}:</strong> ${val}</div>`).join('');
+      return params.map(([label, val]) => `<div><span class="lbl">${label}</span><span class="val">${val}</span></div>`).join('');
     }
 
     function exportSummaryPdf() {
@@ -1372,7 +1485,7 @@
 
       const ventNoteEl = document.getElementById('vent-unavailable-note');
       const ventNoteHtml = (ventNoteEl && ventNoteEl.style.display !== 'none')
-        ? `<div style="font-size:11px; color:#856404; background:#fff9e6; border:1px solid #ffeeba; padding:6px 8px; border-radius:4px; margin-bottom:10px;">${ventNoteEl.innerText}</div>`
+        ? `<div style="font-size:11px; color:#92400e; background:#fef3c7; border:1px solid #fde68a; padding:6px 8px; border-radius:4px; margin-bottom:12px;">${ventNoteEl.innerText}</div>`
         : '';
 
       const mapUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
@@ -1387,35 +1500,43 @@
             const daysText = visibleDays.map(d => `${d.dateObj.toLocaleDateString([], { weekday: 'short', month: 'numeric', day: 'numeric' })} (${d.inRxHours}h)`).join(', ');
             return `<tr><td><strong>${u.name}</strong></td><td>${u.acres > 0 ? u.acres.toLocaleString() : '--'}</td><td>${daysText}</td><td>${totalHrs} hrs</td></tr>`;
           }).join('')
-        : `<tr><td colspan="4" style="font-style:italic; color:#666;">No units met criteria.</td></tr>`;
+        : `<tr><td colspan="4" style="padding:14px; color:#64748b; font-style:italic;">No units met criteria.</td></tr>`;
 
       printWin.document.open();
       printWin.document.write(`
         <!DOCTYPE html><html><head><title>Area Burn Window Summary - ${activeAreaLabel}</title>
         <style>
-          body { font-family: sans-serif; padding: 24px; color: #222; max-width: 800px; margin: 0 auto; font-size: 13px; }
-          h2 { margin: 0 0 2px 0; font-size: 20px; }
-          .sub { font-size: 12px; color: #0078d4; font-weight: bold; margin-bottom: 4px; }
-          .meta { font-size: 12px; color: #555; margin-bottom: 10px; border-bottom: 2px solid #222; padding-bottom: 6px; }
-          .rx-box { background: #f8fafc; border: 1px solid #cbd5e1; border-left: 3px solid #0078d4; padding: 8px 10px; margin-bottom: 14px; font-size: 12px; }
-          .rx-box-title { font-weight: bold; text-transform: uppercase; font-size: 11px; color: #0078d4; margin-bottom: 6px; }
-          .rx-param-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 12px; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color: #1e293b; max-width: 800px; margin: 0 auto; font-size: 13px; }
+          h2 { margin: 0 0 4px 0; font-size: 20px; color: #0f172a; }
+          .sub { font-size: 12px; color: #0078d4; font-weight: 600; margin-bottom: 4px; }
+          .meta { font-size: 12px; color: #475569; margin-bottom: 14px; border-bottom: 2px solid #1e293b; padding-bottom: 6px; }
+          
+          .report-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #0f172a; border-bottom: 1px solid #94a3b8; padding-bottom: 3px; margin-top: 14px; margin-bottom: 10px; }
+          
+          .classic-text-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px 16px; margin-bottom: 16px; }
+          .classic-text-grid div { display: flex; flex-direction: column; }
+          .classic-text-grid .lbl { font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 700; }
+          .classic-text-grid .val { font-size: 13px; font-weight: 600; color: #0f172a; margin-top: 2px; }
+          
           table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 12px; }
-          th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
-          th { background: #f2f2f2; }
+          th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
+          th { background: #f8fafc; color: #0f172a; font-weight: 600; }
           .map-wrap { position: relative; width: 100%; max-width: 600px; margin: 12px auto; }
-          .map-wrap img { width: 100%; display: block; border: 1px solid #ccc; }
+          .map-wrap img { width: 100%; display: block; border: 1px solid #cbd5e1; border-radius: 4px; }
           .map-wrap svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
         </style></head><body>
           <h2>${activeAreaLabel} — Burn Window Scan</h2>
           ${jurisdictionLine ? `<div class="sub">${jurisdictionLine}</div>` : ''}
           <div class="meta">Units Scanned: ${scannedUnits.length} | Units In-Rx: ${inRxUnits.length}${inRxAcres > 0 ? ` (${inRxAcres.toLocaleString()} ac)` : ''} | Window: ${windowLabel} | Generated: ${new Date().toLocaleString()}</div>
           ${ventNoteHtml}
-          <div class="rx-box">
-            <div class="rx-box-title">Prescription Thresholds</div>
-            <div class="rx-param-grid">${getRxGridHtml()}</div>
-          </div>
+          
+          <div class="report-section-title">Prescription Thresholds</div>
+          <div class="classic-text-grid">${getRxGridHtml()}</div>
+          
+          <div class="report-section-title">Identified Burn Windows</div>
           <table><thead><tr><th>Unit Name</th><th>Acres</th><th>Qualifying Burn Days</th><th>Total Rx Hours</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+          
+          <div class="report-section-title">Scanned Area Preview</div>
           <div class="map-wrap"><img src="${mapUrl}">${svgHtml}</div>
           <script>window.onload = function() { window.focus(); setTimeout(function() { window.print(); }, 400); };<\/script>
         </body></html>`);
