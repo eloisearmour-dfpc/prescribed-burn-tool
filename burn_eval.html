@@ -120,6 +120,43 @@
     .coord-box { margin-bottom: 4px; }
     .coord-box input { width: 100%; padding: 7px; font-size: 13px; border: 1px solid #0078d4; border-radius: 4px; box-sizing: border-box; margin-top: 5px; }
 
+    /* Ground & Snow Banner */
+    .ground-banner {
+      display: none;
+      background: #eef6fc;
+      border: 1px solid #b6dcfb;
+      border-left: 4px solid #0078d4;
+      border-radius: 6px;
+      padding: 9px 12px;
+      margin: 12px 0 6px 0;
+      font-size: 12px;
+      color: #222;
+    }
+    .ground-banner-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+    }
+    .ground-stat {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .ground-stat .g-label {
+      font-size: 11px;
+      font-weight: bold;
+      text-transform: uppercase;
+      color: #005a9e;
+      letter-spacing: 0.3px;
+    }
+    .ground-stat .g-val {
+      font-size: 13px;
+      font-weight: bold;
+      color: #111;
+    }
+
     .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 12px; border-radius: 4px; margin-top: 12px; font-size: 13px; }
     .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 10px; margin-top: 8px; }
     .data-item { background: white; padding: 8px 10px; border-radius: 4px; border: 1px solid #d0e1f9; }
@@ -158,7 +195,7 @@
     button.export-btn:hover { background: #218838; }
 
     /* 7-Day Overview Cards */
-    .day-cards-header { display: flex; justify-content: space-between; align-items: center; margin: 16px 0 8px 0; }
+    .day-cards-header { display: flex; justify-content: space-between; align-items: center; margin: 12px 0 8px 0; }
     .day-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 6px; margin-bottom: 10px; transition: opacity 0.15s; }
     .day-card {
       background: #f1f3f5;
@@ -174,6 +211,8 @@
     .day-card.selected { border-color: #0078d4; box-shadow: 0 0 0 2px #0078d4; }
     .day-card.card-pass { background: #e8f5e9; border-color: #28a745; }
     .day-card.card-pass .status-pill { background: #28a745; color: white; }
+    .day-card.card-warn { background: #fffbeb; border-color: #f59e0b; }
+    .day-card.card-warn .status-pill { background: #d97706; color: white; }
     .day-card .storm-badge { font-size: 9px; font-weight: bold; background: #005a9e; color: white; padding: 2px 4px; border-radius: 3px; position: absolute; top: -6px; left: 50%; transform: translateX(-50%); letter-spacing: 0.5px; white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
     .day-card .day-title { font-size: 12px; font-weight: bold; text-transform: uppercase; color: #222; margin-top: 2px; }
     .day-card .day-date { font-size: 10px; color: #666; margin-bottom: 4px; }
@@ -300,11 +339,26 @@
     <button id="evalBtn" onclick="handleEvaluateClick()">Evaluate 7-Day Forecast</button>
   </div>
 
+  <!-- Ground Conditions & Snow Banner -->
+  <div id="ground-banner" class="ground-banner">
+    <div class="ground-banner-inner">
+      <div class="ground-stat">
+        <span class="g-label">Current Unit Snow Depth (NOAA):</span>
+        <span class="g-val" id="banner-snow-depth">Loading...</span>
+      </div>
+      <div class="ground-stat">
+        <span class="g-label">7-Day Forecast Precip:</span>
+        <span class="g-val" id="banner-forecast-precip">--</span>
+      </div>
+    </div>
+  </div>
+
   <!-- 7-Day Outlook Cards -->
   <div id="day-overview-container" style="display:none;">
     <div class="day-cards-header" style="flex-direction:column; align-items:flex-start;">
       <strong style="color:#0078d4; text-transform:uppercase; font-size:12px; letter-spacing:0.5px;">7-Day Burn Window Outlook</strong>
       <div id="active-rules-breadcrumb" style="font-size:10px; color:#666; font-style:italic; margin-top:2px;"></div>
+      <div id="vent-unavailable-note" style="display:none; font-size:11px; color:#856404; background:#fff3cd; border:1px solid #ffeeba; padding:5px 8px; border-radius:4px; margin-top:6px;"></div>
     </div>
     <div class="day-cards-grid" id="day-cards-grid"></div>
     
@@ -321,7 +375,6 @@
     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; border-bottom:1px solid #dee2e6; padding-bottom:8px;">
       <span id="active-day-heading" style="font-size:13px; font-weight:bold; color:#0078d4; text-transform:uppercase;">Hourly Breakdown</span>
       <div style="display:flex; gap:8px;">
-        <button class="inline-btn secondary-btn" id="btnToggleMoisture" onclick="toggleMoistureView()">Show Precip / Snow</button>
         <button class="inline-btn secondary-btn" onclick="showAllHours()" style="font-size:11px; padding:6px 8px;">Show All 7 Days</button>
       </div>
     </div>
@@ -332,7 +385,7 @@
           <th>Temp</th>
           <th>RH</th>
           <th>20ft Wind</th>
-          <th id="th-moisture" style="display:none;">Precip & Snow</th>
+          <th>Precip & Snow</th>
           <th>Transport Wind</th>
           <th>Vent Rate</th>
         </tr>
@@ -342,14 +395,13 @@
   </div>
 
   <div id="raws-box" class="data-box" style="display:none;">
-    <div style="font-weight:bold; color:#0078d4; margin-bottom:6px; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;" id="raws-header">RAWS Station, Fuel Moisture & Ground Conditions</div>
+    <div style="font-weight:bold; color:#0078d4; margin-bottom:6px; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;" id="raws-header">Nearest RAWS Station & Fuel Moisture</div>
     <div class="data-grid">
       <div class="data-item"><div class="label">Observed Temp</div><div class="val" id="raws-temp">--</div></div>
       <div class="data-item"><div class="label">Observed RH</div><div class="val" id="raws-rh">--</div></div>
       <div class="data-item"><div class="label">Observed Wind</div><div class="val" id="raws-wind">--</div></div>
       <div class="data-item"><div class="label">Est. 10-Hr Fuel Moisture</div><div class="val" id="raws-fm10">--</div></div>
       <div class="data-item"><div class="label">Est. 1-Hr Fuel Moisture</div><div class="val" id="raws-fm1">--</div></div>
-      <div class="data-item"><div class="label">NOAA Est. Snow Depth</div><div class="val" id="raws-snow">--</div></div>
       <div class="data-item"><div class="label">Observed At</div><div class="val" id="raws-time">--</div></div>
     </div>
   </div>
@@ -384,9 +436,9 @@
         <input type="checkbox" id="chkOnlyInRx">
         <strong>Only export burn windows</strong> (filter out hours that are out of prescription)
       </label>
-      <label class="modal-option"><input type="checkbox" id="chk7DaySummary" checked> 7-Day Outlook Cards Summary</label>
+      <label class="modal-option"><input type="checkbox" id="chk7DaySummary" checked> 7-Day Outlook Cards & Snow Banner</label>
       <label class="modal-option"><input type="checkbox" id="chkMatrix" checked> Hourly Forecast Matrix</label>
-      <label class="modal-option"><input type="checkbox" id="chkRaws" checked> Live RAWS, Fuel Moisture & NOAA Snow Depth</label>
+      <label class="modal-option"><input type="checkbox" id="chkRaws" checked> Live RAWS & Fuel Moisture</label>
       <label class="modal-option"><input type="checkbox" id="chkSatMap" checked> Satellite Map Preview</label>
       <label class="modal-option"><input type="checkbox" id="chkTopoMap" checked> Topographic Map Preview</label>
 
@@ -424,7 +476,6 @@
     let activeUnitLabel = sanitizeUnitName(rawUnit ? decodeURIComponent(rawUnit) : null) || 'Unit Weather Forecast';
     
     let permittedWindDirs = new Set();
-    let showMoistureForecast = false;
     let cachedHourlyRecords = [];
     let activeDayFilter = null;
 
@@ -479,14 +530,6 @@
     }
     updateWindSelectUI();
 
-    if (urlParams.get('moist') === '1') {
-      showMoistureForecast = true;
-      const btn = document.getElementById('btnToggleMoisture');
-      btn.classList.add('active');
-      btn.innerText = 'Hide Precip / Snow';
-      document.getElementById('th-moisture').style.display = 'table-cell';
-    }
-
     if (rawGeometry) {
       try {
         const parsed = JSON.parse(decodeURIComponent(rawGeometry));
@@ -507,11 +550,16 @@
     /* =========================================================
        2. URL SYNC & PARAMETER BINDINGS
        ========================================================= */
-    ['minTemp', 'maxTemp', 'minRH', 'maxRH', 'maxWind', 'maxGust', 'minVent'].forEach(id => {
+    ['minTemp', 'maxTemp', 'minRH', 'maxRH', 'maxWind', 'maxGust'].forEach(id => {
       document.getElementById(id).addEventListener('input', () => {
         syncParamsToUrl();
         if (cachedHourlyRecords.length > 0) reEvaluateAllData();
       });
+    });
+
+    document.getElementById('minVent').addEventListener('change', () => {
+      syncParamsToUrl();
+      if (cachedHourlyRecords.length > 0) reEvaluateAllData();
     });
 
     document.getElementById('coordInput').addEventListener('input', () => {
@@ -532,9 +580,6 @@
 
         if (permittedWindDirs.size > 0) p.set('windDirs', Array.from(permittedWindDirs).join(','));
         else p.delete('windDirs');
-
-        if (showMoistureForecast) p.set('moist', '1');
-        else p.delete('moist');
 
         const coordVal = document.getElementById('coordInput').value;
         if (coordVal) p.set('coords', coordVal);
@@ -591,8 +636,7 @@
         maxWind: document.getElementById('maxWind').value,
         maxGust: document.getElementById('maxGust').value,
         minVent: document.getElementById('minVent').value,
-        windDirs: Array.from(permittedWindDirs),
-        showMoist: showMoistureForecast
+        windDirs: Array.from(permittedWindDirs)
       };
 
       saveWatchlist(list);
@@ -638,14 +682,6 @@
 
       permittedWindDirs = new Set(u.windDirs || []);
       updateWindSelectUI();
-
-      if (u.showMoist !== undefined) {
-        showMoistureForecast = u.showMoist;
-        const btn = document.getElementById('btnToggleMoisture');
-        btn.classList.toggle('active', showMoistureForecast);
-        btn.innerText = showMoistureForecast ? 'Hide Precip / Snow' : 'Show Precip / Snow';
-        document.getElementById('th-moisture').style.display = showMoistureForecast ? 'table-cell' : 'none';
-      }
 
       syncParamsToUrl();
       runEvaluation(true);
@@ -706,18 +742,8 @@
     });
 
     /* =========================================================
-       5. MOISTURE & HOURLY TOGGLES
+       5. HOURLY SECTION TOGGLE
        ========================================================= */
-    function toggleMoistureView() {
-      showMoistureForecast = !showMoistureForecast;
-      const btn = document.getElementById('btnToggleMoisture');
-      btn.classList.toggle('active', showMoistureForecast);
-      btn.innerText = showMoistureForecast ? 'Hide Precip / Snow' : 'Show Precip / Snow';
-      document.getElementById('th-moisture').style.display = showMoistureForecast ? 'table-cell' : 'none';
-      syncParamsToUrl();
-      if (cachedHourlyRecords.length > 0) renderMatrixRows();
-    }
-
     function toggleHourlySection() {
       const container = document.getElementById('matrix-container');
       const btn = document.getElementById('btnToggleHourly');
@@ -832,16 +858,24 @@
       return d;
     }
 
+    function parseIsoDurationHours(durationStr) {
+      if (!durationStr) return 1;
+      const match = durationStr.match(/^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?)?$/);
+      if (!match) return 1;
+      const days = parseInt(match[1] || '0', 10);
+      const hours = parseInt(match[2] || '0', 10);
+      const mins = parseInt(match[3] || '0', 10);
+      const total = (days * 24) + hours + (mins / 60);
+      return total > 0 ? total : 1;
+    }
+
     function getHourlyRateForTime(valuesArray, targetTime) {
       if (!valuesArray || !valuesArray.length) return 0;
       const targetMs = targetTime.getTime();
       for (const item of valuesArray) {
         const [timeStr, durationStr] = item.validTime.split('/');
         const startMs = new Date(timeStr).getTime();
-        let hours = 1;
-        if (durationStr && durationStr.startsWith('PT')) {
-          hours = parseInt(durationStr.replace('PT', '').replace('H', '')) || 1;
-        }
+        const hours = parseIsoDurationHours(durationStr);
         const durationMs = hours * 3600000;
         if (targetMs >= startMs && targetMs < (startMs + durationMs)) {
           return (item.value || 0) / hours; 
@@ -856,11 +890,8 @@
       for (const item of valuesArray) {
         const [timeStr, durationStr] = item.validTime.split('/');
         const startMs = new Date(timeStr).getTime();
-        let durationMs = 3600000; 
-        if (durationStr && durationStr.startsWith('PT')) {
-          const hours = parseInt(durationStr.replace('PT', '').replace('H', '')) || 1;
-          durationMs = hours * 3600000;
-        }
+        const hours = parseIsoDurationHours(durationStr);
+        const durationMs = hours * 3600000;
         if (targetMs >= startMs && targetMs < (startMs + durationMs)) {
           return item.value;
         }
@@ -1076,9 +1107,9 @@
     }
 
     async function fetchNoaaSnowDepth(lat, lon) {
-      const snowEl = document.getElementById('raws-snow');
+      const snowEl = document.getElementById('banner-snow-depth');
       snowEl.innerText = 'Loading...';
-      document.getElementById('raws-box').style.display = 'block';
+      document.getElementById('ground-banner').style.display = 'block';
 
       try {
         const samplePoints = [{ lat, lon }];
@@ -1317,6 +1348,15 @@
           };
         });
 
+        // Update 7-day forecast precip summary in banner
+        const total7DaySnow = cachedHourlyRecords.reduce((sum, r) => sum + (r.snowIn || 0), 0);
+        const total7DayRain = cachedHourlyRecords.reduce((sum, r) => sum + (r.rainIn || 0), 0);
+        const precipParts = [];
+        if (total7DaySnow >= 0.1) precipParts.push(`${total7DaySnow.toFixed(1)}" Snow`);
+        if (total7DayRain >= 0.05) precipParts.push(`${total7DayRain.toFixed(2)}" Rain`);
+        document.getElementById('banner-forecast-precip').innerText = precipParts.length > 0 ? precipParts.join(' • ') : 'None forecasted';
+        document.getElementById('ground-banner').style.display = 'block';
+
         document.getElementById('status').innerHTML = `Forecast loaded for: <strong style="color:#333;">${loc.city}, ${loc.state}</strong> (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
         document.querySelector('details.setup-details').removeAttribute('open');
         
@@ -1352,6 +1392,18 @@
       const maxGust = getNumOrNull('maxGust');
       const minVent = getNumOrNull('minVent');
       const hasWindDir = permittedWindDirs.size > 0;
+
+      const hasAnyVentData = cachedHourlyRecords.some(r => r.ventRate !== null);
+
+      const ventNoteEl = document.getElementById('vent-unavailable-note');
+      if (ventNoteEl) {
+        if (minVent !== null && !hasAnyVentData) {
+          ventNoteEl.style.display = 'block';
+          ventNoteEl.innerText = 'Local NWS office did not publish gridded Mixing Height / Transport Wind (Vent Rate = N/A). Check state DEQ dispersion separately, or set Min Vent to "Any (None)" to evaluate Temp, RH, and Wind.';
+        } else {
+          ventNoteEl.style.display = 'none';
+        }
+      }
 
       const hasAnyConstraint = (minTemp !== null || maxTemp !== null || minRH !== null || maxRH !== null || maxWind !== null || maxGust !== null || minVent !== null || hasWindDir);
 
@@ -1394,13 +1446,16 @@
         const windDirOk = (!hasWindDir || permittedWindDirs.has(r.windDirSector));
         const windOk = windSpeedOk && gustOk && windDirOk;
 
+        const ventMissing = (minVent !== null && r.ventRate === null);
         const minVentOk = (minVent === null || (r.ventRate !== null && r.ventRate >= minVent));
 
+        // Never mark an hour green if a selected Min Vent cannot be verified
         r.isGo = hasAnyConstraint ? (tempOk && rhOk && windOk && minVentOk) : false;
         r.tempOk = tempOk;
         r.rhOk = rhOk;
         r.windOk = windOk;
         r.minVentOk = minVentOk;
+        r.ventMissing = ventMissing;
         r.ventCat = getVentCategory(r.ventRate, activeStateCode);
         
         let limiters = [];
@@ -1409,7 +1464,7 @@
         if (!windSpeedOk) limiters.push("Wind");
         if (!gustOk) limiters.push("Gust");
         if (!windDirOk) limiters.push("Wind Dir");
-        if (!minVentOk) limiters.push("Vent");
+        if (!minVentOk) limiters.push(ventMissing ? "Vent N/A" : "Vent");
         r.limiters = limiters;
 
         dayGroups[dayKey].push(r);
@@ -1417,7 +1472,7 @@
 
       render7DayCards(dayGroups, hasAnyConstraint);
       if (document.getElementById('matrix-container').style.display !== 'none') {
-        renderMatrixRows(hasAnyConstraint);
+        renderMatrixRows();
       }
     }
 
@@ -1438,13 +1493,13 @@
         const totalRain = records.reduce((sum, r) => sum + (r.rainIn || 0), 0);
 
         let statusText = '';
-        let cardPassClass = '';
+        let cardStateClass = '';
 
         if (!hasAnyConstraint) {
           statusText = 'NO RX SET';
         } else if (inRxCount > 0) {
           statusText = `${inRxCount}h IN-RX`;
-          cardPassClass = 'card-pass';
+          cardStateClass = 'card-pass';
         } else {
           const daytimeRecords = records.filter(r => {
             const hr = r.pTime.getHours();
@@ -1458,7 +1513,10 @@
           });
           
           const sortedLimiters = Object.entries(limiterCounts).sort((a, b) => b[1] - a[1]);
-          if (sortedLimiters.length > 0) {
+          if (sortedLimiters.length === 1 && sortedLimiters[0][0] === 'Vent N/A') {
+            statusText = 'VENT DATA N/A';
+            cardStateClass = 'card-warn';
+          } else if (sortedLimiters.length > 0) {
             statusText = `OUT-OF-RX: ${sortedLimiters.slice(0, 2).map(e => e[0]).join(', ')}`;
           } else {
             statusText = 'OUT-OF-RX';
@@ -1466,7 +1524,7 @@
         }
 
         const card = document.createElement('div');
-        card.className = `day-card ${cardPassClass} ${activeDayFilter === key ? 'selected' : ''}`;
+        card.className = `day-card ${cardStateClass} ${activeDayFilter === key ? 'selected' : ''}`;
         card.onclick = () => selectDayFromCard(key);
 
         let stormBadge = '';
@@ -1505,7 +1563,7 @@
       renderMatrixRows();
     }
 
-    function renderMatrixRows(hasAnyConstraint) {
+    function renderMatrixRows() {
       const tbody = document.getElementById('matrix-body');
       tbody.innerHTML = '';
 
@@ -1517,6 +1575,8 @@
       const maxGust = getNumOrNull('maxGust');
       const minVent = getNumOrNull('minVent');
       const hasWindDir = permittedWindDirs.size > 0;
+
+      const hasAnyConstraint = (minTemp !== null || maxTemp !== null || minRH !== null || maxRH !== null || maxWind !== null || maxGust !== null || minVent !== null || hasWindDir);
 
       let displayedRecords = cachedHourlyRecords;
       if (activeDayFilter) {
@@ -1539,7 +1599,9 @@
 
         let dateCellClass = '';
         if (hasAnyConstraint) {
-          dateCellClass = r.isGo ? 'cell-pass' : 'cell-fail';
+          if (r.isGo) dateCellClass = 'cell-pass';
+          else if (r.ventMissing && r.tempOk && r.rhOk && r.windOk) dateCellClass = 'cell-warn';
+          else dateCellClass = 'cell-fail';
         }
 
         let tempCellClass = '';
@@ -1564,17 +1626,14 @@
         
         let ventCellClass = r.ventCat.cls;
         if (minVent !== null) {
-          ventCellClass = r.minVentOk ? 'cell-pass' : 'cell-fail';
+          if (r.ventRate === null) ventCellClass = 'cell-warn';
+          else ventCellClass = r.minVentOk ? 'cell-pass' : 'cell-fail';
         }
 
-        let moistureTd = '';
-        if (showMoistureForecast) {
-          let mHtml = `<div style="font-size:10px; color:#666;">${r.pop}%</div>`;
-          if (r.snowIn >= 0.01) mHtml += `<div style="color:#005a9e; font-weight:bold;">${r.snowIn.toFixed(1)}" S</div>`;
-          else if (r.rainIn >= 0.01) mHtml += `<div style="color:#0078d4; font-weight:bold;">${r.rainIn.toFixed(2)}" R</div>`;
-          else mHtml += `<div style="color:#aaa;">--</div>`;
-          moistureTd = `<td>${mHtml}</td>`;
-        }
+        let mHtml = `<div style="font-size:10px; color:#666;">${r.pop}%</div>`;
+        if (r.snowIn >= 0.01) mHtml += `<div style="color:#005a9e; font-weight:bold;">${r.snowIn.toFixed(1)}" S</div>`;
+        else if (r.rainIn >= 0.01) mHtml += `<div style="color:#0078d4; font-weight:bold;">${r.rainIn.toFixed(2)}" R</div>`;
+        else mHtml += `<div style="color:#aaa;">--</div>`;
 
         tr.innerHTML = `
           <td class="${dateCellClass}" style="border-right: 2px solid #ccc;">
@@ -1583,7 +1642,7 @@
           <td class="${tempCellClass}">${r.temp}°F</td>
           <td class="${rhCellClass}">${r.rh !== null ? r.rh + '%' : 'N/A'}</td>
           <td class="${windCellClass}">${r.windDisplay}</td>
-          ${moistureTd}
+          <td>${mHtml}</td>
           <td>${r.tWindMph !== null ? r.tWindMph + ' mph' : 'N/A'}</td>
           <td class="${ventCellClass}">${ventDisplay}</td>
         `;
@@ -1698,6 +1757,14 @@
       else if (minRH) rhDisplay = `≥ ${minRH}%`;
       else if (maxRH) rhDisplay = `≤ ${maxRH}%`;
 
+      const snowDepthText = document.getElementById('banner-snow-depth').innerText;
+      const forecastPrecipText = document.getElementById('banner-forecast-precip').innerText;
+
+      const ventNoteEl = document.getElementById('vent-unavailable-note');
+      const ventNoteHtml = (ventNoteEl && ventNoteEl.style.display !== 'none')
+        ? `<div style="font-size:11px; color:#856404; background:#fff9e6; border:1px solid #ffeeba; padding:6px 8px; border-radius:4px; margin-bottom:10px;">${ventNoteEl.innerText}</div>`
+        : '';
+
       const satUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
       const topoUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,350&f=image`;
       const svgOverlayHtml = document.getElementById('map-svg').outerHTML;
@@ -1706,7 +1773,12 @@
       if (show7Day) {
         const cardsClone = document.getElementById('day-cards-grid').cloneNode(true);
         sevenDaySummaryHtml = `
-          <div class="report-section-title">7-Day Burn Window Outlook</div>
+          <div class="report-section-title">Ground Conditions & 7-Day Burn Window Outlook</div>
+          <div style="font-size:12px; margin-bottom:8px;">
+            <strong>Current Unit Snow Depth (NOAA):</strong> ${snowDepthText} &nbsp;|&nbsp;
+            <strong>7-Day Forecast Precip:</strong> ${forecastPrecipText}
+          </div>
+          ${ventNoteHtml}
           <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(95px, 1fr)); gap:6px; margin-bottom:12px;">
             ${cardsClone.innerHTML}
           </div>
@@ -1721,7 +1793,7 @@
           let keptCount = 0;
           rows.forEach(row => {
             const firstCell = row.cells[0];
-            if (firstCell && firstCell.classList.contains('cell-fail')) {
+            if (firstCell && !firstCell.classList.contains('cell-pass')) {
               row.remove();
             } else {
               keptCount++;
@@ -1729,7 +1801,7 @@
           });
           if (keptCount === 0) {
             const emptyTr = document.createElement('tr');
-            emptyTr.innerHTML = `<td colspan="${showMoistureForecast ? 7 : 6}" style="padding:14px; color:#666; font-style:italic;">No forecast hours met all prescription thresholds during this forecast period.</td>`;
+            emptyTr.innerHTML = `<td colspan="7" style="padding:14px; color:#666; font-style:italic;">No forecast hours met all prescription thresholds during this forecast period.</td>`;
             matrixClone.querySelector('tbody').appendChild(emptyTr);
           }
         }
@@ -1759,9 +1831,11 @@
 
             .day-card { border: 1px solid #ccc; border-radius: 4px; padding: 12px 4px 6px 4px; text-align: center; font-size: 10px; background: #fafafa; position: relative; }
             .day-card.card-pass { background: #eef8ee; border-color: #28a745; }
+            .day-card.card-warn { background: #fffbeb; border-color: #f59e0b; }
             .day-title { font-weight: bold; margin-top: 6px; }
             .status-pill { font-weight: bold; display: inline-block; padding: 1px 4px; border-radius: 6px; font-size: 9px; margin: 3px 0; background: #6c757d; color: white; }
             .card-pass .status-pill { background: #28a745; }
+            .card-warn .status-pill { background: #d97706; }
             .storm-badge { font-size: 9px; font-weight: bold; background: #005a9e; color: white; padding: 2px 4px; border-radius: 3px; position: absolute; top: -6px; left: 50%; transform: translateX(-50%); white-space: nowrap; }
 
             #raws-box.data-box { background: transparent !important; border: none !important; padding: 0 !important; margin-bottom: 14px !important; }
