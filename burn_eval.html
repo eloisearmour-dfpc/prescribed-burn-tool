@@ -4,140 +4,295 @@
   <meta charset="UTF-8">
   <title>Prescription Weather Evaluator</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 14px; background: #f8f9fa; color: #333; margin: 0; font-size: 13px; }
-    .card { background: white; padding: 16px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 12px; }
-    
-    /* Watchlist Toolbar */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 16px;
+      background: #f1f5f9;
+      color: #1e293b;
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    /* Unified Card Container */
+    .card {
+      background: #ffffff;
+      padding: 18px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+      margin-bottom: 16px;
+    }
+
+    /* Calm Watchlist Toolbar */
     .watchlist-bar {
       display: flex;
       gap: 8px;
       align-items: center;
-      background: #f0f7fc;
-      border: 1px solid #b6dcfb;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
       border-radius: 6px;
       padding: 8px 10px;
-      margin-bottom: 12px;
+      margin-bottom: 16px;
       flex-wrap: wrap;
     }
     .watchlist-bar select {
       flex: 1;
       min-width: 180px;
-      padding: 6px 8px;
+      padding: 6px 9px;
       font-size: 12px;
-      font-weight: 600;
-      border: 1px solid #0078d4;
-      border-radius: 4px;
-      background: #fff;
+      font-weight: 500;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+      border-radius: 5px;
+      background: #ffffff;
+      cursor: pointer;
+    }
+    .watchlist-bar select:focus {
+      outline: none;
+      border-color: #0078d4;
     }
 
-    .input-header { font-size: 12px; font-weight: bold; color: #0078d4; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 8px 0; border-bottom: 1px solid #0078d4; padding-bottom: 4px; }
-    .rx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
-    .rx-field { display: flex; flex-direction: column; font-size: 12px; font-weight: bold; color: #444; position: relative; }
-    .rx-field input, .rx-field select { padding: 7px; font-size: 13px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 4px; background: #fff; box-sizing: border-box; }
-    .rx-field select { padding: 6px 7px; cursor: pointer; }
-    
+    /* Section Headers */
+    .section-header {
+      font-size: 11px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin: 16px 0 10px 0;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 6px;
+    }
+    .section-header.first {
+      margin-top: 0;
+    }
+
+    /* Calm Inputs */
+    .rx-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
+      gap: 10px;
+    }
+    .rx-field {
+      display: flex;
+      flex-direction: column;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: #475569;
+      position: relative;
+    }
+    .rx-field input,
+    .rx-field select {
+      padding: 7px 8px;
+      font-size: 13px;
+      color: #0f172a;
+      border: 1px solid #cbd5e1;
+      border-radius: 5px;
+      margin-top: 4px;
+      background: #ffffff;
+      box-sizing: border-box;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .rx-field select {
+      padding: 6px 8px;
+      cursor: pointer;
+    }
+    .rx-field input::placeholder {
+      color: #94a3b8;
+    }
+    .rx-field input:focus,
+    .rx-field select:focus {
+      outline: none;
+      border-color: #0078d4;
+      box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.12);
+    }
+
     /* Compact Multi-Select Dropdown */
     .custom-select-btn {
       padding: 7px 8px;
-      font-size: 12px;
-      border: 1px solid #0078d4;
-      border-radius: 4px;
+      font-size: 12.5px;
+      border: 1px solid #cbd5e1;
+      border-radius: 5px;
       margin-top: 4px;
-      background: #fff;
+      background: #ffffff;
       cursor: pointer;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-weight: normal;
-      color: #333;
+      font-weight: 400;
+      color: #0f172a;
       user-select: none;
       box-sizing: border-box;
       height: 31px;
+      transition: border-color 0.15s;
+    }
+    .custom-select-btn:hover {
+      border-color: #94a3b8;
     }
     .custom-dropdown-menu {
       position: absolute;
       top: 100%;
       left: 0;
-      width: 140px;
-      background: white;
-      border: 1px solid #0078d4;
-      border-radius: 4px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      width: 144px;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
       z-index: 1000;
       padding: 6px;
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 4px;
       box-sizing: border-box;
+      margin-top: 2px;
     }
     .wind-chk-item {
       display: flex;
       align-items: center;
-      gap: 4px;
-      font-size: 11px;
-      font-weight: 600;
+      gap: 5px;
+      font-size: 11.5px;
+      font-weight: 500;
       cursor: pointer;
-      color: #333;
-      padding: 2px 4px;
-      border-radius: 3px;
+      color: #334155;
+      padding: 3px 5px;
+      border-radius: 4px;
     }
-    .wind-chk-item:hover { background: #f0f7fc; }
+    .wind-chk-item:hover {
+      background: #f1f5f9;
+    }
 
-    /* Clean Details Summary */
+    /* Collapsible Manual Setup */
     details.setup-details {
-      margin-bottom: 12px;
-      padding: 8px 10px;
-      background: #f0f4f8;
+      margin-bottom: 14px;
+      padding: 8px 12px;
+      background: #f8fafc;
       border-radius: 6px;
-      border: 1px solid #d0e1f9;
+      border: 1px solid #e2e8f0;
     }
     details.setup-details summary {
       font-size: 12px;
-      font-weight: bold;
-      color: #0078d4;
+      font-weight: 500;
+      color: #475569;
       cursor: pointer;
       outline: none;
     }
-    
+    details.setup-details summary:hover {
+      color: #0078d4;
+    }
     .setup-content {
       margin-top: 10px;
       padding-top: 10px;
-      border-top: 1px solid #d0e1f9;
+      border-top: 1px solid #e2e8f0;
     }
     .file-upload-btn {
       display: inline-block;
-      background: #fff;
-      color: #0078d4;
-      border: 1px solid #0078d4;
+      background: #ffffff;
+      color: #334155;
+      border: 1px solid #cbd5e1;
       padding: 6px 12px;
       font-size: 12px;
-      font-weight: 600;
-      border-radius: 4px;
+      font-weight: 500;
+      border-radius: 5px;
       cursor: pointer;
       margin-bottom: 8px;
     }
-    .file-upload-btn:hover { background: #f0f7fc; }
-    .coord-box { margin-bottom: 4px; }
-    .coord-box input { width: 100%; padding: 7px; font-size: 13px; border: 1px solid #0078d4; border-radius: 4px; box-sizing: border-box; margin-top: 5px; }
+    .file-upload-btn:hover {
+      background: #f8fafc;
+      border-color: #94a3b8;
+    }
+    .coord-box {
+      margin-bottom: 4px;
+    }
+    .coord-box input {
+      width: 100%;
+      padding: 7px 8px;
+      font-size: 13px;
+      border: 1px solid #cbd5e1;
+      border-radius: 5px;
+      box-sizing: border-box;
+      margin-top: 5px;
+    }
+    .coord-box input:focus {
+      outline: none;
+      border-color: #0078d4;
+    }
 
-    /* Ground & Snow Banner */
+    /* Buttons */
+    button {
+      background: #0078d4;
+      color: #ffffff;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 5px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      margin-top: 14px;
+      width: 100%;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    button:hover {
+      background: #0063b1;
+    }
+    button:disabled {
+      cursor: not-allowed;
+      background: #94a3b8;
+    }
+
+    button.inline-btn {
+      width: auto !important;
+      margin: 0 !important;
+      padding: 6px 11px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    button.secondary-btn {
+      background: #ffffff;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+    }
+    button.secondary-btn:hover {
+      background: #f8fafc;
+      border-color: #94a3b8;
+      color: #0f172a;
+    }
+    button.del-btn {
+      color: #64748b;
+      border-color: #cbd5e1;
+    }
+    button.del-btn:hover {
+      color: #b91c1c;
+      border-color: #fca5a5;
+      background: #fef2f2;
+    }
+    button.export-btn {
+      background: #198754;
+      margin-top: 4px;
+      margin-bottom: 16px;
+      font-size: 13px;
+    }
+    button.export-btn:hover {
+      background: #157347;
+    }
+
+    /* Ground Conditions Strip (Inside Outlook Card) */
     .ground-banner {
       display: none;
-      background: #eef6fc;
-      border: 1px solid #b6dcfb;
-      border-left: 4px solid #0078d4;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
       border-radius: 6px;
-      padding: 9px 12px;
-      margin: 12px 0 6px 0;
+      padding: 10px 14px;
+      margin-bottom: 16px;
       font-size: 12px;
-      color: #222;
+      color: #334155;
     }
     .ground-banner-inner {
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
-      gap: 8px 16px;
+      gap: 8px 20px;
     }
     .ground-stat {
       display: flex;
@@ -146,143 +301,316 @@
     }
     .ground-stat .g-label {
       font-size: 11px;
-      font-weight: bold;
+      font-weight: 600;
       text-transform: uppercase;
-      color: #005a9e;
-      letter-spacing: 0.3px;
+      color: #64748b;
+      letter-spacing: 0.4px;
     }
     .ground-stat .g-val {
       font-size: 13px;
-      font-weight: bold;
-      color: #111;
-    }
-
-    .data-box { background: #eef6fc; border-left: 4px solid #0078d4; padding: 12px; border-radius: 4px; margin-top: 12px; font-size: 13px; }
-    .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 10px; margin-top: 8px; }
-    .data-item { background: white; padding: 8px 10px; border-radius: 4px; border: 1px solid #d0e1f9; }
-    .data-item .label { font-size: 11px; color: #555; text-transform: uppercase; font-weight: bold; }
-    .data-item .val { font-size: 14px; font-weight: bold; color: #0078d4; margin-top: 3px; }
-
-    button { background: #0078d4; color: white; border: none; padding: 12px; border-radius: 4px; font-weight: bold; font-size: 14px; cursor: pointer; margin-top: 14px; width: 100%; transition: background 0.2s, opacity 0.2s; }
-    button:hover { background: #005a9e; }
-    button:disabled { cursor: not-allowed; background: #6c757d; }
-
-    #evalBtn {
-      background: #f8fafc;
-      color: #495057;
-      border: 1px solid #ced4da;
-      padding: 8px 14px;
-      font-size: 12px;
       font-weight: 600;
-      border-radius: 4px;
-      cursor: pointer;
-      margin-top: 10px;
-      width: 100%;
-      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      color: #0f172a;
     }
-    #evalBtn:hover {
-      background: #eef6fc;
-      color: #0078d4;
-      border-color: #b6dcfb;
-    }
-    
-    button.inline-btn { width: auto !important; margin: 0 !important; padding: 6px 12px; font-size: 12px; font-weight: 600; }
-    button.secondary-btn { background: #fff; color: #0078d4; border: 1px solid #0078d4; }
-    button.secondary-btn.active { background: #0078d4; color: #fff; }
-    button.del-btn { color: #d9534f; border-color: #d9534f; }
-    button.del-btn:hover { background: #fdf2f2; }
-    button.export-btn { background: #28a745; margin-top: 14px; margin-bottom: 14px; font-size: 14px; }
-    button.export-btn:hover { background: #218838; }
 
     /* 7-Day Overview Cards */
-    .day-cards-header { display: flex; justify-content: space-between; align-items: center; margin: 12px 0 8px 0; }
-    .day-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 6px; margin-bottom: 10px; transition: opacity 0.15s; }
+    .day-cards-header {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      margin: 0 0 10px 0;
+    }
+    .day-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
     .day-card {
-      background: #f1f3f5;
-      border: 1px solid #ced4da;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
       border-radius: 6px;
-      padding: 10px 4px 6px 4px;
+      padding: 10px 4px 8px 4px;
       text-align: center;
       cursor: pointer;
       position: relative;
-      transition: transform 0.15s, border-color 0.15s;
+      transition: transform 0.12s, border-color 0.15s, background 0.15s;
     }
-    .day-card:hover { transform: translateY(-2px); border-color: #0078d4; }
-    .day-card.selected { border-color: #0078d4; box-shadow: 0 0 0 2px #0078d4; }
-    .day-card.card-pass { background: #e8f5e9; border-color: #28a745; }
-    .day-card.card-pass .status-pill { background: #28a745; color: white; }
-    .day-card.card-warn { background: #fffbeb; border-color: #f59e0b; }
-    .day-card.card-warn .status-pill { background: #d97706; color: white; }
-    .day-card .storm-badge { font-size: 9px; font-weight: bold; background: #005a9e; color: white; padding: 2px 4px; border-radius: 3px; position: absolute; top: -6px; left: 50%; transform: translateX(-50%); letter-spacing: 0.5px; white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
-    .day-card .day-title { font-size: 12px; font-weight: bold; text-transform: uppercase; color: #222; margin-top: 2px; }
-    .day-card .day-date { font-size: 10px; color: #666; margin-bottom: 4px; }
-    .day-card .status-pill { font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 10px; background: #6c757d; color: white; display: inline-block; margin-bottom: 4px; }
-    .day-card .day-stats { font-size: 11px; color: #444; line-height: 1.3; font-weight: 500; }
+    .day-card:hover {
+      transform: translateY(-1px);
+      border-color: #94a3b8;
+    }
+    .day-card.selected {
+      border-color: #0078d4;
+      box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.25);
+    }
+    .day-card.card-pass {
+      background: #f0fdf4;
+      border-color: #86efac;
+    }
+    .day-card.card-pass .status-pill {
+      background: #16a34a;
+      color: #ffffff;
+    }
+    .day-card.card-warn {
+      background: #fffbeb;
+      border-color: #fcd34d;
+    }
+    .day-card.card-warn .status-pill {
+      background: #d97706;
+      color: #ffffff;
+    }
+    .day-card .storm-badge {
+      font-size: 9px;
+      font-weight: 700;
+      background: #475569;
+      color: #ffffff;
+      padding: 2px 5px;
+      border-radius: 3px;
+      position: absolute;
+      top: -7px;
+      left: 50%;
+      transform: translateX(-50%);
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+    }
+    .day-card .day-title {
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #1e293b;
+      margin-top: 2px;
+    }
+    .day-card .day-date {
+      font-size: 10.5px;
+      color: #64748b;
+      margin-bottom: 5px;
+    }
+    .day-card .status-pill {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 10px;
+      background: #64748b;
+      color: #ffffff;
+      display: inline-block;
+      margin-bottom: 5px;
+    }
+    .day-card .day-stats {
+      font-size: 11px;
+      color: #475569;
+      line-height: 1.3;
+      font-weight: 500;
+    }
 
-    /* Simple Outline Button for Hourly */
-    .hourly-toggle-bar { margin: 10px 0; text-align: center; }
+    /* Calm Hourly Toggle Bar */
+    .hourly-toggle-bar {
+      margin-top: 10px;
+      text-align: center;
+    }
     .hourly-toggle-btn {
       width: 100% !important;
-      background: #fff;
-      color: #0078d4;
-      border: 1px solid #0078d4;
+      background: #f8fafc;
+      color: #334155;
+      border: 1px solid #cbd5e1;
       padding: 8px 12px;
       font-size: 12px;
-      font-weight: bold;
-      border-radius: 4px;
+      font-weight: 600;
+      border-radius: 5px;
       cursor: pointer;
       margin: 0;
-      transition: background 0.2s;
     }
-    .hourly-toggle-btn:hover { background: #f0f7fc; }
+    .hourly-toggle-btn:hover {
+      background: #f1f5f9;
+      border-color: #94a3b8;
+      color: #0f172a;
+    }
 
     /* Matrix Table */
-    table { width: 100%; border-collapse: collapse; background: white; margin-top: 10px; font-size: 12px; }
-    th, td { border: 1px solid #dee2e6; padding: 7px 6px; text-align: center; }
-    th { background: #e9ecef; font-weight: bold; }
-    tr.matrix-row { background-color: #ffffff; }
-    tr.matrix-row:nth-child(even) { background-color: #fbfcfd; }
+    #matrix-container {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid #e2e8f0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #ffffff;
+      margin-top: 10px;
+      font-size: 12px;
+    }
+    th, td {
+      border: 1px solid #e2e8f0;
+      padding: 7px 6px;
+      text-align: center;
+    }
+    th {
+      background: #f8fafc;
+      color: #475569;
+      font-weight: 600;
+      font-size: 11.5px;
+    }
+    tr.matrix-row {
+      background-color: #ffffff;
+    }
+    tr.matrix-row:nth-child(even) {
+      background-color: #fcfdfe;
+    }
     
-    .cell-pass { background-color: #d4edda !important; color: #155724 !important; font-weight: 600; }
-    .cell-fail { background-color: #fce8e8 !important; color: #721c24 !important; font-weight: 600; }
-    .cell-warn { background-color: #fff3cd !important; color: #856404 !important; font-weight: 600; }
+    .cell-pass { background-color: #dcfce7 !important; color: #166534 !important; font-weight: 600; }
+    .cell-fail { background-color: #fee2e2 !important; color: #991b1b !important; font-weight: 600; }
+    .cell-warn { background-color: #fef3c7 !important; color: #92400e !important; font-weight: 600; }
 
-    .map-controls-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; font-weight: bold; }
-    .map-btn-group { display: flex; gap: 6px; }
-    .map-toggle-btn { padding: 4px 10px; font-size: 12px; font-weight: 600; border: 1px solid #0078d4; background: #fff; color: #0078d4; border-radius: 4px; cursor: pointer; width: auto !important; margin: 0 !important; }
-    .map-toggle-btn.active { background: #0078d4; color: #fff; }
+    /* RAWS Metric Tiles (Matches Card Style) */
+    .data-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .data-item {
+      background: #f8fafc;
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+    }
+    .data-item .label {
+      font-size: 10.5px;
+      color: #64748b;
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+    .data-item .val {
+      font-size: 14px;
+      font-weight: 600;
+      color: #0f172a;
+      margin-top: 4px;
+    }
 
-    .map-container { position: relative; width: 100%; max-width: 600px; margin: 14px auto; display: none; text-align: center; }
-    .map-container img { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; display: block; }
-    .map-container svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    /* Map Preview Card */
+    .map-controls-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .map-btn-group {
+      display: flex;
+      gap: 6px;
+    }
+    .map-toggle-btn {
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: #334155;
+      border-radius: 5px;
+      cursor: pointer;
+      width: auto !important;
+      margin: 0 !important;
+    }
+    .map-toggle-btn:hover {
+      background: #f8fafc;
+    }
+    .map-toggle-btn.active {
+      background: #0078d4;
+      border-color: #0078d4;
+      color: #ffffff;
+    }
 
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.55); z-index: 1000; align-items: center; justify-content: center; }
-    .modal { background: white; padding: 20px; border-radius: 8px; max-width: 440px; width: 90%; box-shadow: 0 4px 16px rgba(0,0,0,0.25); text-align: left; }
-    .modal h4 { margin: 0 0 10px 0; font-size: 16px; color: #0078d4; }
-    .modal-option { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: 13px; font-weight: 500; cursor: pointer; }
-    .modal-btn-row { display: flex; gap: 8px; margin-top: 14px; }
-    .modal-btn-row button { margin: 0; }
+    .map-container {
+      display: none;
+    }
+    .map-frame {
+      position: relative;
+      width: 100%;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .map-frame img {
+      width: 100%;
+      height: auto;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      display: block;
+    }
+    .map-frame svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    /* Export Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(15, 23, 42, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal {
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 440px;
+      width: 90%;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.2);
+      text-align: left;
+    }
+    .modal h4 {
+      margin: 0 0 8px 0;
+      font-size: 16px;
+      color: #0f172a;
+    }
+    .modal-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 10px 0;
+      font-size: 13px;
+      font-weight: 400;
+      color: #334155;
+      cursor: pointer;
+    }
+    .modal-btn-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .modal-btn-row button {
+      margin: 0;
+    }
   </style>
 </head>
 <body>
 
+  <!-- 1. UNIT SELECTION & PRESCRIPTION INPUTS CARD -->
   <div class="card">
-    <!-- Watchlist Quick Toolbar -->
     <div class="watchlist-bar">
       <select id="watchlistSelect" onchange="loadFromWatchlist(this.value)">
         <option value="">-- Saved Units Watchlist --</option>
       </select>
       <button type="button" class="inline-btn secondary-btn" onclick="saveCurrentToWatchlist()">Save Unit</button>
       <button type="button" class="inline-btn secondary-btn del-btn" onclick="deleteFromWatchlist()">Delete</button>
-      <span id="saveConfirmMsg" style="color:#28a745; font-weight:bold; font-size:12px; margin-left:6px; opacity:0; transition:opacity 0.3s;">Saved</span>
+      <span id="saveConfirmMsg" style="color:#16a34a; font-weight:600; font-size:12px; margin-left:4px; opacity:0; transition:opacity 0.3s;">Saved</span>
     </div>
 
-    <h3 id="unit-title" style="margin:0 0 2px 0; font-size:17px;">Unit Weather Forecast</h3>
-    <div id="status" style="font-size: 12px; color: #666; margin-bottom: 12px;">
+    <h3 id="unit-title" style="margin:0 0 3px 0; font-size:17px; color:#0f172a;">Unit Weather Forecast</h3>
+    <div id="status" style="font-size: 12px; color: #64748b; margin-bottom: 14px;">
       Select a unit on the map or load from your watchlist.
     </div>
 
-    <!-- Collapsible Advanced Setup -->
     <details class="setup-details">
       <summary>Change boundary or coordinates manually</summary>
       <div class="setup-content">
@@ -291,13 +619,13 @@
           <input type="file" id="fileInput" accept=".json,.geojson,.kml" onchange="handleFileUpload(event)" style="display:none;">
         </label>
         <div class="coord-box">
-          <div style="font-size: 11px; font-weight: bold; color: #555;">Or Enter Lat/Lon Coordinates:</div>
+          <div style="font-size: 11.5px; font-weight: 500; color: #475569;">Or Enter Lat/Lon Coordinates:</div>
           <input type="text" id="coordInput" placeholder="e.g. 38.87, -106.95">
         </div>
       </div>
     </details>
 
-    <div class="input-header">Prescription Thresholds</div>
+    <div class="section-header">Prescription Thresholds</div>
 
     <div class="rx-grid">
       <div class="rx-field">Min Temp (°F)<input type="number" id="minTemp" placeholder="None"></div>
@@ -307,18 +635,16 @@
       <div class="rx-field">Max Wind (mph)<input type="number" id="maxWind" placeholder="None"></div>
       <div class="rx-field">Max Gust (mph)<input type="number" id="maxGust" placeholder="None"></div>
       
-      <!-- State-Aware Vent Dropdown -->
       <div class="rx-field">Min Vent
         <select id="minVent">
           <option value="">Any (None)</option>
         </select>
       </div>
       
-      <!-- Wind Direction Multi-Select Dropdown in Grid -->
       <div class="rx-field" id="windField">
         <span style="display:flex; justify-content:space-between; align-items:center;">
           Wind Dir
-          <span id="windClearBtn" onclick="clearWindDirs(event)" style="cursor:pointer; color:#0078d4; font-size:10px; display:none;">Clear</span>
+          <span id="windClearBtn" onclick="clearWindDirs(event)" style="cursor:pointer; color:#0078d4; font-size:10.5px; display:none;">Clear</span>
         </span>
         <div id="windSelectBtn" class="custom-select-btn" onclick="toggleWindMenu(event)">
           <span id="windSelectLabel">Any Dir</span>
@@ -339,63 +665,61 @@
     <button id="evalBtn" onclick="handleEvaluateClick()">Evaluate 7-Day Forecast</button>
   </div>
 
-  <!-- Ground Conditions & Snow Banner -->
-  <div id="ground-banner" class="ground-banner">
-    <div class="ground-banner-inner">
-      <div class="ground-stat">
-        <span class="g-label">Current Unit Snow Depth (NOAA):</span>
-        <span class="g-val" id="banner-snow-depth">Loading...</span>
+  <!-- 2. GROUND CONDITIONS & 7-DAY OUTLOOK CARD -->
+  <div id="outlook-card" class="card" style="display:none;">
+    <div id="ground-banner" class="ground-banner">
+      <div class="ground-banner-inner">
+        <div class="ground-stat">
+          <span class="g-label">Current Unit Snow Depth (NOAA):</span>
+          <span class="g-val" id="banner-snow-depth">Loading...</span>
+        </div>
+        <div class="ground-stat">
+          <span class="g-label">7-Day Forecast Precip:</span>
+          <span class="g-val" id="banner-forecast-precip">--</span>
+        </div>
       </div>
-      <div class="ground-stat">
-        <span class="g-label">7-Day Forecast Precip:</span>
-        <span class="g-val" id="banner-forecast-precip">--</span>
+    </div>
+
+    <div id="day-overview-container" style="display:none;">
+      <div class="day-cards-header">
+        <div class="section-header first" style="width:100%; margin-bottom:4px;">7-Day Burn Window Outlook</div>
+        <div id="active-rules-breadcrumb" style="font-size:11px; color:#64748b;"></div>
+        <div id="vent-unavailable-note" style="display:none; font-size:11.5px; color:#92400e; background:#fef3c7; border:1px solid #fde68a; padding:6px 10px; border-radius:5px; margin-top:8px; width:100%; box-sizing:border-box;"></div>
       </div>
+      <div class="day-cards-grid" id="day-cards-grid"></div>
+      
+      <div class="hourly-toggle-bar">
+        <button type="button" id="btnToggleHourly" class="hourly-toggle-btn" onclick="toggleHourlySection()">
+          Show Hourly Breakdown
+        </button>
+      </div>
+    </div>
+
+    <div id="matrix-container" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span id="active-day-heading" style="font-size:12px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.4px;">Hourly Breakdown</span>
+        <button class="inline-btn secondary-btn" onclick="showAllHours()" style="font-size:11px; padding:5px 9px;">Show All 7 Days</button>
+      </div>
+      <table id="matrix">
+        <thead>
+          <tr>
+            <th>Date / Time</th>
+            <th>Temp</th>
+            <th>RH</th>
+            <th>20ft Wind</th>
+            <th>Precip & Snow</th>
+            <th>Transport Wind</th>
+            <th>Vent Rate</th>
+          </tr>
+        </thead>
+        <tbody id="matrix-body"></tbody>
+      </table>
     </div>
   </div>
 
-  <!-- 7-Day Outlook Cards -->
-  <div id="day-overview-container" style="display:none;">
-    <div class="day-cards-header" style="flex-direction:column; align-items:flex-start;">
-      <strong style="color:#0078d4; text-transform:uppercase; font-size:12px; letter-spacing:0.5px;">7-Day Burn Window Outlook</strong>
-      <div id="active-rules-breadcrumb" style="font-size:10px; color:#666; font-style:italic; margin-top:2px;"></div>
-      <div id="vent-unavailable-note" style="display:none; font-size:11px; color:#856404; background:#fff3cd; border:1px solid #ffeeba; padding:5px 8px; border-radius:4px; margin-top:6px;"></div>
-    </div>
-    <div class="day-cards-grid" id="day-cards-grid"></div>
-    
-    <!-- Collapsible Bar for Hourly Details -->
-    <div class="hourly-toggle-bar">
-      <button type="button" id="btnToggleHourly" class="hourly-toggle-btn" onclick="toggleHourlySection()">
-        Show Hourly Breakdown
-      </button>
-    </div>
-  </div>
-
-  <!-- Hourly Matrix (Collapsed by Default) -->
-  <div id="matrix-container" style="display:none;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; border-bottom:1px solid #dee2e6; padding-bottom:8px;">
-      <span id="active-day-heading" style="font-size:13px; font-weight:bold; color:#0078d4; text-transform:uppercase;">Hourly Breakdown</span>
-      <div style="display:flex; gap:8px;">
-        <button class="inline-btn secondary-btn" onclick="showAllHours()" style="font-size:11px; padding:6px 8px;">Show All 7 Days</button>
-      </div>
-    </div>
-    <table id="matrix">
-      <thead>
-        <tr>
-          <th>Date / Time</th>
-          <th>Temp</th>
-          <th>RH</th>
-          <th>20ft Wind</th>
-          <th>Precip & Snow</th>
-          <th>Transport Wind</th>
-          <th>Vent Rate</th>
-        </tr>
-      </thead>
-      <tbody id="matrix-body"></tbody>
-    </table>
-  </div>
-
-  <div id="raws-box" class="data-box" style="display:none;">
-    <div style="font-weight:bold; color:#0078d4; margin-bottom:6px; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;" id="raws-header">Nearest RAWS Station & Fuel Moisture</div>
+  <!-- 3. NEAREST RAWS STATION CARD -->
+  <div id="raws-box" class="card" style="display:none;">
+    <div class="section-header first" id="raws-header">Nearest RAWS Station & Fuel Moisture</div>
     <div class="data-grid">
       <div class="data-item"><div class="label">Observed Temp</div><div class="val" id="raws-temp">--</div></div>
       <div class="data-item"><div class="label">Observed RH</div><div class="val" id="raws-rh">--</div></div>
@@ -406,16 +730,16 @@
     </div>
   </div>
 
-  <!-- Map Preview with Satellite & Topo Toggles -->
-  <div id="map-preview" class="map-container">
+  <!-- 4. LOCATION PREVIEW MAP CARD -->
+  <div id="map-preview" class="card map-container">
     <div class="map-controls-row">
-      <span style="text-transform:uppercase; font-size:11px; color:#555;">Location Preview</span>
+      <span style="font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.6px;">Location Preview</span>
       <div class="map-btn-group">
         <button class="map-toggle-btn active" id="btnSat" onclick="setBasemap('sat')">Satellite</button>
         <button class="map-toggle-btn" id="btnTopo" onclick="setBasemap('topo')">Topo</button>
       </div>
     </div>
-    <div style="position:relative; display:inline-block; width:100%;">
+    <div class="map-frame">
       <img id="map-img" src="" alt="Unit Location Preview">
       <svg id="map-svg" viewBox="0 0 600 350" preserveAspectRatio="none">
         <path id="svg-polygon" d="" fill="rgba(0, 255, 255, 0.25)" stroke="#00ffff" stroke-width="3" />
@@ -430,11 +754,11 @@
   <div id="exportModal" class="modal-overlay">
     <div class="modal">
       <h4>Export Report Options</h4>
-      <p style="font-size:13px; color:#666; margin-bottom:12px;">Select data sections to include in your printed PDF report:</p>
+      <p style="font-size:12.5px; color:#64748b; margin-bottom:12px;">Select data sections to include in your printed PDF report:</p>
       
       <label class="modal-option">
         <input type="checkbox" id="chkOnlyInRx">
-        <strong>Only export burn windows</strong> (filter out hours that are out of prescription)
+        <span><strong>Only export burn windows</strong> (filter out out-of-prescription hours)</span>
       </label>
       <label class="modal-option"><input type="checkbox" id="chk7DaySummary" checked> 7-Day Outlook Cards & Snow Banner</label>
       <label class="modal-option"><input type="checkbox" id="chkMatrix" checked> Hourly Forecast Matrix</label>
@@ -443,7 +767,7 @@
       <label class="modal-option"><input type="checkbox" id="chkTopoMap" checked> Topographic Map Preview</label>
 
       <div class="modal-btn-row">
-        <button class="inline-btn" onclick="generatePDF()">Print / Save as PDF</button>
+        <button class="inline-btn" style="background:#0078d4; color:#fff;" onclick="generatePDF()">Print / Save as PDF</button>
         <button class="inline-btn secondary-btn" onclick="closeExportModal()">Cancel</button>
       </div>
     </div>
@@ -481,7 +805,6 @@
 
     document.getElementById('unit-title').innerText = activeUnitLabel;
 
-    // Dynamic State-Aware Vent Dropdown Loader
     function updateVentDropdown(stateCode, forceValue = null) {
       const sel = document.getElementById('minVent');
       const currentVal = forceValue !== null ? forceValue : sel.value;
@@ -515,7 +838,6 @@
       sel.value = currentVal !== null ? currentVal : "";
     }
 
-    // Initialize inputs from URL params
     updateVentDropdown(activeStateCode, urlParams.get('minVent') || "");
     if (urlParams.get('minTemp')) document.getElementById('minTemp').value = urlParams.get('minTemp');
     if (urlParams.get('maxTemp')) document.getElementById('maxTemp').value = urlParams.get('maxTemp');
@@ -1109,12 +1431,12 @@
     async function fetchNoaaSnowDepth(lat, lon) {
       const snowEl = document.getElementById('banner-snow-depth');
       snowEl.innerText = 'Loading...';
+      document.getElementById('outlook-card').style.display = 'block';
       document.getElementById('ground-banner').style.display = 'block';
 
       try {
         const samplePoints = [{ lat, lon }];
 
-        // Add interior quadrant midpoints so units straddling the snow line report the full range
         if (currentRings && currentRings.length > 0) {
           const pts = [];
           currentRings.forEach(ring => ring.forEach(pt => pts.push(normalizePoint(pt[0], pt[1]))));
@@ -1225,7 +1547,7 @@
     }
 
     /* =========================================================
-       9. EVALUATION & DATA ENGINE (Soft Constraints / Empty = None)
+       9. EVALUATION & DATA ENGINE
        ========================================================= */
     function handleEvaluateClick() {
       if (cachedHourlyRecords && cachedHourlyRecords.length > 0) {
@@ -1293,7 +1615,6 @@
           activeStateCode = detectedState;
         }
 
-        // Dynamically update ventilation categories for the scanned state
         updateVentDropdown(activeStateCode, document.getElementById('minVent').value);
 
         const hourlyUrl = pointData.properties.forecastHourly;
@@ -1348,16 +1669,17 @@
           };
         });
 
-        // Update 7-day forecast precip summary in banner
         const total7DaySnow = cachedHourlyRecords.reduce((sum, r) => sum + (r.snowIn || 0), 0);
         const total7DayRain = cachedHourlyRecords.reduce((sum, r) => sum + (r.rainIn || 0), 0);
         const precipParts = [];
         if (total7DaySnow >= 0.1) precipParts.push(`${total7DaySnow.toFixed(1)}" Snow`);
         if (total7DayRain >= 0.05) precipParts.push(`${total7DayRain.toFixed(2)}" Rain`);
         document.getElementById('banner-forecast-precip').innerText = precipParts.length > 0 ? precipParts.join(' • ') : 'None forecasted';
+        
+        document.getElementById('outlook-card').style.display = 'block';
         document.getElementById('ground-banner').style.display = 'block';
 
-        document.getElementById('status').innerHTML = `Forecast loaded for: <strong style="color:#333;">${loc.city}, ${loc.state}</strong> (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
+        document.getElementById('status').innerHTML = `Forecast loaded for: <strong style="color:#1e293b;">${loc.city}, ${loc.state}</strong> (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
         document.querySelector('details.setup-details').removeAttribute('open');
         
         reEvaluateAllData();
@@ -1425,7 +1747,7 @@
       if (breadcrumb) {
         breadcrumb.innerText = hasAnyConstraint 
           ? `Active Constraints: ${activeRulesList.join(' | ')}`
-          : `No constraints set: enter thresholds to filter burn windows.`;
+          : `No constraints set — enter thresholds above to filter burn windows.`;
       }
 
       const dayGroups = {};
@@ -1449,7 +1771,6 @@
         const ventMissing = (minVent !== null && r.ventRate === null);
         const minVentOk = (minVent === null || (r.ventRate !== null && r.ventRate >= minVent));
 
-        // Never mark an hour green if a selected Min Vent cannot be verified
         r.isGo = hasAnyConstraint ? (tempOk && rhOk && windOk && minVentOk) : false;
         r.tempOk = tempOk;
         r.rhOk = rhOk;
@@ -1630,13 +1951,13 @@
           else ventCellClass = r.minVentOk ? 'cell-pass' : 'cell-fail';
         }
 
-        let mHtml = `<div style="font-size:10px; color:#666;">${r.pop}%</div>`;
-        if (r.snowIn >= 0.01) mHtml += `<div style="color:#005a9e; font-weight:bold;">${r.snowIn.toFixed(1)}" S</div>`;
-        else if (r.rainIn >= 0.01) mHtml += `<div style="color:#0078d4; font-weight:bold;">${r.rainIn.toFixed(2)}" R</div>`;
-        else mHtml += `<div style="color:#aaa;">--</div>`;
+        let mHtml = `<div style="font-size:10.5px; color:#64748b;">${r.pop}%</div>`;
+        if (r.snowIn >= 0.01) mHtml += `<div style="color:#0369a1; font-weight:600;">${r.snowIn.toFixed(1)}" S</div>`;
+        else if (r.rainIn >= 0.01) mHtml += `<div style="color:#0284c7; font-weight:600;">${r.rainIn.toFixed(2)}" R</div>`;
+        else mHtml += `<div style="color:#cbd5e1;">--</div>`;
 
         tr.innerHTML = `
-          <td class="${dateCellClass}" style="border-right: 2px solid #ccc;">
+          <td class="${dateCellClass}" style="border-right: 2px solid #cbd5e1;">
             <strong>${weekday} ${month}/${day}</strong><br>${time}
           </td>
           <td class="${tempCellClass}">${r.temp}°F</td>
@@ -1836,9 +2157,9 @@
             .status-pill { font-weight: bold; display: inline-block; padding: 1px 4px; border-radius: 6px; font-size: 9px; margin: 3px 0; background: #6c757d; color: white; }
             .card-pass .status-pill { background: #28a745; }
             .card-warn .status-pill { background: #d97706; }
-            .storm-badge { font-size: 9px; font-weight: bold; background: #005a9e; color: white; padding: 2px 4px; border-radius: 3px; position: absolute; top: -6px; left: 50%; transform: translateX(-50%); white-space: nowrap; }
+            .storm-badge { font-size: 9px; font-weight: bold; background: #475569; color: white; padding: 2px 4px; border-radius: 3px; position: absolute; top: -6px; left: 50%; transform: translateX(-50%); white-space: nowrap; }
 
-            #raws-box.data-box { background: transparent !important; border: none !important; padding: 0 !important; margin-bottom: 14px !important; }
+            #raws-box.card { background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 !important; margin-bottom: 14px !important; }
             #raws-header { font-size: 11px !important; font-weight: bold !important; text-transform: uppercase !important; letter-spacing: 0.5px !important; color: #111 !important; border-bottom: 1px solid #444 !important; padding-bottom: 3px !important; margin-bottom: 8px !important; }
             .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-top: 4px; }
             .data-item { background: transparent !important; border: none !important; padding: 0 !important; }
