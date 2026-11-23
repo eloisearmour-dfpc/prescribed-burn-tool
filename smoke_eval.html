@@ -2,415 +2,611 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Rx Smoke Model</title>
+  <title>Prescribed Fire Smoke Trajectory Model</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 14px; background: #f8f9fa; color: #333; margin: 0; font-size: 13px; }
-    .card { background: white; padding: 16px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); margin-bottom: 12px; border: 1px solid #dee2e6; }
-    
-    .input-header { font-size: 12px; font-weight: bold; color: #0078d4; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 8px 0; border-bottom: 1px solid #0078d4; padding-bottom: 4px; }
-    
-    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap: 8px; }
-    .form-field { display: flex; flex-direction: column; font-size: 12px; font-weight: bold; color: #444; }
-    .form-field input, .form-field select { padding: 7px; font-size: 13px; border: 1px solid #0078d4; border-radius: 4px; margin-top: 4px; background: #fff; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 16px;
+      background: #f1f5f9;
+      color: #1e293b;
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.45;
+    }
 
-    /* Collapsible Setup for Upload / Manual Coords (Identical to Burn Eval) */
+    /* Unified Card Container */
+    .card {
+      background: #ffffff;
+      padding: 18px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+      margin-bottom: 16px;
+    }
+
+    /* Section Headers */
+    .section-header {
+      font-size: 11px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin: 16px 0 10px 0;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 6px;
+    }
+    .section-header.first {
+      margin-top: 0;
+    }
+
+    /* Collapsible Manual Setup */
     details.setup-details {
-      margin-bottom: 12px;
-      padding: 8px 10px;
-      background: #f0f4f8;
+      margin-bottom: 14px;
+      padding: 8px 12px;
+      background: #f8fafc;
       border-radius: 6px;
-      border: 1px solid #d0e1f9;
+      border: 1px solid #e2e8f0;
     }
     details.setup-details summary {
       font-size: 12px;
-      font-weight: bold;
-      color: #0078d4;
+      font-weight: 500;
+      color: #475569;
       cursor: pointer;
       outline: none;
+    }
+    details.setup-details summary:hover {
+      color: #0078d4;
     }
     .setup-content {
       margin-top: 10px;
       padding-top: 10px;
-      border-top: 1px solid #d0e1f9;
+      border-top: 1px solid #e2e8f0;
     }
     .file-upload-btn {
       display: inline-block;
-      background: #fff;
-      color: #0078d4;
-      border: 1px solid #0078d4;
+      background: #ffffff;
+      color: #334155;
+      border: 1px solid #cbd5e1;
       padding: 6px 12px;
       font-size: 12px;
-      font-weight: 600;
-      border-radius: 4px;
+      font-weight: 500;
+      border-radius: 5px;
       cursor: pointer;
       margin-bottom: 8px;
     }
-    .file-upload-btn:hover { background: #f0f7fc; }
-    .coord-box { margin-bottom: 4px; }
-    .coord-box input { width: 100%; padding: 7px; font-size: 13px; border: 1px solid #0078d4; border-radius: 4px; box-sizing: border-box; margin-top: 5px; }
-
-    /* Button Styling (Consistent with Burn Eval) */
-    button { background: #0078d4; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; margin-top: 8px; width: 100%; transition: background 0.2s, color 0.2s, border-color 0.2s; }
-    button:hover { background: #005a9e; }
-    button:disabled { cursor: not-allowed; background: #e9ecef; color: #6c757d; border: 1px solid #ced4da; }
-    
-    #calcBtn {
+    .file-upload-btn:hover {
       background: #f8fafc;
-      color: #0078d4;
-      border: 1.5px solid #0078d4;
-      padding: 9px 14px;
-      font-size: 13px;
-      font-weight: 600;
-      border-radius: 4px;
-      margin-top: 12px;
+      border-color: #94a3b8;
     }
-    #calcBtn:hover {
-      background: #0078d4;
-      color: #fff;
-    }
-    #calcBtn:disabled {
-      background: #f1f3f5;
-      color: #6c757d;
-      border-color: #ced4da;
-    }
-
-    button.export-btn { background: #28a745; margin-top: 14px; font-size: 13px; }
-    button.export-btn:hover { background: #218838; }
-
-    /* Unified Results & Metric Cards */
-    .summary-card {
-      background: #f0f7fc;
-      border: 1px solid #b6dcfb;
-      border-radius: 6px;
-      padding: 12px;
-      margin-bottom: 10px;
-      font-size: 13px;
-      line-height: 1.5;
-      color: #222;
-    }
-    .summary-title {
-      font-size: 12px;
-      font-weight: bold;
-      color: #0078d4;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+    .coord-box {
       margin-bottom: 4px;
     }
+    .coord-box input {
+      width: 100%;
+      padding: 7px 8px;
+      font-size: 13px;
+      border: 1px solid #cbd5e1;
+      border-radius: 5px;
+      box-sizing: border-box;
+      margin-top: 5px;
+    }
+    .coord-box input:focus {
+      outline: none;
+      border-color: #0078d4;
+    }
 
-    .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-top: 8px; }
-    .data-item { background: white; padding: 8px 10px; border-radius: 4px; border: 1px solid #dee2e6; }
-    .data-item .label { font-size: 11px; color: #555; text-transform: uppercase; font-weight: bold; }
-    .data-item .val { font-size: 13px; font-weight: bold; color: #0078d4; margin-top: 3px; }
+    /* Calm Burn Parameter Inputs */
+    .rx-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
+      gap: 10px;
+    }
+    .rx-field {
+      display: flex;
+      flex-direction: column;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: #475569;
+      position: relative;
+    }
+    .rx-field input,
+    .rx-field select {
+      padding: 7px 8px;
+      font-size: 13px;
+      color: #0f172a;
+      border: 1px solid #cbd5e1;
+      border-radius: 5px;
+      margin-top: 4px;
+      background: #ffffff;
+      box-sizing: border-box;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .rx-field select {
+      padding: 6px 8px;
+      cursor: pointer;
+    }
+    .rx-field input::placeholder {
+      color: #94a3b8;
+    }
+    .rx-field input:focus,
+    .rx-field select:focus {
+      outline: none;
+      border-color: #0078d4;
+      box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.12);
+    }
 
-    .confidence-tag { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; color: white; }
+    /* Buttons */
+    button {
+      background: #0078d4;
+      color: #ffffff;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 5px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      margin-top: 16px;
+      width: 100%;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    button:hover {
+      background: #0063b1;
+    }
+    button:disabled {
+      cursor: not-allowed;
+      background: #94a3b8;
+    }
+    button.export-btn {
+      background: #198754;
+      margin-top: 4px;
+      margin-bottom: 16px;
+      font-size: 13px;
+    }
+    button.export-btn:hover {
+      background: #157347;
+    }
 
-    /* Soft Alert / Advisory Boxes */
-    .alert-box {
-      background: #fffdf5;
-      border: 1px solid #ffeeba;
+    /* Calm Smoke Summary Box */
+    .summary-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+    .summary-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #475569;
+      margin-bottom: 6px;
+    }
+    .summary-text {
+      font-size: 12.5px;
+      color: #334155;
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    /* Metric Tiles */
+    .data-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .data-item {
+      background: #f8fafc;
       padding: 10px 12px;
       border-radius: 6px;
-      margin-top: 10px;
-      font-size: 12px;
-      color: #856404;
-      line-height: 1.4;
+      border: 1px solid #e2e8f0;
     }
-    .alert-box.inversion {
-      background: #f0f7fc;
-      border: 1px solid #b6dcfb;
-      color: #004578;
-    }
-
-    /* Map Controls (Matching Burn Eval) */
-    .map-controls-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; font-weight: bold; }
-    .map-btn-group { display: flex; gap: 6px; }
-    .map-toggle-btn { padding: 4px 10px; font-size: 12px; font-weight: 600; border: 1px solid #0078d4; background: #fff; color: #0078d4; border-radius: 4px; cursor: pointer; width: auto; margin: 0; }
-    .map-toggle-btn.active { background: #0078d4; color: #fff; }
-
-    .layer-toggles-row { display: flex; gap: 14px; margin-bottom: 8px; font-size: 12px; font-weight: 600; color: #444; flex-wrap: wrap; }
-    .layer-toggles-row label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
-
-    .legend-bar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      background: #f8f9fa;
-      padding: 8px 10px;
-      border-radius: 4px;
-      font-size: 11px;
+    .data-item .label {
+      font-size: 10.5px;
+      color: #64748b;
+      text-transform: uppercase;
       font-weight: 600;
-      color: #444;
-      margin-bottom: 8px;
-      border: 1px solid #dee2e6;
+      letter-spacing: 0.3px;
     }
-    .legend-item { display: flex; align-items: center; gap: 5px; }
-    .legend-color { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
-    .legend-line { width: 16px; height: 0px; border-top: 2px dashed #b34700; display: inline-block; }
+    .data-item .val {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: #0f172a;
+      margin-top: 4px;
+    }
+    .val-poor { color: #b91c1c !important; }
+    .val-fair { color: #b45309 !important; }
+    .val-good { color: #15803d !important; }
 
-    .map-container { position: relative; width: 100%; max-width: 600px; margin: 14px auto; display: none; text-align: center; }
-    .map-container img.base-layer { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 6px; display: block; }
-    .map-container img.overlay-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; border-radius: 6px; }
-    .map-container svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-
-    .disclaimer-text {
+    /* Confidence Badge Row */
+    .confidence-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding-top: 10px;
+      border-top: 1px solid #e2e8f0;
       font-size: 11px;
-      color: #666;
-      line-height: 1.4;
-      margin-top: 10px;
-      text-align: left;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .conf-badge {
+      font-size: 11.5px;
+      font-weight: 600;
+      text-transform: none;
+      letter-spacing: normal;
+      padding: 3px 10px;
+      border-radius: 4px;
+      color: #ffffff;
+      background: #64748b;
+    }
+    .conf-high { background: #16a34a; }
+    .conf-mod  { background: #d97706; }
+    .conf-low  { background: #dc2626; }
+
+    /* Map Card */
+    .map-controls-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #e2e8f0;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .map-btn-group {
+      display: flex;
+      gap: 6px;
+    }
+    .map-toggle-btn {
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: #334155;
+      border-radius: 5px;
+      cursor: pointer;
+      width: auto !important;
+      margin: 0 !important;
+    }
+    .map-toggle-btn:hover {
+      background: #f8fafc;
+    }
+    .map-toggle-btn.active {
+      background: #0078d4;
+      border-color: #0078d4;
+      color: #ffffff;
     }
 
-    /* Export Modal */
-    .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.55); display: none; justify-content: center; align-items: center; z-index: 9999; }
-    .modal-box { background: white; border-radius: 8px; padding: 20px; width: 90%; max-width: 440px; box-shadow: 0 4px 16px rgba(0,0,0,0.25); text-align: left; }
-    .modal-title { font-size: 16px; font-weight: bold; color: #0078d4; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
-    .modal-section { margin-bottom: 14px; font-size: 13px; }
-    .modal-section-title { font-size: 11px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 6px; }
-    .modal-section label { display: block; margin: 5px 0; cursor: pointer; font-weight: 500; }
-    .modal-btn-row { display: flex; gap: 8px; margin-top: 14px; }
-    .modal-btn-row button { margin: 0; }
-    button.modal-cancel-btn { background: #fff; color: #0078d4; border: 1px solid #0078d4; }
-    button.modal-cancel-btn:hover { background: #f0f7fc; }
+    .legend-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-bottom: 10px;
+      display: flex;
+      gap: 12px 16px;
+      flex-wrap: wrap;
+      font-size: 11px;
+      color: #475569;
+      font-weight: 500;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .swatch {
+      display: inline-block;
+      width: 11px;
+      height: 11px;
+      border-radius: 2px;
+    }
+    .swatch-line {
+      display: inline-block;
+      width: 16px;
+      height: 0;
+      border-top: 2px dashed #c2410c;
+    }
+    .swatch-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #94a3b8;
+    }
+
+    .layer-toggles {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+      font-size: 12px;
+      color: #334155;
+      font-weight: 500;
+    }
+    .layer-toggles label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .map-frame {
+      position: relative;
+      width: 100%;
+      max-width: 600px;
+      margin: 0 auto;
+      overflow: hidden;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      background: #e2e8f0;
+    }
+    .map-frame img.base-img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .map-frame img.wui-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.45;
+      pointer-events: none;
+    }
+    .map-frame svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
 
+  <!-- 1. UNIT & BURN PARAMETERS CARD -->
   <div class="card">
-    <h3 id="unit-title" style="margin:0 0 2px 0; font-size:17px;">Smoke Model</h3>
-    <div id="status" style="font-size: 12px; color: #666; margin-bottom: 12px;">
-      Click a unit on the map or enter coordinates to generate smoke model.
+    <h3 id="unit-title" style="margin:0 0 3px 0; font-size:17px; color:#0f172a;">Smoke Model</h3>
+    <div id="status" style="font-size: 12px; color: #64748b; margin-bottom: 14px;">
+      Select a unit on the map or enter coordinates to model smoke trajectory.
     </div>
 
-    <!-- Collapsible Advanced Setup -->
     <details class="setup-details">
       <summary>Change boundary or coordinates manually</summary>
       <div class="setup-content">
         <label class="file-upload-btn">
-          Upload Boundary (.geojson, .kml)
+          Upload Unit File (.geojson, .kml)
           <input type="file" id="fileInput" accept=".json,.geojson,.kml" onchange="handleFileUpload(event)" style="display:none;">
         </label>
         <div class="coord-box">
-          <div style="font-size: 11px; font-weight: bold; color: #555;">Or Enter Lat/Lon Coordinates:</div>
-          <input type="text" id="coordInput" placeholder="e.g. 39.59, -106.43">
+          <div style="font-size: 11.5px; font-weight: 500; color: #475569;">Or Enter Lat/Lon Coordinates:</div>
+          <input type="text" id="coordInput" placeholder="e.g. 38.87, -106.95">
         </div>
       </div>
     </details>
 
-    <div class="input-header">Burn Parameters</div>
-    
-    <div class="form-grid">
-      <div class="form-field">
-        Ignition Date
-        <input type="date" id="ignDate">
-      </div>
-      <div class="form-field">
-        Start Time
-        <select id="ignHour">
-          <option value="09:00">09:00 AM</option>
-          <option value="10:00" selected>10:00 AM</option>
-          <option value="11:00">11:00 AM</option>
-          <option value="12:00">12:00 PM</option>
-          <option value="13:00">01:00 PM</option>
-          <option value="14:00">02:00 PM</option>
-          <option value="15:00">03:00 PM</option>
+    <div class="section-header">Burn Parameters</div>
+
+    <div class="rx-grid">
+      <div class="rx-field">Ignition Date<input type="date" id="ignitionDate"></div>
+      <div class="rx-field">Start Time
+        <select id="startTime">
+          <option value="6">6:00 AM</option>
+          <option value="7">7:00 AM</option>
+          <option value="8">8:00 AM</option>
+          <option value="9">9:00 AM</option>
+          <option value="10" selected>10:00 AM</option>
+          <option value="11">11:00 AM</option>
+          <option value="12">12:00 PM</option>
+          <option value="13">1:00 PM</option>
+          <option value="14">2:00 PM</option>
+          <option value="15">3:00 PM</option>
+          <option value="16">4:00 PM</option>
         </select>
       </div>
-      <div class="form-field">
-        Duration
-        <select id="burnDuration">
+      <div class="rx-field">Duration
+        <select id="duration">
+          <option value="1">1 Hour</option>
           <option value="2">2 Hours</option>
+          <option value="3">3 Hours</option>
           <option value="4" selected>4 Hours</option>
+          <option value="5">5 Hours</option>
           <option value="6">6 Hours</option>
           <option value="8">8 Hours</option>
         </select>
       </div>
-      <div class="form-field">
-        Burn Type
-        <select id="burnType" onchange="toggleSizeLabel()">
+      <div class="rx-field">Burn Type
+        <select id="burnType" onchange="handleBurnTypeChange()">
           <option value="broadcast" selected>Broadcast Burn</option>
-          <option value="hand">Hand Piles</option>
-          <option value="machine">Landing / Machine Piles</option>
+          <option value="hand_piles">Hand Piles</option>
+          <option value="machine_piles">Machine / Landing Piles</option>
         </select>
       </div>
-      <div class="form-field">
-        <span id="sizeLabel">Acres</span>
-        <input type="number" id="burnSize" value="75">
+      <div class="rx-field">
+        <span id="unitSizeLabel">Acres</span>
+        <input type="number" id="unitSize" value="25" min="1">
       </div>
     </div>
 
-    <button id="calcBtn" onclick="runSmokeModel()">Run Smoke Model</button>
+    <button id="runModelBtn" onclick="runSmokeModel()">Run Smoke Model</button>
   </div>
 
-  <!-- Model Results Card -->
-  <div id="results-box" class="card" style="display:none;">
-    <div class="summary-card">
+  <!-- 2. SMOKE SUMMARY & METRICS CARD -->
+  <div id="results-card" class="card" style="display:none;">
+    <div class="summary-box">
       <div class="summary-title">Smoke Summary</div>
-      <div id="smoke-summary-text">--</div>
+      <p class="summary-text" id="smoke-summary-text"></p>
     </div>
 
     <div class="data-grid">
-      <div class="data-item"><div class="label">Transport Wind</div><div class="val" id="res-twind">--</div></div>
-      <div class="data-item"><div class="label">Daytime Plume Direction</div><div class="val" id="res-heading">--</div></div>
-      <div class="data-item"><div class="label">Daytime Plume Distance</div><div class="val" id="res-dist">--</div></div>
-      <div class="data-item"><div class="label">Mixing Height</div><div class="val" id="res-mix">--</div></div>
-      <div class="data-item"><div class="label">Ventilation Index</div><div class="val" id="res-vi">--</div></div>
-      <div class="data-item"><div class="label">Night Drainage Direction</div><div class="val" id="res-drainage">--</div></div>
-      <div class="data-item"><div class="label">Night Drainage Distance</div><div class="val" id="res-drainage-dist">--</div></div>
-    </div>
-    
-    <div style="margin-top:12px; display:flex; align-items:center; gap:8px;">
-      <span style="font-size:11px; font-weight:bold; text-transform:uppercase; color:#555;">Model Confidence:</span>
-      <span id="res-confidence" class="confidence-tag">--</span>
+      <div class="data-item">
+        <div class="label">Transport Wind</div>
+        <div class="val" id="val-twind">--</div>
+      </div>
+      <div class="data-item">
+        <div class="label">Daytime Plume Direction</div>
+        <div class="val" id="val-plume-dir">--</div>
+      </div>
+      <div class="data-item">
+        <div class="label">Daytime Plume Distance</div>
+        <div class="val" id="val-plume-dist">--</div>
+      </div>
+      <div class="data-item">
+        <div class="label">Mixing Height</div>
+        <div class="val" id="val-mix-height">--</div>
+      </div>
+      <div class="data-item">
+        <div class="label">Ventilation Index</div>
+        <div class="val" id="val-vent-index">--</div>
+      </div>
+      <div class="data-item">
+        <div class="label">Night Drainage Direction</div>
+        <div class="val" id="val-drain-dir">--</div>
+      </div>
+      <div class="data-item">
+        <div class="label">Night Drainage Distance</div>
+        <div class="val" id="val-drain-dist">--</div>
+      </div>
     </div>
 
-    <!-- Morning Inversion Advisory -->
-    <div id="inversion-alert" class="alert-box inversion" style="display:none;">
-      <strong>Morning Inversion Advisory:</strong> Mixing height may start low (<span id="inv-mix-val">--</span> ft). Smoke may stay near the ground until surface heating breaks the inversion.
-    </div>
-
-    <!-- Overnight Drainage Advisory -->
-    <div id="drainage-alert" class="alert-box" style="display:none;">
-      <strong>Overnight Smoke Advisory:</strong> Smoke may drain down <strong><span id="drainage-name">local drainage corridor</span></strong>. Check downstream valley bottoms for potential pooling.
+    <div class="confidence-row">
+      <span>Model Confidence:</span>
+      <span id="conf-badge" class="conf-badge">--</span>
     </div>
   </div>
 
-  <!-- Multi-View Preview Map Card -->
-  <div id="map-preview" class="map-container card">
+  <!-- 3. SMOKE DISPERSION MAP CARD -->
+  <div id="map-card" class="card" style="display:none;">
     <div class="map-controls-row">
-      <span style="text-transform:uppercase; font-size:11px; color:#555; font-weight:bold;">Smoke Dispersion Map</span>
+      <span style="font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.6px;">Smoke Dispersion Map</span>
       <div class="map-btn-group">
         <button class="map-toggle-btn active" id="btnSat" onclick="setBasemap('sat')">Satellite</button>
         <button class="map-toggle-btn" id="btnTopo" onclick="setBasemap('topo')">Topo</button>
-        <button class="map-toggle-btn" id="btnReg" onclick="setBasemap('reg')">Regional Airshed</button>
+        <button class="map-toggle-btn" id="btnAirshed" onclick="setBasemap('airshed')">Regional Airshed</button>
       </div>
     </div>
 
-    <!-- Map Legend -->
-    <div class="legend-bar">
-      <div class="legend-item"><span class="legend-color" style="background:rgba(255, 140, 0, 0.5); border:1px solid #ff8c00;"></span> Daytime Plume Wedge</div>
-      <div class="legend-item"><span class="legend-line"></span> Hourly Trajectory</div>
-      <div class="legend-item"><span class="legend-color" style="background:rgba(40, 85, 121, 0.5); border:1px solid #1d3d57;"></span> Night Drainage Corridor</div>
-      <div class="legend-item"><span class="legend-color" style="background:rgba(0, 255, 255, 0.5); border:1px solid #00ffff;"></span> Unit Boundary</div>
-      <div class="legend-item"><span class="legend-color" style="background:#8fa9c4; border-radius:50%;"></span> WUI Density</div>
-      <div class="legend-item" id="legClass1" style="display:none;"><span class="legend-color" style="background:rgba(46, 117, 89, 0.45); border:1px solid #1e523e;"></span> Class I Areas</div>
+    <div class="legend-box">
+      <div class="legend-item"><span class="swatch" style="background:rgba(249,115,22,0.35); border:1.5px solid #ea580c;"></span>Daytime Plume Wedge</div>
+      <div class="legend-item"><span class="swatch-line"></span>Hourly Trajectory</div>
+      <div class="legend-item"><span class="swatch" style="background:rgba(51,65,85,0.35); border:1.5px solid #334155;"></span>Night Drainage Corridor</div>
+      <div class="legend-item"><span class="swatch" style="background:rgba(6,182,212,0.25); border:1.5px solid #06b6d4;"></span>Unit Boundary</div>
+      <div class="legend-item"><span class="swatch-dot"></span>WUI Density</div>
     </div>
 
-    <div class="layer-toggles-row">
-      <label><input type="checkbox" id="chkDay" onchange="renderSvgOverlays()" checked> Daytime Plume</label>
-      <label><input type="checkbox" id="chkNight" onchange="renderSvgOverlays()" checked> Night Drainage</label>
-      <label><input type="checkbox" id="chkWui" onchange="toggleWuiOverlay()" checked> WUI Density</label>
-      <label id="lblClass1" style="display:none;"><input type="checkbox" id="chkClass1" onchange="toggleClass1Overlay()" checked> Class I Air Areas</label>
+    <div class="layer-toggles">
+      <label><input type="checkbox" id="chkPlume" checked onchange="renderSmokeSvg()"> Daytime Plume</label>
+      <label><input type="checkbox" id="chkDrainage" checked onchange="renderSmokeSvg()"> Night Drainage</label>
+      <label><input type="checkbox" id="chkWui" checked onchange="toggleWuiLayer()"> WUI Density</label>
     </div>
 
-    <div style="position:relative; display:inline-block; width:100%;">
-      <img id="map-img-base" class="base-layer" src="" alt="Base Map Imagery">
-      <img id="map-img-wui" class="overlay-layer" src="" alt="WUI Overlay" style="display:none;">
-      <img id="map-img-class1" class="overlay-layer" src="" alt="Class I Areas Overlay" style="display:none;">
-      
-      <svg id="map-svg" viewBox="0 0 600 400" preserveAspectRatio="none">
-        <path id="svg-night-corridor" d="" fill="rgba(40, 85, 121, 0.4)" stroke="#1d3d57" stroke-width="2" stroke-dasharray="4,3" />
-        <path id="svg-cone" d="" fill="rgba(255, 140, 0, 0.35)" stroke="#ff8c00" stroke-width="2.5" stroke-dasharray="5,3" />
-        <g id="svg-hourly-lines"></g>
-        <path id="svg-polygon" d="" fill="rgba(0, 255, 255, 0.4)" stroke="#00ffff" stroke-width="2" />
-        <circle id="svg-pin" cx="-50" cy="-50" r="7" fill="#ff0000" stroke="#ffffff" stroke-width="2" />
-      </svg>
+    <div class="map-frame">
+      <img id="map-img" class="base-img" src="" alt="Smoke Dispersion Map">
+      <img id="wui-img" class="wui-overlay" src="" alt="" onerror="this.style.display='none'">
+      <svg id="smoke-svg" viewBox="0 0 600 400" preserveAspectRatio="none"></svg>
     </div>
-
-    <div class="disclaimer-text">
-      Notice: Predictive dispersion screening model based on NWS forecast grids and USGS stream flowlines. Confirm on site and follow local smoke permits.
-    </div>
-
-    <button id="exportReportBtn" class="export-btn" onclick="openExportModal()">Export PDF Summary</button>
   </div>
 
-  <!-- PDF Configuration Modal -->
-  <div id="exportModal" class="modal-backdrop">
-    <div class="modal-box">
-      <div class="modal-title">Smoke Model Export</div>
-      
-      <div class="modal-section">
-        <div class="modal-section-title">Include Map Views</div>
-        <label><input type="checkbox" id="pdfIncSat" checked> Satellite View</label>
-        <label><input type="checkbox" id="pdfIncTopo" checked> Topographic View</label>
-        <label><input type="checkbox" id="pdfIncReg" checked> Regional Airshed Overview (30 to 50 mi with Class I Areas)</label>
-      </div>
-
-      <div class="modal-section">
-        <div class="modal-section-title">Include Summaries</div>
-        <label><input type="checkbox" id="pdfIncParams" checked> Prescription Summary</label>
-        <label><input type="checkbox" id="pdfIncDay" checked> Daytime Plume Metrics</label>
-        <label><input type="checkbox" id="pdfIncNight" checked> Overnight Smoke</label>
-      </div>
-
-      <div class="modal-btn-row">
-        <button onclick="executePdfGeneration()">Generate & Print PDF</button>
-        <button class="modal-cancel-btn" onclick="closeExportModal()">Cancel</button>
-      </div>
-    </div>
-  </div>
+  <button id="exportBtn" class="export-btn" style="display:none;" onclick="exportSmokePdf()">Export PDF Briefing</button>
 
   <script>
+    /* =========================================================
+       1. STATE VENTILATION THRESHOLDS & INITIALIZATION
+       ========================================================= */
+    const STATE_VENT_RULES = {
+      CO: { name: 'Colorado', poorLimit: 40, fairLimit: 60, goodLimit: 100 },
+      MT: { name: 'Montana', poorLimit: 25, fairLimit: 45, goodLimit: 75 },
+      ID: { name: 'Idaho', poorLimit: 25, fairLimit: 45, goodLimit: 75 },
+      NV: { name: 'Nevada', poorLimit: 30, fairLimit: 60, goodLimit: 100 }
+    };
+
+    const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
+    const NHD_FLOWLINE_URL = "https://hydro.nationalmap.gov/arcgis/rest/services/nhd/MapServer/6/query";
+    const WUI_EXPORT_URL = "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_WUI_2010_01/MapServer/export";
+
     const urlParams = new URLSearchParams(window.location.search);
     const rawUnit = urlParams.get('unit') || urlParams.get('Name') || urlParams.get('name');
     const rawId = urlParams.get('id') || urlParams.get('OBJECTID') || urlParams.get('objectid') || '';
-    const cleanUnitId = rawId.replace(/[^0-9]/g, '');
-
-    const FEATURE_SERVICE_URL = "https://gis.reshapewildfire.org/arcgis/rest/services/Hosted/Treatment_Index_View/FeatureServer/0/query";
-
-    const STATE_VENT_RULES = {
-      CO: { name: 'Colorado', poorLimit: 40000, fairLimit: 60000, goodLimit: 100000 },
-      MT: { name: 'Montana', poorLimit: 25000, fairLimit: 45000, goodLimit: 75000 },
-      ID: { name: 'Idaho', poorLimit: 25000, fairLimit: 45000, goodLimit: 75000 }
-    };
+    const rawGeometry = urlParams.get('rings') || urlParams.get('geometry') || urlParams.get('geojson');
+    const rawAcres = urlParams.get('acres') || urlParams.get('GIS_ACRES');
+    let cleanUnitId = rawId.replace(/[^0-9]/g, '');
 
     const explicitState = (urlParams.get('state') || '').toUpperCase();
     let activeStateCode = STATE_VENT_RULES[explicitState] ? explicitState : 'CO';
 
-    let cachedCoords = null;
     let currentRings = null;
     let isUploadedUnit = false;
-    let unitDataInitialLoaded = false;
     let activeUnitLabel = sanitizeUnitName(rawUnit ? decodeURIComponent(rawUnit) : null) || 'Smoke Model';
+    let currentBasemap = 'sat';
+    let currentBboxStr = '';
+    let lastModelResult = null;
+
     document.getElementById('unit-title').innerText = activeUnitLabel;
+    if (rawAcres && !isNaN(parseFloat(rawAcres))) {
+      document.getElementById('unitSize').value = Math.max(1, Math.round(parseFloat(rawAcres)));
+    }
 
-    let currentLocalBbox = null;
-    let currentRegionalBbox = null;
-    let currentBasemapType = 'sat';
+    // Default Ignition Date to Today (or Tomorrow if past 4 PM)
+    (function initDefaultDate() {
+      const now = new Date();
+      if (now.getHours() >= 16) now.setDate(now.getDate() + 1);
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      document.getElementById('ignitionDate').value = `${yyyy}-${mm}-${dd}`;
+    })();
 
-    let latestConeCoords = [];
-    let latestHourlyVectors = [];
-    let latestNightCorridorCoords = [];
-    let latestDrainageName = "Primary Downstream Drainage";
-    let latestDrainageBearing = 180;
-    let latestScreeningDist = 5;
-    let latestNightDist = 4.5;
-    let latestConfidenceInfo = { text: "High (Consistent winds)", color: "#28a745" };
-    let latestUnifiedSmokeSummary = "";
+    if (urlParams.get('coords')) {
+      document.getElementById('coordInput').value = urlParams.get('coords');
+    }
 
-    document.getElementById('ignDate').value = new Date().toISOString().split('T')[0];
+    if (rawGeometry) {
+      try {
+        const parsed = JSON.parse(decodeURIComponent(rawGeometry));
+        if (parsed.rings) currentRings = parsed.rings;
+        else if (parsed.type === 'Feature' && parsed.geometry) {
+          currentRings = parsed.geometry.type === 'Polygon' ? parsed.geometry.coordinates : [parsed.geometry.coordinates[0]];
+        } else if (parsed.type === 'Polygon') currentRings = parsed.coordinates;
+        else if (Array.isArray(parsed)) currentRings = Array.isArray(parsed[0]?.[0]) ? parsed : [parsed];
+      } catch (e) {
+        console.warn("Could not parse URL geometry:", e);
+      }
+    }
 
+    document.getElementById('coordInput').addEventListener('input', () => {
+      currentRings = null;
+      isUploadedUnit = false;
+    });
+
+    function handleBurnTypeChange() {
+      const type = document.getElementById('burnType').value;
+      const labelEl = document.getElementById('unitSizeLabel');
+      const sizeInput = document.getElementById('unitSize');
+      if (type === 'broadcast') {
+        labelEl.innerText = 'Acres';
+      } else {
+        labelEl.innerText = 'Piles';
+        if (!sizeInput.value || parseInt(sizeInput.value) < 1) sizeInput.value = 50;
+      }
+    }
+
+    /* =========================================================
+       2. GEOMETRY, COMPASS & PARSING HELPERS
+       ========================================================= */
     function sanitizeUnitName(name) {
       if (!name) return null;
       const s = String(name).trim();
       return (s === '' || s === '{Name}' || s.toLowerCase() === 'none' || s.toLowerCase() === 'null') ? null : s;
-    }
-
-    function classifyVentilationIndex(vi, stateCode) {
-      const rules = STATE_VENT_RULES[stateCode] || STATE_VENT_RULES.CO;
-      if (vi < rules.poorLimit) return "Poor";
-      if (vi < rules.fairLimit) return "Fair";
-      if (vi < rules.goodLimit) return "Good";
-      return "Excellent";
-    }
-
-    function toggleSizeLabel() {
-      const type = document.getElementById('burnType').value;
-      const label = document.getElementById('sizeLabel');
-      if (type === 'broadcast') {
-        label.innerText = 'Acres';
-      } else {
-        label.innerText = 'Piles';
-      }
     }
 
     function normalizePoint(n1, n2) {
@@ -423,13 +619,17 @@
     }
 
     function calculateRingsCentroid(rings) {
-      if (!rings?.length) return null;
+      if (!rings || !rings.length) return null;
       let sumLat = 0, sumLon = 0, count = 0;
-      rings.forEach(ring => ring.forEach(pt => {
-        const norm = normalizePoint(pt[0], pt[1]);
-        sumLat += norm.lat; sumLon += norm.lon; count++;
-      }));
-      return count ? { lat: sumLat / count, lon: sumLon / count } : null;
+      rings.forEach(ring => {
+        ring.forEach(pt => {
+          const norm = normalizePoint(pt[0], pt[1]);
+          sumLat += norm.lat;
+          sumLon += norm.lon;
+          count++;
+        });
+      });
+      return count > 0 ? { lat: sumLat / count, lon: sumLon / count } : null;
     }
 
     function parseSmartCoordinates(rawText) {
@@ -437,376 +637,51 @@
       const nums = rawText.match(/[-+]?\d*\.?\d+/g);
       if (!nums || nums.length < 2) return null;
       const norm = normalizePoint(parseFloat(nums[0]), parseFloat(nums[1]));
-      return (norm.lat >= 24 && norm.lat <= 50 && norm.lon <= -65 && norm.lon >= -130) ? norm : null;
-    }
-
-    function handleFileUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const geojson = JSON.parse(e.target.result);
-          isUploadedUnit = true;
-          let coordsArr = null;
-          if (geojson.type === "FeatureCollection" && geojson.features.length) {
-            coordsArr = geojson.features[0].geometry.coordinates;
-            activeUnitLabel = geojson.features[0].properties?.name || file.name.replace(/\.[^/.]+$/, "");
-          } else if (geojson.type === "Feature") {
-            coordsArr = geojson.geometry.coordinates;
-            activeUnitLabel = geojson.properties?.name || file.name.replace(/\.[^/.]+$/, "");
-          } else if (geojson.coordinates) {
-            coordsArr = geojson.coordinates;
-            activeUnitLabel = file.name.replace(/\.[^/.]+$/, "");
-          }
-          if (coordsArr) {
-            currentRings = Array.isArray(coordsArr[0]?.[0]) ? coordsArr : [coordsArr];
-            document.getElementById('unit-title').innerText = activeUnitLabel;
-            cachedCoords = calculateRingsCentroid(currentRings);
-            if (cachedCoords) {
-              document.getElementById('coordInput').value = `${cachedCoords.lat.toFixed(4)}, ${cachedCoords.lon.toFixed(4)}`;
-            }
-            runSmokeModel();
-          }
-        } catch(err) {
-          alert("Could not parse file. Please upload standard GeoJSON.");
-        }
-      };
-      reader.readAsText(file);
-    }
-
-    function queryArcGISJsonp(id) {
-      return new Promise((resolve, reject) => {
-        const cbName = 'arcgis_cb_' + Math.floor(Math.random() * 10000000);
-        const script = document.createElement('script');
-        script.src = `${FEATURE_SERVICE_URL}?where=OBJECTID%3D${id}&outFields=*&returnGeometry=true&outSR=4326&f=json&callback=${cbName}`;
-        window[cbName] = data => { delete window[cbName]; script.remove(); data.error ? reject(new Error(data.error.message)) : resolve(data); };
-        script.onerror = () => { delete window[cbName]; script.remove(); reject(new Error("ArcGIS service failed.")); };
-        document.head.appendChild(script);
-      });
-    }
-
-    async function initializeUnitFromService(id) {
-      if (unitDataInitialLoaded) return;
-      try {
-        const data = await queryArcGISJsonp(id);
-        if (!data.features?.length) return;
-        const feat = data.features[0];
-        const attrs = feat.attributes || {};
-        
-        const fName = sanitizeUnitName(attrs.Name || attrs.name || attrs.NAME || attrs.unit_name || attrs.UnitName);
-        if (fName) {
-          activeUnitLabel = fName;
-          document.getElementById('unit-title').innerText = activeUnitLabel;
-        }
-
-        if (attrs.GIS_ACRES || attrs.TREATMENT_ACRES || attrs.acres) {
-          document.getElementById('burnSize').value = Math.round(attrs.GIS_ACRES || attrs.TREATMENT_ACRES || attrs.acres);
-        }
-
-        currentRings = feat.geometry?.rings || null;
-        if (currentRings) {
-          cachedCoords = calculateRingsCentroid(currentRings);
-        } else if (feat.geometry?.x && feat.geometry?.y) {
-          cachedCoords = normalizePoint(feat.geometry.x, feat.geometry.y);
-        }
-
-        if (cachedCoords) {
-          document.getElementById('coordInput').value = `${cachedCoords.lat.toFixed(4)}, ${cachedCoords.lon.toFixed(4)}`;
-        }
-        unitDataInitialLoaded = true;
-      } catch (e) {
-        console.warn("Could not seed unit attributes:", e);
+      if (isNaN(norm.lat) || isNaN(norm.lon) || norm.lat < 24 || norm.lat > 50 || norm.lon > -65 || norm.lon < -130) {
+        return null;
       }
+      return norm;
     }
 
-    function getDestinationPoint(lat, lon, distanceMiles, bearingDeg) {
-      const R = 3958.8;
+    function degToCardinal(deg) {
+      const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+      const idx = Math.round(((deg % 360) + 360) % 360 / 22.5) % 16;
+      return dirs[idx];
+    }
+
+    function destinationPoint(lat, lon, bearingDeg, distanceMiles) {
+      const R = 3958.8; // Earth radius in miles
       const d = distanceMiles / R;
-      const brng = (bearingDeg * Math.PI) / 180;
-      const lat1 = (lat * Math.PI) / 180;
-      const lon1 = (lon * Math.PI) / 180;
+      const brng = bearingDeg * Math.PI / 180;
+      const lat1 = lat * Math.PI / 180;
+      const lon1 = lon * Math.PI / 180;
 
       const lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brng));
       const lon2 = lon1 + Math.atan2(Math.sin(brng) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
-
-      return { lat: (lat2 * 180) / Math.PI, lon: (lon2 * 180) / Math.PI };
+      return { lat: lat2 * 180 / Math.PI, lon: lon2 * 180 / Math.PI };
     }
 
-    function generateDynamicSmokeCone(centerLat, centerLon, distanceMiles, startAngle, spreadAngle) {
-      const coords = [[centerLon, centerLat]];
-      const steps = Math.max(16, Math.round(spreadAngle / 2.5));
-      for (let i = 0; i <= steps; i++) {
-        const angle = (startAngle + (i / steps) * spreadAngle + 360) % 360;
-        const pt = getDestinationPoint(centerLat, centerLon, distanceMiles, angle);
-        coords.push([pt.lon, pt.lat]);
-      }
-      coords.push([centerLon, centerLat]);
-      return coords;
+    function calculateBearing(lat1, lon1, lat2, lon2) {
+      const p1 = lat1 * Math.PI / 180;
+      const p2 = lat2 * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const y = Math.sin(dLon) * Math.cos(p2);
+      const x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dLon);
+      return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
     }
 
-    function generateDrainageRibbon(centerLat, centerLon, distanceMiles, drainageBearing, widthMiles = 0.6) {
-      const halfW = widthMiles / 2;
-      const leftAngle = (drainageBearing - 90 + 360) % 360;
-      const rightAngle = (drainageBearing + 90 + 360) % 360;
-
-      const startLeft = getDestinationPoint(centerLat, centerLon, halfW, leftAngle);
-      const startRight = getDestinationPoint(centerLat, centerLon, halfW, rightAngle);
-
-      const steps = 8;
-      const rightSide = [];
-      const leftSide = [];
-
-      for (let i = 1; i <= steps; i++) {
-        const d = (distanceMiles * i) / steps;
-        const centerStep = getDestinationPoint(centerLat, centerLon, d, drainageBearing);
-        const rPt = getDestinationPoint(centerStep.lat, centerStep.lon, halfW, rightAngle);
-        const lPt = getDestinationPoint(centerStep.lat, centerStep.lon, halfW, leftAngle);
-        rightSide.push([rPt.lon, rPt.lat]);
-        leftSide.unshift([lPt.lon, lPt.lat]);
-      }
-
-      return [[startLeft.lon, startLeft.lat], [startRight.lon, startRight.lat], ...rightSide, ...leftSide, [startLeft.lon, startLeft.lat]];
+    function circularMeanDegrees(angles) {
+      let sinSum = 0, cosSum = 0;
+      angles.forEach(a => {
+        sinSum += Math.sin(a * Math.PI / 180);
+        cosSum += Math.cos(a * Math.PI / 180);
+      });
+      return ((Math.atan2(sinSum, cosSum) * 180 / Math.PI) + 360) % 360;
     }
 
-    async function fetchDownstreamDrainageVector(lat, lon) {
-      try {
-        const url = `https://hydro.nationalmap.gov/arcgis/rest/services/nhd/MapServer/6/query?geometry=${lon-0.02},${lat-0.02},${lon+0.02},${lat+0.02}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=GNIS_Name,FlowDir,LengthKM&returnGeometry=true&outSR=4326&f=json`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("NHD endpoint unreachable");
-        const json = await jsonRes(res);
-        
-        if (json.features?.length) {
-          const feat = json.features[0];
-          const name = feat.attributes?.GNIS_Name || "Local Creek Channel";
-          const paths = feat.geometry?.paths || [];
-          if (paths.length && paths[0].length >= 2) {
-            const path = paths[0];
-            const pFirst = path[0];
-            const pLast = path[path.length - 1];
-            const dLon = pLast[0] - pFirst[0];
-            const dLat = pLast[1] - pFirst[1];
-            let bearing = Math.round((Math.atan2(dLon, dLat) * 180 / Math.PI + 360) % 360);
-            return { name, bearing };
-          }
-        }
-      } catch (e) {
-        console.warn("NHD automated trace fallback:", e);
-      }
-      return { name: "Valley Corridor", bearing: 165 };
-    }
-
-    async function jsonRes(res) {
-      return await res.json();
-    }
-
-    async function runSmokeModel() {
-      const calcBtn = document.getElementById('calcBtn');
-      let coords = cachedCoords || parseSmartCoordinates(document.getElementById('coordInput').value);
-
-      if (!coords) {
-        document.getElementById('status').innerText = "Click a unit on the map or enter coordinates.";
-        return;
-      }
-
-      calcBtn.disabled = true;
-      calcBtn.innerText = "Fetching Winds (1/3)...";
-
-      const { lat, lon } = coords;
-      const dateStr = document.getElementById('ignDate').value;
-      const timeStr = document.getElementById('ignHour').value;
-      const durationHours = parseInt(document.getElementById('burnDuration').value);
-      const burnType = document.getElementById('burnType').value;
-      const sizeVal = parseFloat(document.getElementById('burnSize').value) || 50;
-      const targetStart = new Date(`${dateStr}T${timeStr}:00`);
-
-      try {
-        const pointRes = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`);
-        if (!pointRes.ok) throw new Error("Could not reach NWS point endpoint.");
-        const pointData = await pointRes.json();
-
-        const loc = pointData.properties?.relativeLocation?.properties || {};
-        const detectedState = (loc.state || '').toUpperCase();
-        if (!explicitState && STATE_VENT_RULES[detectedState]) {
-          activeStateCode = detectedState;
-        }
-
-        calcBtn.innerText = "Tracing Drainages (2/3)...";
-        const [gridRes, drainageInfo] = await Promise.all([
-          fetch(pointData.properties.forecastGridData),
-          fetchDownstreamDrainageVector(lat, lon)
-        ]);
-
-        if (!gridRes.ok) throw new Error("NWS gridded dispersion forecast is currently unreachable.");
-        const gridData = await gridRes.json();
-        const twSpeedVals = gridData.properties?.transportWindSpeed?.values || [];
-        const twDirVals = gridData.properties?.transportWindDirection?.values || [];
-        const mixVals = gridData.properties?.mixingHeight?.values || [];
-
-        let hourlyRecords = [];
-        let sumSpeed = 0, sumMix = 0, count = 0;
-        let firstHourMixFt = null;
-
-        for (let h = 0; h < durationHours; h++) {
-          const t = new Date(targetStart.getTime() + (h * 3600000));
-          const spdKmh = getValueForTime(twSpeedVals, t);
-          const dirDeg = getValueForTime(twDirVals, t);
-          const mixM = getValueForTime(mixVals, t);
-
-          if (dirDeg !== null && spdKmh !== null) {
-            const downwind = (dirDeg + 180) % 360;
-            const spdMph = Math.round(spdKmh * 0.621371);
-            const timeLabel = t.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-            
-            hourlyRecords.push({
-              time: t,
-              timeLabel: timeLabel,
-              downwind: downwind,
-              inDirection: dirDeg,
-              speedMph: spdMph
-            });
-
-            sumSpeed += spdMph;
-            if (mixM !== null) {
-              const ft = mixM * 3.28084;
-              sumMix += ft;
-              if (h === 0) firstHourMixFt = ft;
-            }
-            count++;
-          }
-        }
-
-        if (hourlyRecords.length === 0) {
-          document.getElementById('results-box').style.display = 'none';
-          document.getElementById('map-preview').style.display = 'none';
-          throw new Error("Local NWS office did not publish gridded Transport Wind / Mixing Height for this forecast window.");
-        }
-
-        let twSpeedMph = Math.round(sumSpeed / count);
-        let mixHeightFt = sumMix > 0 ? Math.round(sumMix / count) : 4500;
-        if (firstHourMixFt === null) firstHourMixFt = mixHeightFt;
-
-        // Model Screening Distance
-        let screeningDistanceMiles = 5;
-        if (burnType === 'broadcast') {
-          if (sizeVal < 50) screeningDistanceMiles = 3.5;
-          else if (sizeVal <= 250) screeningDistanceMiles = 6.5;
-          else screeningDistanceMiles = 10.0;
-        } else if (burnType === 'hand') {
-          screeningDistanceMiles = (sizeVal > 150) ? 4.0 : 2.5;
-        } else {
-          screeningDistanceMiles = 4.5;
-        }
-
-        latestScreeningDist = screeningDistanceMiles;
-        latestNightDist = (burnType === 'machine' || (burnType === 'hand' && sizeVal > 100)) ? 4.5 : 2.5;
-        latestDrainageName = drainageInfo.name;
-        latestDrainageBearing = drainageInfo.bearing;
-
-        // Calculate Wind Shift & Dynamic Plume Sweep
-        let refBearing = hourlyRecords[0].downwind;
-        let relativeAngles = hourlyRecords.map(r => ((r.downwind - refBearing + 540) % 360) - 180);
-        let minRel = Math.min(...relativeAngles);
-        let maxRel = Math.max(...relativeAngles);
-        let windShiftSpread = Math.round(maxRel - minRel);
-
-        let coneSpread = Math.max(40, windShiftSpread + 40);
-        let coneStartAngle = (refBearing + minRel - 20 + 360) % 360;
-        let meanBearing = Math.round((refBearing + (minRel + maxRel) / 2 + 360) % 360);
-        let twDirDeg = (meanBearing + 180) % 360;
-
-        // Build Hourly Centerline Trajectory Endpoints
-        latestHourlyVectors = hourlyRecords.map(r => {
-          const endPt = getDestinationPoint(lat, lon, screeningDistanceMiles, r.downwind);
-          return {
-            timeLabel: r.timeLabel,
-            downwind: r.downwind,
-            speedMph: r.speedMph,
-            lat: endPt.lat,
-            lon: endPt.lon
-          };
-        });
-
-        // State-Aware Ventilation Index
-        let twSpeedKts = twSpeedMph * 0.868976;
-        let vi = Math.round(twSpeedKts * mixHeightFt);
-        let viCategory = classifyVentilationIndex(vi, activeStateCode);
-
-        latestConeCoords = generateDynamicSmokeCone(lat, lon, screeningDistanceMiles, coneStartAngle, coneSpread);
-        latestNightCorridorCoords = generateDrainageRibbon(lat, lon, latestNightDist, latestDrainageBearing, 0.6);
-
-        // Confidence Evaluation
-        if (windShiftSpread > 30) {
-          latestConfidenceInfo = { text: `Low (Winds shift ${windShiftSpread}° over window)`, color: "#d97706" };
-        } else if (twSpeedMph < 9) {
-          latestConfidenceInfo = { text: "Low (Light & variable winds < 9 mph)", color: "#d97706" };
-        } else if (twSpeedMph > 25) {
-          latestConfidenceInfo = { text: "Moderate (High winds > 25 mph)", color: "#2563eb" };
-        } else if (windShiftSpread > 15) {
-          latestConfidenceInfo = { text: `Moderate (Winds shift ${windShiftSpread}° over window)`, color: "#2563eb" };
-        } else if (viCategory === "Poor") {
-          latestConfidenceInfo = { text: "Moderate (Poor air clearing)", color: "#2563eb" };
-        } else {
-          latestConfidenceInfo = { text: "High (Consistent winds and good lift)", color: "#28a745" };
-        }
-
-        // Build Single Unified Smoke Summary
-        const firstRec = hourlyRecords[0];
-        const lastRec = hourlyRecords[hourlyRecords.length - 1];
-        let windShiftText = "";
-
-        if (windShiftSpread <= 15) {
-          windShiftText = `Winds remain steady across the ${durationHours}-hour window, carrying toward ${firstRec.downwind}° (${getCompass(firstRec.downwind)}) at ${firstRec.speedMph} mph. The 40° dispersion cone extends along this heading to ${screeningDistanceMiles} miles.`;
-        } else {
-          windShiftText = `Plume initiates toward ${firstRec.downwind}° (${getCompass(firstRec.downwind)}) at ${firstRec.timeLabel} (${firstRec.speedMph} mph) and shifts to ${lastRec.downwind}° (${getCompass(lastRec.downwind)}) by ${lastRec.timeLabel} (${lastRec.speedMph} mph), a shift of ${windShiftSpread}°. The cone expands to an ${coneSpread}° cumulative sweep to cover all potential downwind receptors.`;
-        }
-
-        latestUnifiedSmokeSummary = `Planned ${durationHours}-hour ignition on ${dateStr} starting at ${timeStr}. Transport winds average ${twSpeedMph} mph from ${twDirDeg}° (${getCompass(twDirDeg)}) with mixing heights of ${mixHeightFt.toLocaleString()} ft (Ventilation: ${viCategory}). ${windShiftText} Nocturnal settling may carry residual smoke up to ${latestNightDist} miles down ${latestDrainageName}.`;
-
-        document.getElementById('smoke-summary-text').innerText = latestUnifiedSmokeSummary;
-
-        calcBtn.innerText = "Rendering Maps (3/3)...";
-
-        document.getElementById('res-twind').innerText = `${twSpeedMph} mph @ ${twDirDeg}° (${getCompass(twDirDeg)})`;
-        document.getElementById('res-heading').innerText = `${meanBearing}° (${getCompass(meanBearing)})${windShiftSpread > 15 ? ` ±${Math.round(windShiftSpread/2)}°` : ''}`;
-        document.getElementById('res-dist').innerText = `${screeningDistanceMiles} miles`;
-        document.getElementById('res-mix').innerText = `${mixHeightFt.toLocaleString()} ft`;
-        document.getElementById('res-vi').innerText = `${viCategory} (${vi.toLocaleString()})`;
-        document.getElementById('res-drainage').innerText = `${latestDrainageBearing}° (${getCompass(latestDrainageBearing)})`;
-        document.getElementById('res-drainage-dist').innerText = `${latestNightDist} miles down valley`;
-
-        const confBadge = document.getElementById('res-confidence');
-        confBadge.innerText = latestConfidenceInfo.text;
-        confBadge.style.backgroundColor = latestConfidenceInfo.color;
-
-        document.getElementById('results-box').style.display = 'block';
-
-        // Morning Inversion Alert
-        const invBox = document.getElementById('inversion-alert');
-        if (firstHourMixFt < 1500) {
-          document.getElementById('inv-mix-val').innerText = Math.round(firstHourMixFt).toLocaleString();
-          invBox.style.display = 'block';
-        } else {
-          invBox.style.display = 'none';
-        }
-
-        // Overnight Drainage Notice
-        const showDrainageAlert = (burnType === 'machine' || (burnType === 'hand' && sizeVal > 100));
-        document.getElementById('drainage-alert').style.display = showDrainageAlert ? 'block' : 'none';
-        document.getElementById('drainage-name').innerText = latestDrainageName;
-
-        calculateBoundingBoxes(lat, lon);
-        updateBasemapImage();
-        renderSvgOverlays();
-
-        document.getElementById('status').innerText = `Smoke Model Complete: Day plume may carry up to ${screeningDistanceMiles} mi toward ${getCompass(meanBearing)}; Night drainage may follow ${latestDrainageName}.`;
-
-      } catch (err) {
-        document.getElementById('status').innerText = "Model Error: " + err.message;
-      } finally {
-        calcBtn.disabled = false;
-        calcBtn.innerText = "Run Smoke Model";
-      }
+    function angularDiff(a, b) {
+      let diff = Math.abs(a - b) % 360;
+      return diff > 180 ? 360 - diff : diff;
     }
 
     function parseIsoDurationHours(durationStr) {
@@ -820,474 +695,646 @@
       return total > 0 ? total : 1;
     }
 
-    function getValueForTime(valuesArray, targetTime) {
-      if (!valuesArray?.length) return null;
-      const targetMs = targetTime.getTime();
+    function getValueForTime(valuesArray, targetMs) {
+      if (!valuesArray || !valuesArray.length) return null;
       for (const item of valuesArray) {
         const [timeStr, durationStr] = item.validTime.split('/');
         const startMs = new Date(timeStr).getTime();
         const durationMs = parseIsoDurationHours(durationStr) * 3600000;
-        if (targetMs >= startMs && targetMs < (startMs + durationMs)) return item.value;
+        if (targetMs >= startMs && targetMs < (startMs + durationMs)) {
+          return item.value;
+        }
       }
       return null;
     }
 
-    function getCompass(degrees) {
-      const val = Math.floor((degrees / 22.5) + 0.5);
-      const arr = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
-      return arr[(val % 16)];
+    /* =========================================================
+       3. FILE UPLOAD & ARCGIS UNIT LOOKUP
+       ========================================================= */
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const content = e.target.result;
+          let rings = null;
+          let name = file.name.replace(/\.[^/.]+$/, "");
+          if (file.name.endsWith('.json') || file.name.endsWith('.geojson') || content.trim().startsWith('{')) {
+            const parsed = JSON.parse(content);
+            let geom = parsed;
+            if (parsed.type === 'FeatureCollection' && parsed.features?.length > 0) {
+              geom = parsed.features[0].geometry;
+              const props = parsed.features[0].properties || {};
+              name = props.name || props.Name || name;
+            } else if (parsed.type === 'Feature') {
+              geom = parsed.geometry;
+              const props = parsed.properties || {};
+              name = props.name || props.Name || name;
+            }
+            if (geom.type === 'Polygon') rings = geom.coordinates;
+            else if (geom.type === 'MultiPolygon') rings = geom.coordinates[0];
+            else if (geom.rings) rings = geom.rings;
+          }
+          if (rings && rings.length > 0) {
+            currentRings = rings;
+            isUploadedUnit = true;
+            activeUnitLabel = `${name} (Custom Upload)`;
+            document.getElementById('unit-title').innerText = activeUnitLabel;
+            const centroid = calculateRingsCentroid(currentRings);
+            if (centroid) {
+              document.getElementById('coordInput').value = `${centroid.lat.toFixed(4)}, ${centroid.lon.toFixed(4)}`;
+              runSmokeModel();
+            }
+          } else {
+            alert("Could not extract polygon geometry from file.");
+          }
+        } catch (err) {
+          alert("Error parsing file: " + err.message);
+        }
+      };
+      reader.readAsText(file);
     }
 
-    function calculateBoundingBoxes(centerLat, centerLon) {
-      let lons = [...latestConeCoords.map(p => p[0]), ...latestNightCorridorCoords.map(p => p[0])];
-      let lats = [...latestConeCoords.map(p => p[1]), ...latestNightCorridorCoords.map(p => p[1])];
+    function queryArcGISJsonp(id) {
+      return new Promise((resolve, reject) => {
+        const cbName = 'smoke_cb_' + Math.floor(Math.random() * 10000000);
+        const queryUrl = `${FEATURE_SERVICE_URL}?where=OBJECTID%3D${id}&outFields=*&returnGeometry=true&outSR=4326&f=json&callback=${cbName}`;
+        window[cbName] = function(data) {
+          delete window[cbName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+          data.error ? reject(new Error(data.error.message)) : resolve(data);
+        };
+        const script = document.createElement('script');
+        script.src = queryUrl;
+        script.onerror = function() {
+          delete window[cbName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+          reject(new Error("Network request to ArcGIS service failed."));
+        };
+        document.head.appendChild(script);
+      });
+    }
 
-      if (currentRings?.length) {
-        currentRings.forEach(ring => ring.forEach(pt => {
-          const norm = normalizePoint(pt[0], pt[1]);
-          lons.push(norm.lon); lats.push(norm.lat);
-        }));
+    async function fetchUnitById(id) {
+      const data = await queryArcGISJsonp(id);
+      if (!data.features || data.features.length === 0) throw new Error(`Unit ID ${id} not found.`);
+      const feat = data.features[0];
+      const attrs = feat.attributes || {};
+      const fName = sanitizeUnitName(attrs.Name || attrs.name || attrs.NAME || attrs.unit_name || attrs.UnitName || attrs.UNIT_NAME);
+      if (fName) {
+        activeUnitLabel = fName;
+        document.getElementById('unit-title').innerText = activeUnitLabel;
       }
-
-      let minLon = Math.min(...lons), maxLon = Math.max(...lons);
-      let minLat = Math.min(...lats), maxLat = Math.max(...lats);
-
-      const lonPad = ((maxLon - minLon) || 0.02) * 0.25;
-      const latPad = ((maxLat - minLat) || 0.02) * 0.25;
-      minLon -= lonPad; maxLon += lonPad;
-      minLat -= latPad; maxLat += latPad;
-
-      currentLocalBbox = `${minLon.toFixed(5)},${minLat.toFixed(5)},${maxLon.toFixed(5)},${maxLat.toFixed(5)}`;
-
-      const regRadiusLon = ((maxLon - minLon) || 0.1) * 2.25;
-      const regRadiusLat = ((maxLat - minLat) || 0.1) * 2.25;
-      currentRegionalBbox = `${(centerLon - regRadiusLon).toFixed(5)},${(centerLat - regRadiusLat).toFixed(5)},${(centerLon + regRadiusLon).toFixed(5)},${(centerLat + regRadiusLat).toFixed(5)}`;
+      const acres = attrs.GIS_ACRES || attrs.TREATMENT_ACRES || attrs.acres || attrs.ACRES;
+      if (acres && !isNaN(parseFloat(acres)) && document.getElementById('burnType').value === 'broadcast') {
+        document.getElementById('unitSize').value = Math.max(1, Math.round(parseFloat(acres)));
+      }
+      const geom = feat.geometry;
+      currentRings = geom.rings || null;
+      if (geom.rings) return calculateRingsCentroid(geom.rings);
+      if (geom.x !== undefined && geom.y !== undefined) return normalizePoint(geom.x, geom.y);
+      throw new Error("No usable geometry found in unit record.");
     }
 
+    /* =========================================================
+       4. USGS NHD NIGHTTIME DRAINAGE QUERY
+       ========================================================= */
+    async function queryNighttimeDrainage(lat, lon) {
+      try {
+        const delta = 0.03; // ~2 miles search envelope
+        const bbox = `${(lon - delta).toFixed(5)},${(lat - delta).toFixed(5)},${(lon + delta).toFixed(5)},${(lat + delta).toFixed(5)}`;
+        const url = `${NHD_FLOWLINE_URL}?where=1%3D1&geometry=${bbox}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=GNIS_NAME,FTYPE&returnGeometry=true&outSR=4326&resultRecordCount=15&f=json`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("NHD unavailable");
+        const data = await res.json();
+        const features = data.features || [];
+
+        if (features.length > 0) {
+          // Pick named stream/creek first if available
+          const chosen = features.find(f => f.attributes?.GNIS_NAME && f.attributes.GNIS_NAME.trim() !== '') || features[0];
+          const channelName = (chosen.attributes?.GNIS_NAME && chosen.attributes.GNIS_NAME.trim() !== '')
+            ? chosen.attributes.GNIS_NAME.trim()
+            : 'Local Creek Channel';
+
+          const paths = chosen.geometry?.paths || [];
+          if (paths.length > 0 && paths[0].length >= 2) {
+            const path = paths[0];
+            const startPt = path[0];
+            const endPt = path[path.length - 1];
+            // NHD flowlines are digitized from upstream to downstream
+            const bearing = Math.round(calculateBearing(startPt[1], startPt[0], endPt[1], endPt[0]));
+            return { bearing, channelName };
+          }
+        }
+      } catch (e) {
+        console.warn("NHD drainage fallback:", e);
+      }
+      return { bearing: 180, channelName: 'Local Creek Channel' };
+    }
+
+    /* =========================================================
+       5. SMOKE TRAJECTORY MODEL ENGINE (NWCG PMS 420-3)
+       ========================================================= */
+    async function runSmokeModel() {
+      const btn = document.getElementById('runModelBtn');
+      const statusEl = document.getElementById('status');
+      btn.disabled = true;
+      btn.innerText = "Running Smoke Model...";
+
+      try {
+        let coords = null;
+        if (currentRings && currentRings.length > 0) {
+          coords = calculateRingsCentroid(currentRings);
+        }
+        if (!coords && cleanUnitId && !isUploadedUnit) {
+          statusEl.innerText = "Locating unit boundary...";
+          try {
+            coords = await fetchUnitById(cleanUnitId);
+          } catch (err) {
+            console.warn("ArcGIS lookup fallback:", err);
+          }
+        }
+        if (!coords) {
+          coords = parseSmartCoordinates(document.getElementById('coordInput').value);
+        }
+        if (!coords) {
+          statusEl.innerText = "Select a unit on the map or enter valid coordinates (e.g., 38.87, -106.95).";
+          return;
+        }
+
+        const { lat, lon } = coords;
+        document.getElementById('coordInput').value = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+
+        if (lat < 24 || lat > 50 || lon > -65 || lon < -130) {
+          statusEl.innerText = "Error: Coordinates fall outside NWS forecast coverage.";
+          return;
+        }
+
+        statusEl.innerText = "Querying NWS gridded dispersion & USGS hydrography...";
+
+        // Build ignition window timestamps
+        const dateStr = document.getElementById('ignitionDate').value;
+        const startHour = parseInt(document.getElementById('startTime').value, 10);
+        const durationHrs = parseInt(document.getElementById('duration').value, 10);
+        const burnType = document.getElementById('burnType').value;
+        const unitSize = Math.max(1, parseFloat(document.getElementById('unitSize').value) || 25);
+
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const windowStart = new Date(y, m - 1, d, startHour, 0, 0);
+
+        const [ptRes, drainageInfo] = await Promise.all([
+          fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`),
+          queryNighttimeDrainage(lat, lon)
+        ]);
+
+        if (!ptRes.ok) throw new Error("Could not reach NWS grid point.");
+        const ptData = await ptRes.json();
+
+        const detectedState = (ptData.properties?.relativeLocation?.properties?.state || '').toUpperCase();
+        if (!explicitState && STATE_VENT_RULES[detectedState]) {
+          activeStateCode = detectedState;
+        }
+
+        const gridUrl = ptData.properties.forecastGridData;
+        const gridRes = await fetch(gridUrl);
+        if (!gridRes.ok) throw new Error("NWS gridded forecast data is currently unreachable.");
+        const gridData = await gridRes.json();
+
+        const tWindSpeedVals = gridData.properties?.transportWindSpeed?.values || [];
+        const tWindDirVals   = gridData.properties?.transportWindDirection?.values || [];
+        const mixHeightVals  = gridData.properties?.mixingHeight?.values || [];
+
+        const hourlySamples = [];
+        for (let h = 0; h < durationHrs; h++) {
+          const sampleDate = new Date(windowStart.getTime() + h * 3600000);
+          const sampleMs = sampleDate.getTime();
+          const spdKmh = getValueForTime(tWindSpeedVals, sampleMs);
+          const dirDeg = getValueForTime(tWindDirVals, sampleMs);
+          const mixM   = getValueForTime(mixHeightVals, sampleMs);
+
+          if (spdKmh !== null && dirDeg !== null && mixM !== null) {
+            const spdMph = spdKmh * 0.621371;
+            const spdKt  = spdKmh * 0.539957;
+            const mixFt  = mixM * 3.28084;
+            const downwindDeg = (dirDeg + 180) % 360;
+            const timeLabel = sampleDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            hourlySamples.push({ sampleDate, timeLabel, spdMph, spdKt, dirDeg, downwindDeg, mixFt });
+          }
+        }
+
+        if (hourlySamples.length === 0) {
+          throw new Error("No gridded transport wind or mixing height data available for the selected date/time window.");
+        }
+
+        // Aggregate daytime transport vector & dispersion metrics
+        const avgWindMph = Math.round(hourlySamples.reduce((s, x) => s + x.spdMph, 0) / hourlySamples.length);
+        const avgWindKt  = hourlySamples.reduce((s, x) => s + x.spdKt, 0) / hourlySamples.length;
+        const avgMixFt   = Math.round(hourlySamples.reduce((s, x) => s + x.mixFt, 0) / hourlySamples.length);
+        const avgIncomingDir = Math.round(circularMeanDegrees(hourlySamples.map(x => x.dirDeg)));
+        const avgPlumeDir    = (avgIncomingDir + 180) % 360;
+
+        // Directional shift across burn window (Mobley / PMS 420-3)
+        let maxShift = 0;
+        for (let i = 0; i < hourlySamples.length; i++) {
+          for (let j = i + 1; j < hourlySamples.length; j++) {
+            const diff = angularDiff(hourlySamples[i].downwindDeg, hourlySamples[j].downwindDeg);
+            if (diff > maxShift) maxShift = Math.round(diff);
+          }
+        }
+
+        const halfAngle = Math.min(45, Math.round(20 + (maxShift / 2)));
+        const totalConeSweep = halfAngle * 2;
+
+        // Screening distance per NWCG PMS 420-3
+        let plumeDistMiles = 3.5;
+        let drainDistMiles = 2.5;
+        if (burnType === 'broadcast') {
+          if (unitSize < 50) { plumeDistMiles = 3.5; drainDistMiles = 2.5; }
+          else if (unitSize <= 250) { plumeDistMiles = 6.5; drainDistMiles = 3.5; }
+          else { plumeDistMiles = 10.0; drainDistMiles = 4.5; }
+        } else if (burnType === 'hand_piles') {
+          plumeDistMiles = Number((2.5 + Math.min(1.5, (unitSize / 200) * 1.5)).toFixed(1));
+          drainDistMiles = 2.5;
+        } else {
+          plumeDistMiles = 4.5;
+          drainDistMiles = 3.0;
+        }
+
+        // Ventilation Index & State Classification
+        const ventIndex = Math.round(avgMixFt * avgWindKt);
+        const rules = STATE_VENT_RULES[activeStateCode] || STATE_VENT_RULES.CO;
+        let ventLabel = 'Excellent';
+        let ventClass = 'val-good';
+        if (ventIndex < rules.poorLimit * 1000) { ventLabel = 'Poor'; ventClass = 'val-poor'; }
+        else if (ventIndex < rules.fairLimit * 1000) { ventLabel = 'Fair'; ventClass = 'val-fair'; }
+        else if (ventIndex < rules.goodLimit * 1000) { ventLabel = 'Good'; ventClass = 'val-good'; }
+
+        // Model Confidence Classification
+        let confText = '';
+        let confClass = 'conf-high';
+        if (avgWindMph < 9) {
+          confText = 'Low (Light & variable winds < 9 mph)';
+          confClass = 'conf-low';
+        } else if (maxShift > 30) {
+          confText = `Low (Directional shift > 30°)`;
+          confClass = 'conf-low';
+        } else if (avgWindMph > 25) {
+          confText = 'Moderate (High winds > 25 mph)';
+          confClass = 'conf-mod';
+        } else if (ventIndex < rules.poorLimit * 1000) {
+          confText = `Moderate (Marginal ventilation < ${(rules.poorLimit * 1000).toLocaleString()} knot-ft)`;
+          confClass = 'conf-mod';
+        } else if (maxShift >= 15) {
+          confText = `Moderate (Variable wind shift ${maxShift}°)`;
+          confClass = 'conf-mod';
+        } else {
+          confText = 'High (Steady 9–25 mph winds, shift < 15°)';
+          confClass = 'conf-high';
+        }
+
+        // Build Narrative Summary
+        const firstH = hourlySamples[0];
+        const lastH  = hourlySamples[hourlySamples.length - 1];
+        const shiftSentence = (hourlySamples.length > 1 && maxShift >= 10)
+          ? `Plume initiates toward ${Math.round(firstH.downwindDeg)}° (${degToCardinal(firstH.downwindDeg)}) at ${firstH.timeLabel} (${Math.round(firstH.spdMph)} mph) and shifts to ${Math.round(lastH.downwindDeg)}° (${degToCardinal(lastH.downwindDeg)}) by ${lastH.timeLabel} (${Math.round(lastH.spdMph)} mph), a shift of ${maxShift}°. The cone expands to a ${totalConeSweep}° cumulative sweep to cover all potential downwind receptors.`
+          : `Winds remain steady across the ${durationHrs}-hour window, carrying toward ${avgPlumeDir}° (${degToCardinal(avgPlumeDir)}) at ${avgWindMph} mph. The 40° dispersion cone extends along this heading to ${plumeDistMiles} miles.`;
+
+        const summaryNarrative = `Planned ${durationHrs}-hour ignition on ${dateStr} starting at ${firstH.timeLabel}. Transport winds average ${avgWindMph} mph from ${avgIncomingDir}° (${degToCardinal(avgIncomingDir)}) with mixing heights of ${avgMixFt.toLocaleString()} ft (Ventilation: ${ventLabel}). ${shiftSentence} Nocturnal settling may carry residual smoke up to ${drainDistMiles} miles down ${drainageInfo.channelName}.`;
+
+        // Update UI Values
+        document.getElementById('smoke-summary-text').innerText = summaryNarrative;
+        document.getElementById('val-twind').innerText = `${avgWindMph} mph @ ${avgIncomingDir}° (${degToCardinal(avgIncomingDir)})`;
+        document.getElementById('val-plume-dir').innerText = maxShift >= 10
+          ? `${avgPlumeDir}° (${degToCardinal(avgPlumeDir)}) ±${halfAngle - 20}°`
+          : `${avgPlumeDir}° (${degToCardinal(avgPlumeDir)})`;
+        document.getElementById('val-plume-dist').innerText = `${plumeDistMiles} miles`;
+        document.getElementById('val-mix-height').innerText = `${avgMixFt.toLocaleString()} ft`;
+
+        const ventEl = document.getElementById('val-vent-index');
+        ventEl.innerText = `${ventLabel} (${ventIndex.toLocaleString()})`;
+        ventEl.className = `val ${ventClass}`;
+
+        document.getElementById('val-drain-dir').innerText = `${drainageInfo.bearing}° (${degToCardinal(drainageInfo.bearing)})`;
+        document.getElementById('val-drain-dist').innerText = `${drainDistMiles} miles down valley`;
+
+        const badgeEl = document.getElementById('conf-badge');
+        badgeEl.innerText = confText;
+        badgeEl.className = `conf-badge ${confClass}`;
+
+        statusEl.innerText = `Smoke Model Complete: Day plume may carry up to ${plumeDistMiles} mi toward ${degToCardinal(avgPlumeDir)}; Night drainage may follow ${drainageInfo.channelName}.`;
+
+        lastModelResult = {
+          lat, lon,
+          avgPlumeDir,
+          halfAngle,
+          plumeDistMiles,
+          hourlySamples,
+          drainBearing: drainageInfo.bearing,
+          drainDistMiles,
+          channelName: drainageInfo.channelName,
+          summaryNarrative,
+          ventText: `${ventLabel} (${ventIndex.toLocaleString()})`,
+          confText
+        };
+
+        document.getElementById('results-card').style.display = 'block';
+        document.getElementById('map-card').style.display = 'block';
+        document.getElementById('exportBtn').style.display = 'block';
+
+        updateMapBoundsAndRender();
+
+      } catch (err) {
+        statusEl.innerText = `Error: ${err.message}`;
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Run Smoke Model";
+      }
+    }
+
+    /* =========================================================
+       6. DISPERSION MAP & SVG OVERLAY RENDERING
+       ========================================================= */
     function setBasemap(type) {
-      currentBasemapType = type;
+      currentBasemap = type;
       document.getElementById('btnSat').classList.toggle('active', type === 'sat');
       document.getElementById('btnTopo').classList.toggle('active', type === 'topo');
-      document.getElementById('btnReg').classList.toggle('active', type === 'reg');
-      
-      const isRegional = type === 'reg';
-      document.getElementById('lblClass1').style.display = isRegional ? 'flex' : 'none';
-      document.getElementById('legClass1').style.display = isRegional ? 'flex' : 'none';
-
-      updateBasemapImage();
-      renderSvgOverlays();
+      document.getElementById('btnAirshed').classList.toggle('active', type === 'airshed');
+      refreshMapTiles();
     }
 
-    function updateBasemapImage() {
-      const isRegional = currentBasemapType === 'reg';
-      const bbox = isRegional ? currentRegionalBbox : currentLocalBbox;
-      if (!bbox) return;
-
-      const baseImg = document.getElementById('map-img-base');
-      let serviceUrl = '';
-
-      if (currentBasemapType === 'sat') {
-        serviceUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
-      } else {
-        serviceUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
-      }
-
-      baseImg.src = serviceUrl;
-      toggleWuiOverlay();
-      toggleClass1Overlay();
-      document.getElementById('map-preview').style.display = 'block';
-    }
-
-    function toggleWuiOverlay() {
-      const chk = document.getElementById('chkWui').checked;
-      const wuiImg = document.getElementById('map-img-wui');
-      const isRegional = currentBasemapType === 'reg';
-      const bbox = isRegional ? currentRegionalBbox : currentLocalBbox;
-
-      if (chk && bbox) {
-        wuiImg.src = `https://imagery.geoplatform.gov/iipp/rest/services/Fire_Aviation/USFS_EDW_RMRS_WRC_HousingUnitDensity/ImageServer/exportImage?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image&format=png32&transparent=true`;
-        
-        if (currentBasemapType === 'sat') {
-          wuiImg.style.mixBlendMode = 'normal';
-          wuiImg.style.filter = 'none';
-          wuiImg.style.opacity = '0.55';
-        } else {
-          wuiImg.style.mixBlendMode = 'multiply';
-          wuiImg.style.filter = 'contrast(220%) brightness(0.7)';
-          wuiImg.style.opacity = '0.75';
-        }
+    function toggleWuiLayer() {
+      const show = document.getElementById('chkWui').checked;
+      const wuiImg = document.getElementById('wui-img');
+      if (show && currentBboxStr) {
+        wuiImg.src = `${WUI_EXPORT_URL}?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,400&transparent=true&f=image`;
         wuiImg.style.display = 'block';
       } else {
         wuiImg.style.display = 'none';
       }
     }
 
-    function toggleClass1Overlay() {
-      const class1Img = document.getElementById('map-img-class1');
-      const isRegional = currentBasemapType === 'reg';
-      const chk = document.getElementById('chkClass1').checked;
+    function updateMapBoundsAndRender() {
+      if (!lastModelResult) return;
+      const { lat, lon, avgPlumeDir, halfAngle, plumeDistMiles, drainBearing, drainDistMiles } = lastModelResult;
 
-      if (isRegional && chk && currentRegionalBbox) {
-        class1Img.src = `https://apps.fs.usda.gov/ArcX/rest/services/EDW/EDW_WildernessStatus_01/MapServer/export?bbox=${currentRegionalBbox}&bboxSR=4326&imageSR=4326&size=600,400&layers=show:0&f=image&format=png32&transparent=true`;
-        class1Img.style.opacity = '0.45';
-        class1Img.style.display = 'block';
-        class1Img.onerror = function() { class1Img.style.display = 'none'; };
+      // Collect all plume & drainage boundary points to auto-fit map extent
+      const extentPts = [{ lat, lon }];
+      for (let a = -halfAngle; a <= halfAngle; a += 10) {
+        extentPts.push(destinationPoint(lat, lon, (avgPlumeDir + a + 360) % 360, plumeDistMiles));
+      }
+      extentPts.push(destinationPoint(lat, lon, drainBearing, drainDistMiles));
+
+      if (currentRings?.length) {
+        currentRings.forEach(r => r.forEach(pt => extentPts.push(normalizePoint(pt[0], pt[1]))));
+      }
+
+      const lons = extentPts.map(p => p.lon);
+      const lats = extentPts.map(p => p.lat);
+      let minLon = Math.min(...lons), maxLon = Math.max(...lons);
+      let minLat = Math.min(...lats), maxLat = Math.max(...lats);
+
+      // Maintain 3:2 aspect ratio (600x400) with generous padding
+      const midLat = (minLat + maxLat) / 2;
+      const midLon = (minLon + maxLon) / 2;
+      const cosLat = Math.cos(midLat * Math.PI / 180);
+      let spanLat = Math.max((maxLat - minLat) * 1.35, 0.06);
+      let spanLon = Math.max((maxLon - minLon) * 1.35, (spanLat * 1.5) / cosLat);
+      spanLat = Math.max(spanLat, (spanLon * cosLat) / 1.5);
+
+      minLat = midLat - spanLat / 2;
+      maxLat = midLat + spanLat / 2;
+      minLon = midLon - spanLon / 2;
+      maxLon = midLon + spanLon / 2;
+
+      currentBboxStr = `${minLon.toFixed(5)},${minLat.toFixed(5)},${maxLon.toFixed(5)},${maxLat.toFixed(5)}`;
+      refreshMapTiles();
+      toggleWuiLayer();
+      renderSmokeSvg();
+    }
+
+    function refreshMapTiles() {
+      if (!currentBboxStr) return;
+      const img = document.getElementById('map-img');
+      if (currentBasemap === 'sat') {
+        img.src = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
+      } else if (currentBasemap === 'topo') {
+        img.src = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
       } else {
-        class1Img.style.display = 'none';
+        img.src = `https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Light_Gray_Base/MapServer/export?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
       }
     }
 
-    function getSvgStringForBbox(bboxStr, showDay = true, showNight = true) {
-      if (!bboxStr) return '';
-      const [minLon, minLat, maxLon, maxLat] = bboxStr.split(',').map(parseFloat);
+    function projectToSvg(pt, minLon, minLat, maxLon, maxLat) {
+      const x = (((pt.lon - minLon) / (maxLon - minLon)) * 600).toFixed(1);
+      const y = ((1 - (pt.lat - minLat) / (maxLat - minLat)) * 400).toFixed(1);
+      return `${x},${y}`;
+    }
 
-      let conePath = '';
-      if (showDay && latestConeCoords.length) {
-        latestConeCoords.forEach((pt, idx) => {
-          const x = (((pt[0] - minLon) / (maxLon - minLon)) * 600).toFixed(1);
-          const y = ((1 - (pt[1] - minLat) / (maxLat - minLat)) * 400).toFixed(1);
-          conePath += (idx === 0 ? `M ${x} ${y} ` : `L ${x} ${y} `);
-        });
-        conePath += 'Z';
+    function renderSmokeSvg() {
+      if (!lastModelResult || !currentBboxStr) return;
+      const [minLon, minLat, maxLon, maxLat] = currentBboxStr.split(',').map(parseFloat);
+      const { lat, lon, avgPlumeDir, halfAngle, plumeDistMiles, hourlySamples, drainBearing, drainDistMiles } = lastModelResult;
+      const svg = document.getElementById('smoke-svg');
+
+      const showPlume = document.getElementById('chkPlume').checked;
+      const showDrainage = document.getElementById('chkDrainage').checked;
+      let html = '';
+
+      // 1. Nighttime Drainage Ribbon (0.6 miles wide)
+      if (showDrainage) {
+        const leftBearing = (drainBearing - 90 + 360) % 360;
+        const rightBearing = (drainBearing + 90) % 360;
+        const halfWidth = 0.3;
+
+        const p1 = destinationPoint(lat, lon, leftBearing, halfWidth);
+        const p2 = destinationPoint(lat, lon, rightBearing, halfWidth);
+        const endCenter = destinationPoint(lat, lon, drainBearing, drainDistMiles);
+        const p3 = destinationPoint(endCenter.lat, endCenter.lon, rightBearing, halfWidth);
+        const p4 = destinationPoint(endCenter.lat, endCenter.lon, leftBearing, halfWidth);
+
+        const polyPts = [p1, p2, p3, p4].map(p => projectToSvg(p, minLon, minLat, maxLon, maxLat)).join(' ');
+        html += `<polygon points="${polyPts}" fill="rgba(51, 65, 85, 0.32)" stroke="#334155" stroke-width="1.5" />`;
       }
 
-      let hourlyLinesHtml = '';
-      if (showDay && latestHourlyVectors.length && cachedCoords) {
-        const x1 = (((cachedCoords.lon - minLon) / (maxLon - minLon)) * 600).toFixed(1);
-        const y1 = ((1 - (cachedCoords.lat - minLat) / (maxLat - minLat)) * 400).toFixed(1);
+      // 2. Daytime Plume Dispersion Wedge & Hourly Trajectory
+      if (showPlume) {
+        const originSvg = projectToSvg({ lat, lon }, minLon, minLat, maxLon, maxLat);
+        const arcPts = [originSvg];
+        for (let a = -halfAngle; a <= halfAngle; a += 4) {
+          const pt = destinationPoint(lat, lon, (avgPlumeDir + a + 360) % 360, plumeDistMiles);
+          arcPts.push(projectToSvg(pt, minLon, minLat, maxLon, maxLat));
+        }
+        html += `<polygon points="${arcPts.join(' ')}" fill="rgba(249, 115, 22, 0.30)" stroke="#ea580c" stroke-width="1.5" />`;
 
-        latestHourlyVectors.forEach(v => {
-          const x2 = (((v.lon - minLon) / (maxLon - minLon)) * 600).toFixed(1);
-          const y2 = ((1 - (v.lat - minLat) / (maxLat - minLat)) * 400).toFixed(1);
-          
-          hourlyLinesHtml += `
-            <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#b34700" stroke-width="1.8" stroke-dasharray="4,4" opacity="0.85" />
-            <circle cx="${x2}" cy="${y2}" r="3" fill="#b34700" />
-            <text x="${x2}" y="${parseFloat(y2) - 4}" fill="#7a3000" font-size="10" font-weight="bold" text-anchor="middle">${v.timeLabel}</text>
-          `;
+        // Dashed hourly trajectory line
+        let trajPts = [originSvg];
+        let curLat = lat, curLon = lon;
+        const stepDist = plumeDistMiles / hourlySamples.length;
+        hourlySamples.forEach(s => {
+          const nextPt = destinationPoint(curLat, curLon, s.downwindDeg, stepDist);
+          trajPts.push(projectToSvg(nextPt, minLon, minLat, maxLon, maxLat));
+          curLat = nextPt.lat;
+          curLon = nextPt.lon;
         });
+        html += `<polyline points="${trajPts.join(' ')}" fill="none" stroke="#9a3412" stroke-width="2" stroke-dasharray="5,4" />`;
       }
 
-      let nightPath = '';
-      if (showNight && latestNightCorridorCoords.length) {
-        latestNightCorridorCoords.forEach((pt, idx) => {
-          const x = (((pt[0] - minLon) / (maxLon - minLon)) * 600).toFixed(1);
-          const y = ((1 - (pt[1] - minLat) / (maxLat - minLat)) * 400).toFixed(1);
-          nightPath += (idx === 0 ? `M ${x} ${y} ` : `L ${x} ${y} `);
-        });
-        nightPath += 'Z';
-      }
-
-      let unitPath = '';
+      // 3. Unit Boundary Polygon or Origin Pin
       if (currentRings?.length) {
+        let d = '';
         currentRings.forEach(ring => {
           ring.forEach((pt, idx) => {
             const norm = normalizePoint(pt[0], pt[1]);
-            const x = (((norm.lon - minLon) / (maxLon - minLon)) * 600).toFixed(1);
-            const y = ((1 - (norm.lat - minLat) / (maxLat - minLat)) * 400).toFixed(1);
-            unitPath += (idx === 0 ? `M ${x} ${y} ` : `L ${x} ${y} `);
+            const [x, y] = projectToSvg(norm, minLon, minLat, maxLon, maxLat).split(',');
+            d += (idx === 0 ? `M ${x} ${y} ` : `L ${x} ${y} `);
           });
-          unitPath += 'Z ';
+          d += 'Z ';
         });
+        html += `<path d="${d}" fill="rgba(6, 182, 212, 0.25)" stroke="#06b6d4" stroke-width="2.5" />`;
+      } else {
+        const [cx, cy] = projectToSvg({ lat, lon }, minLon, minLat, maxLon, maxLat).split(',');
+        html += `<circle cx="${cx}" cy="${cy}" r="6" fill="#dc2626" stroke="#ffffff" stroke-width="2" />`;
       }
 
-      let pinHtml = '';
-      if (!currentRings?.length && cachedCoords) {
-        const cx = (((cachedCoords.lon - minLon) / (maxLon - minLon)) * 600).toFixed(1);
-        const cy = ((1 - (cachedCoords.lat - minLat) / (maxLat - minLat)) * 400).toFixed(1);
-        pinHtml = `<circle cx="${cx}" cy="${cy}" r="6" fill="#ff0000" stroke="#ffffff" stroke-width="2" />`;
-      }
-
-      return `
-        <svg viewBox="0 0 600 400" preserveAspectRatio="none" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;">
-          ${nightPath ? `<path d="${nightPath}" fill="rgba(40, 85, 121, 0.45)" stroke="#1d3d57" stroke-width="2" stroke-dasharray="4,3" />` : ''}
-          ${conePath ? `<path d="${conePath}" fill="rgba(255, 140, 0, 0.35)" stroke="#ff8c00" stroke-width="2.5" stroke-dasharray="5,3" />` : ''}
-          ${hourlyLinesHtml}
-          ${unitPath ? `<path d="${unitPath}" fill="rgba(0, 255, 255, 0.5)" stroke="#00ffff" stroke-width="2" />` : ''}
-          ${pinHtml}
-        </svg>
-      `;
+      svg.innerHTML = html;
     }
 
-    function renderSvgOverlays() {
-      const isRegional = currentBasemapType === 'reg';
-      const bboxStr = isRegional ? currentRegionalBbox : currentLocalBbox;
-      if (!bboxStr) return;
-
-      const showDay = document.getElementById('chkDay').checked;
-      const showNight = document.getElementById('chkNight').checked;
-
-      const dynamicSvg = getSvgStringForBbox(bboxStr, showDay, showNight);
-      const containerSvg = document.getElementById('map-svg');
-      containerSvg.outerHTML = dynamicSvg;
-      document.querySelector('.map-container svg').id = 'map-svg';
-    }
-
-    function openExportModal() {
-      document.getElementById('exportModal').style.display = 'flex';
-    }
-
-    function closeExportModal() {
-      document.getElementById('exportModal').style.display = 'none';
-    }
-
-    function executePdfGeneration() {
-      const incSat = document.getElementById('pdfIncSat').checked;
-      const incTopo = document.getElementById('pdfIncTopo').checked;
-      const incReg = document.getElementById('pdfIncReg').checked;
-      const incParams = document.getElementById('pdfIncParams').checked;
-      const incDay = document.getElementById('pdfIncDay').checked;
-      const incNight = document.getElementById('pdfIncNight').checked;
-
-      closeExportModal();
-
-      const printWin = window.open('', '_blank');
-      if (!printWin) {
-        alert("Please allow pop-ups to open the PDF report.");
-        return;
-      }
-
-      const title = document.getElementById('unit-title').innerText;
-      const statusText = document.getElementById('status').innerText;
-      const dateVal = document.getElementById('ignDate').value;
-      const timeVal = document.getElementById('ignHour').value;
-      const durVal = document.getElementById('burnDuration').value;
-      const typeVal = document.getElementById('burnType').selectedOptions[0].text;
-      const sizeVal = document.getElementById('burnSize').value;
-
-      const twindVal = document.getElementById('res-twind').innerText;
-      const headingVal = document.getElementById('res-heading').innerText;
-      const distVal = document.getElementById('res-dist').innerText;
-      const mixVal = document.getElementById('res-mix').innerText;
-      const viVal = document.getElementById('res-vi').innerText;
-      const drainageVal = document.getElementById('res-drainage').innerText;
-      const drainageDistVal = document.getElementById('res-drainage-dist').innerText;
-      const confVal = document.getElementById('res-confidence').innerText;
-
-      const showInversion = document.getElementById('inversion-alert').style.display !== 'none';
-      const invMixVal = document.getElementById('inv-mix-val').innerText;
-      const showDrainage = document.getElementById('drainage-alert').style.display !== 'none';
-
-      const satUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${currentLocalBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
-      const topoUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentLocalBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
-      const regUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentRegionalBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
-      const wuiLocalUrl = `https://imagery.geoplatform.gov/iipp/rest/services/Fire_Aviation/USFS_EDW_RMRS_WRC_HousingUnitDensity/ImageServer/exportImage?bbox=${currentLocalBbox}&bboxSR=4326&imageSR=4326&size=600,400&f=image&format=png32&transparent=true`;
-      const class1RegionalUrl = `https://apps.fs.usda.gov/ArcX/rest/services/EDW/EDW_WildernessStatus_01/MapServer/export?bbox=${currentRegionalBbox}&bboxSR=4326&imageSR=4326&size=600,400&layers=show:0&f=image&format=png32&transparent=true`;
-
-      const localSvgHtml = getSvgStringForBbox(currentLocalBbox, incDay, incNight);
-      const regionalSvgHtml = getSvgStringForBbox(currentRegionalBbox, incDay, incNight);
-
-      const reportHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>${title} - Smoke Model Summary</title>
-          <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color: #222; max-width: 800px; margin: 0 auto; font-size: 13px; }
-            h2 { margin: 0 0 4px 0; color: #111; font-size: 20px; }
-            .meta { font-size: 12px; color: #555; margin-bottom: 14px; border-bottom: 2px solid #222; padding-bottom: 6px; }
-            
-            .report-section-title {
-              font-size: 11px;
-              font-weight: bold;
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
-              color: #111;
-              border-bottom: 1px solid #444;
-              padding-bottom: 3px;
-              margin-top: 14px;
-              margin-bottom: 8px;
-            }
-
-            .summary-text {
-              font-size: 13px;
-              line-height: 1.5;
-              color: #222;
-              margin-bottom: 14px;
-            }
-
-            .classic-text-grid {
-              display: grid;
-              grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-              gap: 12px;
-              margin-bottom: 14px;
-            }
-            .classic-text-item .lbl {
-              font-size: 10px;
-              color: #666;
-              text-transform: uppercase;
-              font-weight: 600;
-              display: block;
-            }
-            .classic-text-item .val {
-              font-size: 13px;
-              font-weight: bold;
-              color: #111;
-              margin-top: 2px;
-            }
-
-            .notice-note {
-              border-left: 3px solid #666;
-              padding: 6px 10px;
-              margin: 10px 0;
-              font-size: 12px;
-              background: #fafafa;
-              color: #333;
-            }
-
-            .legend-bar {
-              display: flex;
-              flex-wrap: wrap;
-              gap: 12px;
-              background: #fafafa;
-              border: 1px solid #ccc;
-              padding: 8px 12px;
-              font-size: 11px;
-              font-weight: 600;
-              color: #333;
-              margin-bottom: 16px;
-            }
-            .legend-item { display: flex; align-items: center; gap: 6px; }
-            .legend-color { width: 14px; height: 14px; border-radius: 2px; display: inline-block; }
-            .legend-line { width: 18px; height: 0px; border-top: 2px dashed #b34700; display: inline-block; }
-
-            .map-card { page-break-inside: avoid; margin-bottom: 18px; text-align: center; }
-            .map-card-title { font-size: 12px; font-weight: bold; text-align: left; text-transform: uppercase; color: #111; margin-bottom: 6px; }
-            .map-wrapper { position: relative; width: 100%; max-width: 600px; margin: 0 auto; }
-            .map-wrapper img.base { width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px; display: block; }
-            .map-wrapper img.wui { position: absolute; top:0; left:0; width: 100%; height: 100%; }
-            .map-wrapper img.class1 { position: absolute; top:0; left:0; width: 100%; height: 100%; pointer-events: none; }
-            .disclaimer-report { font-size: 11px; color: #555; line-height: 1.5; border-top: 1px solid #ccc; padding-top: 8px; margin-top: 14px; }
-            @media print { body { padding: 0; } }
-          </style>
-        </head>
-        <body>
-          <h2>${title}</h2>
-          <div class="meta">${statusText} | Generated: ${new Date().toLocaleString()}</div>
-
-          <div class="report-section-title">Smoke Summary</div>
-          <div class="summary-text">${latestUnifiedSmokeSummary}</div>
-
-          ${incParams ? `
-            <div class="report-section-title">Prescription Parameters</div>
-            <div class="classic-text-grid">
-              <div class="classic-text-item"><span class="lbl">Date / Time</span><span class="val">${dateVal} @${timeVal}</span></div>
-              <div class="classic-text-item"><span class="lbl">Duration</span><span class="val">${durVal} Hours</span></div>
-              <div class="classic-text-item"><span class="lbl">Burn Type</span><span class="val">${typeVal}</span></div>
-              <div class="classic-text-item"><span class="lbl">Size</span><span class="val">${sizeVal} ${typeVal.includes('Piles') ? 'Piles' : 'Acres'}</span></div>
-            </div>
-          ` : ''}
-
-          ${(incDay || incNight) ? `
-            <div class="report-section-title">Smoke Model Metrics</div>
-            <div class="classic-text-grid">
-              ${incDay ? `<div class="classic-text-item"><span class="lbl">Transport Wind</span><span class="val">${twindVal}</span></div>` : ''}
-              ${incDay ? `<div class="classic-text-item"><span class="lbl">Daytime Plume Direction</span><span class="val">${headingVal}</span></div>` : ''}
-              ${incDay ? `<div class="classic-text-item"><span class="lbl">Daytime Plume Distance</span><span class="val">${distVal}</span></div>` : ''}
-              ${incDay ? `<div class="classic-text-item"><span class="lbl">Mixing Height</span><span class="val">${mixVal}</span></div>` : ''}
-              ${incDay ? `<div class="classic-text-item"><span class="lbl">Ventilation Index</span><span class="val">${viVal}</span></div>` : ''}
-              ${incNight ? `<div class="classic-text-item"><span class="lbl">Night Drainage Direction</span><span class="val">${drainageVal}</span></div>` : ''}
-              ${incNight ? `<div class="classic-text-item"><span class="lbl">Night Drainage Distance</span><span class="val">${drainageDistVal}</span></div>` : ''}
-              <div class="classic-text-item"><span class="lbl">Model Confidence</span><span class="val">${confVal}</span></div>
-            </div>
-          ` : ''}
-
-          ${showInversion ? `
-            <div class="notice-note">
-              <strong>Morning Inversion Advisory:</strong> Mixing height may start low (${invMixVal} ft). Smoke may stay near the ground until surface heating breaks the inversion.
-            </div>
-          ` : ''}
-
-          ${(incNight && showDrainage) ? `
-            <div class="notice-note">
-              <strong>Overnight Smoke Advisory:</strong> Smoke may drain down <strong>${latestDrainageName}</strong>. Check downstream valley bottoms for potential pooling.
-            </div>
-          ` : ''}
-
-          <div class="legend-bar">
-            <div class="legend-item"><span class="legend-color" style="background:rgba(255, 140, 0, 0.5); border:1px solid #ff8c00;"></span> Daytime Plume Wedge</div>
-            <div class="legend-item"><span class="legend-line"></span> Hourly Trajectory</div>
-            <div class="legend-item"><span class="legend-color" style="background:rgba(40, 85, 121, 0.5); border:1px solid #1d3d57;"></span> Night Drainage Corridor</div>
-            <div class="legend-item"><span class="legend-color" style="background:rgba(0, 255, 255, 0.5); border:1px solid #00ffff;"></span> Unit Boundary</div>
-            <div class="legend-item"><span class="legend-color" style="background:#8fa9c4; border-radius:50%;"></span> WUI Density</div>
-            <div class="legend-item"><span class="legend-color" style="background:rgba(46, 117, 89, 0.45); border:1px solid #1e523e;"></span> Class I Areas</div>
-          </div>
-
-          ${incSat ? `
-            <div class="map-card">
-              <div class="map-card-title">1. Satellite View</div>
-              <div class="map-wrapper">
-                <img class="base" src="${satUrl}">
-                <img class="wui" src="${wuiLocalUrl}" style="opacity:0.55;">
-                ${localSvgHtml}
-              </div>
-            </div>
-          ` : ''}
-
-          ${incTopo ? `
-            <div class="map-card">
-              <div class="map-card-title">2. Topographic & Drainage View (Local)</div>
-              <div class="map-wrapper">
-                <img class="base" src="${topoUrl}">
-                <img class="wui" src="${wuiLocalUrl}" style="mix-blend-mode:multiply; filter:contrast(220%) brightness(0.7); opacity:0.75;">
-                ${localSvgHtml}
-              </div>
-            </div>
-          ` : ''}
-
-          ${incReg ? `
-            <div class="map-card">
-              <div class="map-card-title">3. Regional Airshed Overview (30 to 50 mi with Class I Areas)</div>
-              <div class="map-wrapper">
-                <img class="base" src="${regUrl}">
-                <img class="class1" src="${class1RegionalUrl}" style="opacity:0.45;" onerror="this.style.display='none';">
-                ${regionalSvgHtml}
-              </div>
-            </div>
-          ` : ''}
-
-          <div class="disclaimer-report">
-            Notice: Predictive dispersion screening model based on NWS forecast grids and USGS stream flowlines. Confirm on site and follow local smoke permits.
-          </div>
-
-          <script>
-            window.onload = function() {
-              window.focus();
-              setTimeout(function() { window.print(); }, 500);
-            };
-          <\/script>
-        </body>
-        </html>
-      `;
-
-      printWin.document.open();
-      printWin.document.write(reportHtml);
-      printWin.document.close();
-    }
-
+    /* =========================================================
+       7. MAP SELECTION LISTENER (Experience Builder)
+       ========================================================= */
     window.addEventListener('message', function(event) {
       if (!event.data) return;
       try {
-        const payload = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-        if (payload.rings || payload.geometry?.rings || payload.geojson) {
-          isUploadedUnit = false;
-          const geom = payload.rings || payload.geometry?.rings || payload.geojson;
-          currentRings = Array.isArray(geom[0]?.[0]) ? geom : [geom];
-          activeUnitLabel = sanitizeUnitName(payload.unit || payload.name) || 'Smoke Model';
+        const payload = (typeof event.data === 'string') ? JSON.parse(event.data) : event.data;
+        let feat = payload;
+        if (payload.features && payload.features.length > 0) feat = payload.features[0];
+        if (payload.graphics && payload.graphics.length > 0) feat = payload.graphics[0];
+
+        const geom = feat.geometry || feat.rings || feat.geojson || payload.rings || payload.geojson;
+        const attrs = feat.attributes || feat.properties || payload.attributes || {};
+
+        const pName = sanitizeUnitName(attrs.Name || attrs.name || attrs.NAME || attrs.unit_name || attrs.UnitName || attrs.UNIT_NAME || payload.unit || payload.name);
+        if (pName) {
+          activeUnitLabel = pName;
           document.getElementById('unit-title').innerText = activeUnitLabel;
-          cachedCoords = calculateRingsCentroid(currentRings);
-          if (cachedCoords) {
-            document.getElementById('coordInput').value = `${cachedCoords.lat.toFixed(4)}, ${cachedCoords.lon.toFixed(4)}`;
-          }
-          runSmokeModel();
         }
-      } catch(e) {}
+
+        const pAcres = attrs.GIS_ACRES || attrs.TREATMENT_ACRES || attrs.acres || attrs.ACRES || payload.acres;
+        if (pAcres && !isNaN(parseFloat(pAcres)) && document.getElementById('burnType').value === 'broadcast') {
+          document.getElementById('unitSize').value = Math.max(1, Math.round(parseFloat(pAcres)));
+        }
+
+        let foundRings = null;
+        if (geom) {
+          if (geom.rings) foundRings = geom.rings;
+          else if (geom.type === 'Polygon') foundRings = geom.coordinates;
+          else if (geom.type === 'MultiPolygon') foundRings = geom.coordinates[0];
+          else if (Array.isArray(geom)) foundRings = Array.isArray(geom[0]?.[0]) ? geom : [geom];
+        }
+
+        if (foundRings && foundRings.length > 0) {
+          isUploadedUnit = false;
+          currentRings = foundRings;
+          const centroid = calculateRingsCentroid(currentRings);
+          if (centroid) {
+            document.getElementById('coordInput').value = `${centroid.lat.toFixed(4)}, ${centroid.lon.toFixed(4)}`;
+            runSmokeModel();
+          }
+        } else if (geom && (geom.x !== undefined || geom.longitude !== undefined)) {
+          const pt = normalizePoint(geom.x || geom.longitude, geom.y || geom.latitude);
+          currentRings = null;
+          isUploadedUnit = false;
+          document.getElementById('coordInput').value = `${pt.lat.toFixed(4)}, ${pt.lon.toFixed(4)}`;
+          runSmokeModel();
+        } else {
+          const pId = attrs.OBJECTID || attrs.objectid || attrs.id || payload.id || payload.OBJECTID;
+          if (pId) {
+            cleanUnitId = String(pId).replace(/[^0-9]/g, '');
+            currentRings = null;
+            isUploadedUnit = false;
+            runSmokeModel();
+          }
+        }
+      } catch (e) {
+        console.warn("Could not process incoming map message:", e);
+      }
     });
 
-    if (cleanUnitId) {
-      initializeUnitFromService(cleanUnitId).then(() => {
-        runSmokeModel();
-      });
+    /* =========================================================
+       8. PDF BRIEFING EXPORT
+       ========================================================= */
+    function exportSmokePdf() {
+      if (!lastModelResult) return;
+      const printWin = window.open('', '_blank');
+      if (!printWin) { alert("Please allow pop-ups to print the Smoke Briefing PDF."); return; }
+
+      const title = document.getElementById('unit-title').innerText;
+      const dateVal = document.getElementById('ignitionDate').value;
+      const startSel = document.getElementById('startTime');
+      const startText = startSel.options[startSel.selectedIndex].text;
+      const durSel = document.getElementById('duration');
+      const durText = durSel.options[durSel.selectedIndex].text;
+      const typeSel = document.getElementById('burnType');
+      const typeText = typeSel.options[typeSel.selectedIndex].text;
+      const sizeLbl = document.getElementById('unitSizeLabel').innerText;
+      const sizeVal = document.getElementById('unitSize').value;
+
+      const topoUrl = `https://services.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/export?bbox=${currentBboxStr}&bboxSR=4326&imageSR=4326&size=600,400&f=image`;
+      const svgHtml = document.getElementById('smoke-svg').outerHTML;
+
+      printWin.document.open();
+      printWin.document.write(`
+        <!DOCTYPE html><html><head><title>Smoke Trajectory Briefing - ${title}</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color: #1e293b; max-width: 800px; margin: 0 auto; font-size: 13px; }
+          h2 { margin: 0 0 4px 0; font-size: 20px; color: #0f172a; }
+          .meta { font-size: 12px; color: #475569; margin-bottom: 14px; border-bottom: 2px solid #1e293b; padding-bottom: 6px; }
+          .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #0f172a; border-bottom: 1px solid #94a3b8; padding-bottom: 3px; margin-top: 14px; margin-bottom: 10px; }
+          .param-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 14px; margin-bottom: 14px; }
+          .param-grid div { display: flex; flex-direction: column; }
+          .lbl { font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 700; }
+          .val { font-size: 13px; font-weight: 600; color: #0f172a; margin-top: 2px; }
+          .summary-p { background: #f8fafc; border: 1px solid #cbd5e1; padding: 10px 12px; border-radius: 5px; line-height: 1.5; margin-bottom: 14px; }
+          .map-wrap { position: relative; width: 100%; max-width: 600px; margin: 12px auto; }
+          .map-wrap img { width: 100%; display: block; border: 1px solid #cbd5e1; border-radius: 4px; }
+          .map-wrap svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        </style></head><body>
+          <h2>${title} — Smoke Trajectory Briefing</h2>
+          <div class="meta">Coordinates: ${document.getElementById('coordInput').value} | Methodology: NWCG PMS 420-3 | Generated: ${new Date().toLocaleString()}</div>
+          
+          <div class="section-title">Burn Parameters</div>
+          <div class="param-grid">
+            <div><span class="lbl">Ignition Date</span><span class="val">${dateVal}</span></div>
+            <div><span class="lbl">Start Time</span><span class="val">${startText}</span></div>
+            <div><span class="lbl">Duration</span><span class="val">${durText}</span></div>
+            <div><span class="lbl">Burn Type / Size</span><span class="val">${typeText} (${sizeVal} ${sizeLbl})</span></div>
+          </div>
+
+          <div class="section-title">Dispersion Summary & Metrics</div>
+          <div class="summary-p">${lastModelResult.summaryNarrative}</div>
+          <div class="param-grid">
+            <div><span class="lbl">Transport Wind</span><span class="val">${document.getElementById('val-twind').innerText}</span></div>
+            <div><span class="lbl">Daytime Plume Dir</span><span class="val">${document.getElementById('val-plume-dir').innerText}</span></div>
+            <div><span class="lbl">Daytime Plume Dist</span><span class="val">${document.getElementById('val-plume-dist').innerText}</span></div>
+            <div><span class="lbl">Mixing Height</span><span class="val">${document.getElementById('val-mix-height').innerText}</span></div>
+            <div><span class="lbl">Ventilation Index</span><span class="val">${document.getElementById('val-vent-index').innerText}</span></div>
+            <div><span class="lbl">Night Drainage</span><span class="val">${document.getElementById('val-drain-dir').innerText} (${document.getElementById('val-drain-dist').innerText})</span></div>
+            <div style="grid-column: span 2;"><span class="lbl">Model Confidence</span><span class="val">${lastModelResult.confText}</span></div>
+          </div>
+
+          <div class="section-title">Smoke Dispersion Screening Map</div>
+          <div class="map-wrap"><img src="${topoUrl}">${svgHtml}</div>
+          <script>window.onload = function() { window.focus(); setTimeout(function() { window.print(); }, 400); };<\/script>
+        </body></html>`);
+      printWin.document.close();
+    }
+
+    /* =========================================================
+       9. AUTO-RUN INITIALIZATION
+       ========================================================= */
+    if (cleanUnitId || currentRings || parseSmartCoordinates(document.getElementById('coordInput').value)) {
+      runSmokeModel();
     }
   </script>
 </body>
